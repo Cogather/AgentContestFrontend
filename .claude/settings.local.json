@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "Bash(npm create vite@latest agent-game:*)",
+      "Bash(npm install)",
+      "Bash(npm install axios)",
+      "Bash(npm run build)",
+      "Bash(npx vite build)",
+      "Bash(node -e:*)",
+      "Bash(/bin/ls:*)"
+    ]
+  }
+}
