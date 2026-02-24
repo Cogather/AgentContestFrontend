@@ -130,7 +130,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { rankApi } from '../api'
 
 const props = defineProps({
@@ -209,8 +209,11 @@ const changePage = (page) => {
   }
 }
 
-const loadRanking = async () => {
-  loading.value = true
+const POLL_INTERVAL = 5000 // 每 5 秒刷新一次实时排名
+let pollTimer = null
+
+const loadRanking = async (silent = false) => {
+  if (!silent) loading.value = true
   try {
     const res = await rankApi.getRankList(1000)
     if (res.code === 0 && res.data) {
@@ -234,19 +237,29 @@ const loadRanking = async () => {
       }
     }
   } catch (error) {
-    console.error('Failed to load ranking:', error)
+    if (!silent) console.error('Failed to load ranking:', error)
   } finally {
     loading.value = false
   }
 }
 
-// 暴露刷新方法
+// 暴露刷新方法（强制显示 loading）
+const refresh = () => loadRanking(false)
+
 defineExpose({
-  refresh: loadRanking
+  refresh
 })
 
 onMounted(() => {
-  loadRanking()
+  loadRanking(false)
+  pollTimer = setInterval(() => loadRanking(true), POLL_INTERVAL)
+})
+
+onUnmounted(() => {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
 })
 </script>
 
