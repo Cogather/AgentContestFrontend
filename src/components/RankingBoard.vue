@@ -51,6 +51,7 @@
         <div class="col rank">排名</div>
         <div class="col name">姓名</div>
         <div class="col user-id">工号</div>
+        <div class="col department">部门</div>
         <div class="col agent">Agent</div>
         <div class="col tasks">完成任务</div>
         <div class="col score">得分</div>
@@ -84,6 +85,7 @@
             <span class="me-badge" v-if="item.user_id === currentUserId">我</span>
           </div>
           <div class="col user-id">{{ item.user_id }}</div>
+          <div class="col department">{{ item.department || '-' }}</div>
           <div class="col agent">
             <span class="agent-name">{{ item.team_name }}</span>
           </div>
@@ -443,7 +445,7 @@ onUnmounted(() => {
 
 .table-header {
   display: grid;
-  grid-template-columns: 80px 100px 100px 1fr 100px 100px 140px;
+  grid-template-columns: 80px 100px 100px 100px 1fr 100px 100px 140px;
   gap: 8px;
   padding: 16px 20px;
   background: rgba(255, 255, 255, 0.5);
@@ -465,7 +467,7 @@ onUnmounted(() => {
 
 .table-row {
   display: grid;
-  grid-template-columns: 80px 100px 100px 1fr 100px 100px 140px;
+  grid-template-columns: 80px 100px 100px 100px 1fr 100px 100px 140px;
   gap: 8px;
   padding: 16px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
@@ -663,7 +665,9 @@ onUnmounted(() => {
   }
 
   .table-header .col.time,
-  .table-row .col.time {
+  .table-row .col.time,
+  .table-header .col.department,
+  .table-row .col.department {
     display: none;
   }
 
