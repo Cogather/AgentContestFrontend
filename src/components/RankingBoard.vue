@@ -428,15 +428,16 @@ onUnmounted(() => {
 
 .status-badge {
   position: absolute;
-  top: 12px;
-  right: 16px;
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
+  top: 50%;
+  right: 24px;
+  transform: translateY(-50%);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .status-processing {
@@ -452,8 +453,8 @@ onUnmounted(() => {
 }
 
 .status-badge .status-dot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: currentColor;
 }
