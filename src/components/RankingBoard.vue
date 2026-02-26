@@ -488,8 +488,29 @@ onUnmounted(() => {
 }
 
 .table-body {
-  /* 移除固定高度，让内容自然撑开 */
-  min-height: 200px;
+  max-height: 500px;
+  overflow-y: auto;
+  /* 自定义滚动条样式 */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 127, 80, 0.3) rgba(0, 0, 0, 0.05);
+}
+
+.table-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.table-body::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+}
+
+.table-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 127, 80, 0.3);
+  border-radius: 3px;
+}
+
+.table-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 127, 80, 0.5);
 }
 
 .table-row {
