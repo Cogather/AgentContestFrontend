@@ -20,7 +20,10 @@
 
     <!-- 个人积分卡片 -->
     <div class="personal-card" v-if="personalRank">
-      <div class="personal-badge">我的积分</div>
+      <div class="status-badge" :class="personalRank.is_evaluating ? 'status-done' : 'status-processing'">
+        <span class="status-dot"></span>
+        {{ personalRank.is_evaluating ? '判题完成' : '判题中' }}
+      </div>
       <div class="personal-info">
         <div class="personal-rank">
           <span class="rank-number">#{{ personalRank.rank }}</span>
@@ -265,10 +268,29 @@ const loadRanking = async (silent = false) => {
         }
       }
     }
+    // TODO: 测试用，强制显示个人排名数据（模拟判题中状态）
+    if (!personalRank.value) {
+      personalRank.value = {
+        rank: '-',
+        score: 0,
+        completed_tasks: 0,
+        is_evaluating: false // false 表示判题中
+      }
+    }
   } catch (error) {
     if (!silent) console.error('Failed to load ranking:', error)
     // 接口失败时也加载 Mock 数据，方便演示
     rankingList.value = generateMockData()
+    
+    // 同样强制显示个人排名测试数据
+    if (!personalRank.value) {
+      personalRank.value = {
+        rank: '-',
+        score: 0,
+        completed_tasks: 0,
+        is_evaluating: false
+      }
+    }
   }
 }
 
@@ -403,16 +425,41 @@ onUnmounted(() => {
   background: linear-gradient(90deg, #ff7f50, #ff6347);
 }
 
-.personal-badge {
+
+.status-badge {
   position: absolute;
   top: 12px;
   right: 16px;
   padding: 4px 12px;
-  background: rgba(255, 127, 80, 0.2);
-  color: #ff6347;
+  border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
-  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-processing {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.status-done {
+  background: rgba(72, 187, 120, 0.15);
+  color: #48bb78;
+  border: 1px solid rgba(72, 187, 120, 0.3);
+}
+
+.status-badge .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.status-processing .status-dot {
+  animation: pulse 1.5s infinite;
 }
 
 .personal-info {
