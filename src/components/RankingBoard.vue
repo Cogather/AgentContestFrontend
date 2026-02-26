@@ -488,8 +488,8 @@ onUnmounted(() => {
 }
 
 .table-body {
-  max-height: 500px;
-  overflow-y: auto;
+  /* 移除固定高度，让内容自然撑开 */
+  min-height: 200px;
 }
 
 .table-row {
