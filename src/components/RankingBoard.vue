@@ -115,6 +115,13 @@
         <button
           class="page-btn"
           :disabled="currentPage === 1"
+          @click="changePage(1)"
+        >
+          首页
+        </button>
+        <button
+          class="page-btn"
+          :disabled="currentPage === 1"
           @click="changePage(currentPage - 1)"
         >
           上一页
@@ -137,6 +144,27 @@
         >
           下一页
         </button>
+        <button
+          class="page-btn"
+          :disabled="currentPage === totalPages"
+          @click="changePage(totalPages)"
+        >
+          末页
+        </button>
+      </div>
+
+      <div class="jump-page">
+        <span>共 {{ totalPages }} 页</span>
+        <span>前往</span>
+        <input 
+          type="number" 
+          v-model="jumpPageNum" 
+          @keyup.enter="handleJump"
+          @blur="handleJump"
+          min="1" 
+          :max="totalPages" 
+        />
+        <span>页</span>
       </div>
     </div>
   </div>
@@ -154,6 +182,7 @@ const rankingList = ref([])
 const currentPage = ref(1)
 const pageSize = ref(10)
 const personalRank = ref(null)
+const jumpPageNum = ref('')
 
 // Mock 数据生成函数
 const generateMockData = (count = 100) => {
@@ -235,6 +264,14 @@ const formatTime = (timeStr) => {
 const changePage = (page) => {
   if (page >= 1 && page <= totalPages.value) {
     currentPage.value = page
+  }
+}
+
+const handleJump = () => {
+  const page = parseInt(jumpPageNum.value)
+  if (page >= 1 && page <= totalPages.value) {
+    changePage(page)
+    jumpPageNum.value = ''
   }
 }
 
@@ -709,6 +746,33 @@ onUnmounted(() => {
   color: #666;
 }
 
+.jump-page {
+  position: absolute;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #666;
+}
+
+.jump-page input {
+  width: 48px;
+  padding: 4px 0;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  text-align: center;
+  outline: none;
+  background: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  color: #333;
+}
+
+.jump-page input:focus {
+  border-color: rgba(0, 212, 255, 0.5);
+  background: #fff;
+}
+
 .page-size-select select {
   padding: 4px 8px;
   border: 1px solid rgba(0, 0, 0, 0.1);
@@ -788,9 +852,11 @@ onUnmounted(() => {
     flex-direction: column;
     gap: 16px;
     padding-bottom: 10px;
+    height: auto;
   }
 
-  .page-size-select {
+  .page-size-select,
+  .jump-page {
     position: static;
   }
 
