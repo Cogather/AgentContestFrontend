@@ -139,6 +139,11 @@ const openHistory = () => {
 const closeHistory = () => {
   showHistoryModal.value = false
 }
+
+// 查看题目详情
+const showChallengeDetail = () => {
+  alert(challengeContent.value)
+}
 </script>
 
 <template>
@@ -233,7 +238,15 @@ const closeHistory = () => {
               <h2>参赛题目</h2>
             </div>
             <div class="card-body">
-              <pre class="challenge-text">{{ challengeContent }}</pre>
+              <div class="challenge-content">
+                <pre class="challenge-text">{{ challengeContent }}</pre>
+              </div>
+              <div class="challenge-footer">
+                <button class="btn btn-primary btn-detail" @click="showChallengeDetail">
+                  <span class="btn-icon">🔍</span>
+                  查看详情
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -518,6 +531,13 @@ body {
 /* 参赛题目卡片 */
 .challenge-card .card-body {
   padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.challenge-content {
+  flex: 1;
+  overflow: hidden;
 }
 
 .challenge-text {
@@ -528,8 +548,19 @@ body {
   color: #666666;
   white-space: pre-wrap;
   word-wrap: break-word;
-  max-height: 280px;
+  max-height: 220px;
   overflow-y: auto;
+}
+
+.challenge-footer {
+  padding: 16px 20px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.btn-detail {
+  width: 100%;
+  justify-content: center;
 }
 
 /* 用户卡片 */
