@@ -24,6 +24,8 @@ const challengeContent = ref(`欢迎参加 Agent 大赛！
 // 用户配置
 const currentUser = ref(null)
 const showConfigModal = ref(false)
+// header logo 图片加载失败时显示 emoji
+const headerLogoError = ref(false)
 const showConfirmModal = ref(false)
 const showHistoryModal = ref(false)
 const rankingBoardRef = ref(null)
@@ -145,7 +147,14 @@ const closeHistory = () => {
     <header class="header">
       <div class="header-content">
         <div class="logo">
-          <span class="logo-icon">🤖</span>
+          <img
+            v-show="!headerLogoError"
+            class="logo-img"
+            src="./assets/logo.png"
+            alt="Agent Game"
+            @error="headerLogoError = true"
+          />
+          <span v-show="headerLogoError" class="logo-icon">🤖</span>
           <span class="logo-text">Agent Game</span>
           <span class="logo-badge">v1.0</span>
         </div>
@@ -348,6 +357,13 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.logo-img {
+  height: 40px;
+  width: auto;
+  display: block;
+  object-fit: contain;
 }
 
 .logo-icon {
@@ -617,7 +633,7 @@ body {
 .btn-judge {
   width: 100%;
   padding: 18px;
-  background: linear-gradient(135deg, #ff7f50, #ff6347);
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
   color: #fff;
   font-size: 16px;
   font-weight: 600;
@@ -646,7 +662,7 @@ body {
 
 .btn-judge:hover {
   transform: translateY(-3px);
-  box-shadow: 0 12px 32px rgba(147, 51, 234, 0.4);
+  box-shadow: 0 12px 32px rgba(29, 78, 216, 0.4);
 }
 
 /* 未配置状态 */
