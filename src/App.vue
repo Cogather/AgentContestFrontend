@@ -144,6 +144,15 @@ const closeHistory = () => {
 const showChallengeDetail = () => {
   alert(challengeContent.value)
 }
+
+// 查看平台操作指导
+const showGuide = () => {
+  alert(`平台操作指导：
+1. 点击“立即配置”或“修改配置”填写参赛信息。
+2. 确保您的 Agent 服务已启动并可访问。
+3. 点击“开始判题”进行评测。
+4. 查看右侧排行榜关注排名变化。`)
+}
 </script>
 
 <template>
@@ -187,6 +196,10 @@ const showChallengeDetail = () => {
             <div class="card-header">
               <span class="card-icon">👤</span>
               <h2>参赛信息</h2>
+              <button class="btn-guide" @click="showGuide">
+                <span class="guide-icon">📖</span>
+                平台操作指导
+              </button>
             </div>
             <div class="card-body">
               <!-- 已配置状态 -->
@@ -522,6 +535,25 @@ body {
   font-weight: 600;
   color: #333333;
   flex: 1;
+}
+
+.btn-guide {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 127, 80, 0.3);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.5);
+  color: #ff6347;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-guide:hover {
+  background: rgba(255, 127, 80, 0.1);
+  transform: translateY(-1px);
 }
 
 .card-body {
