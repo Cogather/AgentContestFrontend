@@ -147,11 +147,8 @@ const showChallengeDetail = () => {
 
 // 查看平台操作指导
 const showGuide = () => {
-  alert(`平台操作指导：
-1. 点击“立即配置”或“修改配置”填写参赛信息。
-2. 确保您的 Agent 服务已启动并可访问。
-3. 点击“开始判题”进行评测。
-4. 查看右侧排行榜关注排名变化。`)
+  // TODO: 请替换为实际的操作指导文档链接
+  window.open('https://www.example.com/guide', '_blank')
 }
 </script>
 
