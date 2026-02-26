@@ -72,6 +72,11 @@
           class="table-row"
           :class="{
             'top-three': item.rank <= 3,
+            'top-ten': item.rank > 3 && item.rank <= 10,
+            'top-twenty': item.rank > 10 && item.rank <= 20,
+            'top-fifty': item.rank > 20 && item.rank <= 50,
+            'top-hundred': item.rank > 50 && item.rank <= 100,
+            'top-two-hundred': item.rank > 100 && item.rank <= 200,
             'is-me': item.user_id === currentUserId
           }"
         >
@@ -618,6 +623,26 @@ onUnmounted(() => {
 
 .table-row.top-three {
   background: linear-gradient(90deg, rgba(237, 137, 54, 0.1), transparent);
+}
+
+.table-row.top-ten {
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.08), transparent);
+}
+
+.table-row.top-twenty {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.08), transparent);
+}
+
+.table-row.top-fifty {
+  background: linear-gradient(90deg, rgba(139, 92, 246, 0.05), transparent);
+}
+
+.table-row.top-hundred {
+  background: linear-gradient(90deg, rgba(236, 72, 153, 0.05), transparent);
+}
+
+.table-row.top-two-hundred {
+  background: linear-gradient(90deg, rgba(107, 114, 128, 0.05), transparent);
 }
 
 .table-row .col {
