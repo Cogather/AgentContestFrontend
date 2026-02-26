@@ -58,12 +58,7 @@
         <div class="col time">时间</div>
       </div>
 
-      <div v-if="loading" class="loading-row">
-        <span class="loading-spinner"></span>
-        <span>加载中...</span>
-      </div>
-
-      <div v-else-if="paginatedList.length === 0" class="empty-row">
+      <div v-if="paginatedList.length === 0" class="empty-row">
         暂无排名数据
       </div>
 
@@ -100,33 +95,46 @@
       </div>
     </div>
 
-    <!-- 分页 -->
-    <div class="pagination" v-if="totalPages > 1">
-      <button
-        class="page-btn"
-        :disabled="currentPage === 1"
-        @click="changePage(currentPage - 1)"
-      >
-        上一页
-      </button>
-      <div class="page-numbers">
+    <!-- 分页控制区 -->
+    <div class="pagination-bar" v-if="rankingList.length > 0">
+      <div class="page-size-select">
+        <span>每页显示</span>
+        <select v-model="pageSize" @change="currentPage = 1">
+          <option :value="10">10</option>
+          <option :value="20">20</option>
+          <option :value="50">50</option>
+          <option :value="100">100</option>
+        </select>
+        <span>条</span>
+      </div>
+
+      <div class="pagination" v-if="totalPages > 1">
         <button
-          v-for="page in visiblePages"
-          :key="page"
-          class="page-num"
-          :class="{ active: page === currentPage }"
-          @click="changePage(page)"
+          class="page-btn"
+          :disabled="currentPage === 1"
+          @click="changePage(currentPage - 1)"
         >
-          {{ page }}
+          上一页
+        </button>
+        <div class="page-numbers">
+          <button
+            v-for="page in visiblePages"
+            :key="page"
+            class="page-num"
+            :class="{ active: page === currentPage }"
+            @click="changePage(page)"
+          >
+            {{ page }}
+          </button>
+        </div>
+        <button
+          class="page-btn"
+          :disabled="currentPage === totalPages"
+          @click="changePage(currentPage + 1)"
+        >
+          下一页
         </button>
       </div>
-      <button
-        class="page-btn"
-        :disabled="currentPage === totalPages"
-        @click="changePage(currentPage + 1)"
-      >
-        下一页
-      </button>
     </div>
   </div>
 </template>
@@ -140,10 +148,26 @@ const props = defineProps({
 })
 
 const rankingList = ref([])
-const loading = ref(false)
 const currentPage = ref(1)
-const pageSize = 10
+const pageSize = ref(10)
 const personalRank = ref(null)
+
+// Mock 数据生成函数
+const generateMockData = (count = 100) => {
+  const departments = ['研发部', '产品部', '测试部', '运维部', '设计部']
+  const agents = ['DeepSeek-V3', 'GPT-4o', 'Claude-3.5', 'Gemini-Pro', 'Llama-3']
+  
+  return Array.from({ length: count }, (_, i) => ({
+    rank: i + 1,
+    username: `参赛者${1000 + i}`,
+    user_id: `USER_${2024000 + i}`,
+    department: departments[Math.floor(Math.random() * departments.length)],
+    team_name: agents[Math.floor(Math.random() * agents.length)],
+    completed_tasks: Math.floor(Math.random() * 50) + 10,
+    score: Math.floor(Math.random() * 1000) + 500,
+    update_time: new Date(Date.now() - Math.floor(Math.random() * 86400000)).toISOString()
+  })).sort((a, b) => b.score - a.score).map((item, index) => ({ ...item, rank: index + 1 }))
+}
 
 const totalParticipants = computed(() => rankingList.value.length)
 
@@ -153,12 +177,12 @@ const totalScore = computed(() => {
 })
 
 const totalPages = computed(() => {
-  return Math.ceil(rankingList.value.length / pageSize)
+  return Math.ceil(rankingList.value.length / pageSize.value)
 })
 
 const paginatedList = computed(() => {
-  const start = (currentPage.value - 1) * pageSize
-  const end = start + pageSize
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
   return rankingList.value.slice(start, end)
 })
 
@@ -215,33 +239,36 @@ const POLL_INTERVAL = 5000 // 每 5 秒刷新一次实时排名
 let pollTimer = null
 
 const loadRanking = async (silent = false) => {
-  if (!silent) loading.value = true
   try {
     const res = await rankApi.getRankList(1000)
-    if (res.code === 0 && res.data) {
+    if (res.code === 0 && res.data && res.data.length > 0) {
       rankingList.value = res.data
-      // 查找当前用户排名
-      if (props.currentUserId) {
-        const myRank = rankingList.value.find(item => item.user_id === props.currentUserId)
-        if (myRank) {
-          personalRank.value = myRank
-        } else {
-          // 如果排行榜中没有，尝试获取单独的用户排名
-          try {
-            const userRankRes = await rankApi.getUserRank(props.currentUserId)
-            if (userRankRes.code === 0 && userRankRes.data) {
-              personalRank.value = userRankRes.data
-            }
-          } catch (e) {
-            personalRank.value = null
+    } else {
+      // 如果没有数据，加载 Mock 数据
+      rankingList.value = generateMockData()
+    }
+
+    // 查找当前用户排名
+    if (props.currentUserId) {
+      const myRank = rankingList.value.find(item => item.user_id === props.currentUserId)
+      if (myRank) {
+        personalRank.value = myRank
+      } else {
+        // 如果排行榜中没有，尝试获取单独的用户排名
+        try {
+          const userRankRes = await rankApi.getUserRank(props.currentUserId)
+          if (userRankRes.code === 0 && userRankRes.data) {
+            personalRank.value = userRankRes.data
           }
+        } catch (e) {
+          personalRank.value = null
         }
       }
     }
   } catch (error) {
     if (!silent) console.error('Failed to load ranking:', error)
-  } finally {
-    loading.value = false
+    // 接口失败时也加载 Mock 数据，方便演示
+    rankingList.value = generateMockData()
   }
 }
 
@@ -593,12 +620,44 @@ onUnmounted(() => {
   }
 }
 
+.pagination-bar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+  padding: 0 10px;
+  position: relative;
+}
+
+.page-size-select {
+  position: absolute;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #666;
+}
+
+.page-size-select select {
+  padding: 4px 8px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.5);
+  color: #333;
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+}
+
+.page-size-select select:hover {
+  border-color: rgba(0, 212, 255, 0.3);
+}
+
 .pagination {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 8px;
-  margin-top: 20px;
 }
 
 .page-btn {
@@ -655,6 +714,16 @@ onUnmounted(() => {
 }
 
 @media (max-width: 900px) {
+  .pagination-bar {
+    flex-direction: column;
+    gap: 16px;
+    padding-bottom: 10px;
+  }
+
+  .page-size-select {
+    position: static;
+  }
+
   .stats-section {
     grid-template-columns: 1fr;
   }
