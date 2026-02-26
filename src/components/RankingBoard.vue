@@ -625,8 +625,9 @@ onUnmounted(() => {
   justify-content: center;
   align-items: center;
   margin-top: 20px;
-  padding: 0 10px;
+  padding: 10px;
   position: relative;
+  min-height: 40px;
 }
 
 .page-size-select {
