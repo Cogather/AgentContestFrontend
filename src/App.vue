@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { userApi } from './api'
+import { userApi, commonApi } from './api'
 import UserConfigModal from './components/UserConfigModal.vue'
 import ConfirmModal from './components/ConfirmModal.vue'
 import HistoryModal from './components/HistoryModal.vue'
@@ -32,6 +32,17 @@ const rankingBoardRef = ref(null)
 
 // 页面加载时尝试获取当前用户信息
 onMounted(async () => {
+  // 注入一条测试用户数据，方便调试
+  const testUser = {
+    username: '测试选手',
+    user_id: 'USER_TEST_001',
+    team_name: 'DeepSeek-Test',
+    agent_ip: '127.0.0.1',
+    agent_port: '8000'
+  }
+  currentUser.value = testUser
+  localStorage.setItem('agent_game_user', JSON.stringify(testUser))
+
   // 从 localStorage 读取之前保存的用户信息
   const savedUser = localStorage.getItem('agent_game_user')
   if (savedUser) {
@@ -138,6 +149,50 @@ const openHistory = () => {
 // 关闭历史记录
 const closeHistory = () => {
   showHistoryModal.value = false
+}
+
+// 文件上传相关
+const fileInput = ref(null)
+
+const triggerUpload = () => {
+  if (!currentUser.value) {
+    alert('请先配置参赛信息')
+    return
+  }
+  fileInput.value.click()
+}
+
+const handleFileUpload = async (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+
+  // 简单验证文件后缀
+  if (!file.name.endsWith('.zip')) {
+    alert('请上传 .zip 格式的压缩包')
+    event.target.value = ''
+    return
+  }
+
+  const formData = new FormData()
+  formData.append('file', file)
+  // 如果需要传递用户ID
+  if (currentUser.value) {
+    formData.append('user_id', currentUser.value.user_id)
+  }
+
+  try {
+    const res = await commonApi.uploadCode(formData)
+    if (res.code === 0) {
+      alert('代码上传成功！')
+    } else {
+      alert(res.message || '上传失败')
+    }
+  } catch (error) {
+    console.error('Upload error:', error)
+    alert('上传出错，请检查网络或重试')
+  } finally {
+    event.target.value = ''
+  }
 }
 
 // 查看题目详情
@@ -267,6 +322,18 @@ const showGuide = () => {
             <span class="btn-icon">🚀</span>
             开始判题
           </button>
+          
+          <button class="btn btn-upload btn-large" @click="triggerUpload">
+            <span class="btn-icon">📤</span>
+            上传代码
+          </button>
+          <input 
+            type="file" 
+            ref="fileInput" 
+            style="display: none" 
+            accept=".zip"
+            @change="handleFileUpload"
+          >
         </div>
 
         <!-- 右侧面板：排行榜 -->
@@ -468,12 +535,14 @@ body {
 .judge-section {
   display: flex;
   justify-content: center;
+  gap: 24px;
 }
 
-.judge-section .btn-judge {
-  max-width: 400px;
-  padding: 20px 60px;
-  font-size: 20px;
+.judge-section .btn-judge,
+.judge-section .btn-upload {
+  max-width: 300px;
+  padding: 20px 40px;
+  font-size: 18px;
 }
 
 .container {
@@ -723,6 +792,41 @@ body {
 .btn-judge:hover {
   transform: translateY(-3px);
   box-shadow: 0 12px 32px rgba(29, 78, 216, 0.4);
+}
+
+.btn-upload {
+  width: 100%;
+  padding: 18px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-upload::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.btn-upload:hover::before {
+  left: 100%;
+}
+
+.btn-upload:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(16, 185, 129, 0.4);
 }
 
 /* 未配置状态 */

@@ -45,4 +45,14 @@ export const rankApi = {
   getUserRank: (userId) => api.get(`/api/rank/${userId}`)
 }
 
+// 通用接口
+export const commonApi = {
+  // 上传代码
+  uploadCode: (formData) => api.post('/api/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
 export default api
