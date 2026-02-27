@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { userApi, commonApi } from './api'
+import UploadModal from './components/UploadModal.vue'
 import UserConfigModal from './components/UserConfigModal.vue'
 import ConfirmModal from './components/ConfirmModal.vue'
 import HistoryModal from './components/HistoryModal.vue'
@@ -23,6 +24,7 @@ const challengeContent = ref(`欢迎参加 Agent 大赛！
 
 // 用户配置
 const currentUser = ref(null)
+const showUploadModal = ref(false)
 const showConfigModal = ref(false)
 // header logo 图片加载失败时显示 emoji
 const headerLogoError = ref(false)
@@ -151,48 +153,24 @@ const closeHistory = () => {
   showHistoryModal.value = false
 }
 
-// 文件上传相关
-const fileInput = ref(null)
-
-const triggerUpload = () => {
+// 打开上传弹窗
+const openUpload = () => {
   if (!currentUser.value) {
     alert('请先配置参赛信息')
     return
   }
-  fileInput.value.click()
+  showUploadModal.value = true
 }
 
-const handleFileUpload = async (event) => {
-  const file = event.target.files[0]
-  if (!file) return
+// 关闭上传弹窗
+const closeUpload = () => {
+  showUploadModal.value = false
+}
 
-  // 简单验证文件后缀
-  if (!file.name.endsWith('.zip')) {
-    alert('请上传 .zip 格式的压缩包')
-    event.target.value = ''
-    return
-  }
-
-  const formData = new FormData()
-  formData.append('file', file)
-  // 如果需要传递用户ID
-  if (currentUser.value) {
-    formData.append('user_id', currentUser.value.user_id)
-  }
-
-  try {
-    const res = await commonApi.uploadCode(formData)
-    if (res.code === 0) {
-      alert('代码上传成功！')
-    } else {
-      alert(res.message || '上传失败')
-    }
-  } catch (error) {
-    console.error('Upload error:', error)
-    alert('上传出错，请检查网络或重试')
-  } finally {
-    event.target.value = ''
-  }
+// 处理上传成功
+const handleUploadSuccess = () => {
+  closeUpload()
+  alert('代码上传成功！')
 }
 
 // 查看题目详情
@@ -323,17 +301,13 @@ const showGuide = () => {
             开始判题
           </button>
           
-          <button class="btn btn-upload btn-large" @click="triggerUpload">
+          <button 
+            class="btn btn-upload btn-large" 
+            @click="openUpload"
+          >
             <span class="btn-icon">📤</span>
             上传代码
           </button>
-          <input 
-            type="file" 
-            ref="fileInput" 
-            style="display: none" 
-            accept=".zip"
-            @change="handleFileUpload"
-          >
         </div>
 
         <!-- 右侧面板：排行榜 -->
@@ -359,6 +333,13 @@ const showGuide = () => {
     </main>
 
     <!-- 弹窗组件 -->
+    <UploadModal
+      :visible="showUploadModal"
+      :userId="currentUser?.user_id"
+      @close="closeUpload"
+      @success="handleUploadSuccess"
+    />
+
     <UserConfigModal
       :visible="showConfigModal"
       :initialData="currentUser || {}"
@@ -809,6 +790,10 @@ body {
   overflow: hidden;
 }
 
+.btn-upload > * {
+  pointer-events: none;
+}
+
 .btn-upload::before {
   content: '';
   position: absolute;
@@ -824,9 +809,15 @@ body {
   left: 100%;
 }
 
-.btn-upload:hover {
+.btn-upload:hover,
+.btn-upload.is-dragging {
   transform: translateY(-3px);
   box-shadow: 0 12px 32px rgba(16, 185, 129, 0.4);
+}
+
+.btn-upload.is-dragging {
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: scale(1.05);
 }
 
 /* 未配置状态 */
