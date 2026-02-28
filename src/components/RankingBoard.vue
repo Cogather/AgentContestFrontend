@@ -48,6 +48,27 @@
       <div class="empty-text">登录后查看我的排名</div>
     </div>
 
+    <!-- 统一搜索区 -->
+    <div class="search-bar">
+      <div class="search-group">
+        <select v-model="searchField" class="search-select">
+          <option value="all">全部</option>
+          <option value="username">姓名</option>
+          <option value="user_id">工号</option>
+          <option value="department">部门</option>
+        </select>
+        <div class="search-input-wrapper">
+          <input 
+            v-model="searchValue" 
+            :placeholder="searchPlaceholder" 
+            class="search-input"
+            @input="currentPage = 1"
+          />
+          <button v-if="searchValue" class="clear-btn" @click="searchValue = ''; currentPage = 1">×</button>
+        </div>
+      </div>
+    </div>
+
     <!-- 排行榜表格 -->
     <div class="table-container">
       <div class="table-header">
@@ -57,7 +78,12 @@
         <div class="col department">部门</div>
         <div class="col agent">Agent</div>
         <div class="col tasks">完成任务</div>
-        <div class="col score">得分</div>
+        <div class="col score filterable">
+          <div class="sort-header" @click="toggleSort('score')">
+            得分
+            <span class="sort-icon" :class="sortOrder">{{ sortOrder === 'desc' ? '↓' : '↑' }}</span>
+          </div>
+        </div>
         <div class="col time">时间</div>
       </div>
 
@@ -188,6 +214,25 @@ const currentPage = ref(1)
 const pageSize = ref(10)
 const personalRank = ref(null)
 const jumpPageNum = ref('')
+const searchField = ref('all')
+const searchValue = ref('')
+const sortOrder = ref('desc') // desc | asc
+
+const searchPlaceholder = computed(() => {
+  const map = {
+    all: '搜索姓名、工号或部门...',
+    username: '请输入姓名...',
+    user_id: '请输入工号...',
+    department: '请输入部门...'
+  }
+  return map[searchField.value]
+})
+
+const toggleSort = (field) => {
+  if (field === 'score') {
+    sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'
+  }
+}
 
 // Mock 数据生成函数
 const generateMockData = (count = 100) => {
@@ -206,6 +251,35 @@ const generateMockData = (count = 100) => {
   })).sort((a, b) => b.score - a.score).map((item, index) => ({ ...item, rank: index + 1 }))
 }
 
+const filteredRankingList = computed(() => {
+  let result = rankingList.value
+
+  // 统一搜索
+  if (searchValue.value) {
+    const keyword = searchValue.value.trim().toLowerCase()
+    result = result.filter(item => {
+      if (searchField.value === 'all') {
+        return String(item.username).toLowerCase().includes(keyword) ||
+               String(item.user_id).toLowerCase().includes(keyword) ||
+               String(item.department).toLowerCase().includes(keyword)
+      } else {
+        return String(item[searchField.value]).toLowerCase().includes(keyword)
+      }
+    })
+  }
+
+  // 排序
+  result = [...result].sort((a, b) => {
+    if (sortOrder.value === 'desc') {
+      return (b.score || 0) - (a.score || 0)
+    } else {
+      return (a.score || 0) - (b.score || 0)
+    }
+  })
+
+  return result
+})
+
 const totalParticipants = computed(() => rankingList.value.length)
 
 const totalScore = computed(() => {
@@ -214,13 +288,13 @@ const totalScore = computed(() => {
 })
 
 const totalPages = computed(() => {
-  return Math.ceil(rankingList.value.length / pageSize.value)
+  return Math.ceil(filteredRankingList.value.length / pageSize.value)
 })
 
 const paginatedList = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
   const end = start + pageSize.value
-  return rankingList.value.slice(start, end)
+  return filteredRankingList.value.slice(start, end)
 })
 
 const visiblePages = computed(() => {
@@ -552,6 +626,67 @@ onUnmounted(() => {
   color: #333333;
 }
 
+.filter-bar {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.search-input-wrapper {
+  position: relative;
+  width: 240px;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  font-size: 14px;
+  color: #888;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  padding: 10px 36px 10px 36px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  color: #333;
+  outline: none;
+  transition: all 0.3s;
+}
+
+.search-input:focus {
+  background: #fff;
+  border-color: rgba(0, 212, 255, 0.5);
+  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+}
+
+.clear-btn {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.clear-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #666;
+}
+
 .table-container {
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(10px);
@@ -567,6 +702,23 @@ onUnmounted(() => {
   padding: 16px 20px;
   background: rgba(255, 255, 255, 0.5);
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.sort-header {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  user-select: none;
+}
+
+.sort-header:hover {
+  color: #333;
+}
+
+.sort-icon {
+  font-size: 12px;
+  font-weight: bold;
 }
 
 .table-header .col {
@@ -864,6 +1016,88 @@ onUnmounted(() => {
 .page-num:hover {
   background: rgba(0, 212, 255, 0.1);
   color: #00d4ff;
+}
+
+.search-bar {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.search-group {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  padding: 4px;
+  transition: all 0.3s;
+  overflow: hidden;
+}
+
+.search-group:hover,
+.search-group:focus-within {
+  border-color: rgba(0, 212, 255, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 212, 255, 0.1);
+}
+
+.search-select {
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  color: #555;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+  border-right: 1px solid rgba(0, 0, 0, 0.06);
+  height: 36px;
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 240px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 8px 32px 8px 12px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  color: #333;
+  outline: none;
+  height: 36px;
+}
+
+.search-input::placeholder {
+  color: #999;
+}
+
+.clear-btn {
+  position: absolute;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.05);
+  border: none;
+  font-size: 14px;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.clear-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #666;
 }
 
 .page-num.active {
