@@ -73,12 +73,18 @@ export const rankApi = {
   // 获取排行榜列表（聚合黄区和绿区数据）
   getRankList: async (limit) => {
     // 定义请求函数
-    const fetchRank = (baseUrl) => axios.get(`${baseUrl}/api/rank`, { params: { limit } })
-      .then(res => res.data)
-      .catch(e => {
-        console.error(`Fetch rank from ${baseUrl} failed:`, e)
+    const fetchRank = async (baseUrl) => {
+      try {
+        const res = await axios.get(`${baseUrl}/api/rank`, { 
+          params: { limit },
+          timeout: 3000 // 设置超时时间
+        })
+        return res.data
+      } catch (e) {
+        console.warn(`Fetch rank from ${baseUrl} failed:`, e.message)
         return { code: -1, data: [] }
-      })
+      }
+    }
 
     try {
       // 并行请求两个区域
@@ -112,7 +118,7 @@ export const rankApi = {
         }
       })
 
-      // 转回数组并按分数排序（假设后端也是按分数排的，这里重新排一下比较保险）
+      // 转回数组并按分数排序
       const mergedList = Array.from(map.values()).sort((a, b) => (b.score || 0) - (a.score || 0))
 
       return {
@@ -126,7 +132,42 @@ export const rankApi = {
   },
 
   // 获取单个用户排名
-  getUserRank: (userId) => api.get(`/api/rank/${userId}`)
+  getUserRank: async (userId) => {
+    const fetchUser = async (baseUrl) => {
+      try {
+        const res = await axios.get(`${baseUrl}/api/rank/${userId}`, {
+          timeout: 3000
+        })
+        return res.data
+      } catch (e) {
+        console.warn(`Fetch user rank from ${baseUrl} failed:`, e.message)
+        return { code: -1 }
+      }
+    }
+
+    try {
+      const [res1, res2] = await Promise.all([
+        fetchUser(ZONES.yellow),
+        fetchUser(ZONES.green)
+      ])
+
+      const data1 = (res1.code === 0 && res1.data) ? res1.data : null
+      const data2 = (res2.code === 0 && res2.data) ? res2.data : null
+
+      if (!data1 && !data2) return { code: -1, message: '未找到用户排名信息' }
+      if (data1 && !data2) return res1
+      if (!data1 && data2) return res2
+
+      // 比较更新时间，返回最新的
+      const time1 = new Date(data1.updated_at || 0).getTime()
+      const time2 = new Date(data2.updated_at || 0).getTime()
+
+      return time1 >= time2 ? res1 : res2
+    } catch (error) {
+      console.error('Aggregate user rank error:', error)
+      return { code: -1, message: '获取用户排名失败' }
+    }
+  }
 }
 
 // 通用接口
