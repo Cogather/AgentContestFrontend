@@ -360,12 +360,14 @@ let pollTimer = null
 const loadRanking = async (silent = false) => {
   try {
     const res = await rankApi.getRankList(1000)
-    if (res.code === 0 && res.data && res.data.length > 0) {
+    // 只要有数据就显示，不管 code 是否为 0（因为部分成功也会返回数据）
+    if (res.data && res.data.length > 0) {
       rankingList.value = res.data
-    } else {
-      // 如果没有数据，加载 Mock 数据
+    } else if (res.code !== 0 && rankingList.value.length === 0) {
+      // 只有在完全失败且当前没有数据时，才加载 Mock 数据
       rankingList.value = generateMockData()
     }
+    // 如果返回空数组但 code 为 0，说明确实没数据，保持为空或清空（视需求而定，这里暂不清空以防闪烁）
 
     // 查找当前用户排名
     if (props.currentUserId) {
@@ -376,11 +378,11 @@ const loadRanking = async (silent = false) => {
         // 如果排行榜中没有，尝试获取单独的用户排名
         try {
           const userRankRes = await rankApi.getUserRank(props.currentUserId)
-          if (userRankRes.code === 0 && userRankRes.data) {
+          if (userRankRes && userRankRes.data) {
             personalRank.value = userRankRes.data
           }
         } catch (e) {
-          personalRank.value = null
+          // 忽略错误，保持现有状态
         }
       }
     }
@@ -396,7 +398,9 @@ const loadRanking = async (silent = false) => {
   } catch (error) {
     if (!silent) console.error('Failed to load ranking:', error)
     // 接口失败时也加载 Mock 数据，方便演示
-    rankingList.value = generateMockData()
+    if (rankingList.value.length === 0) {
+      rankingList.value = generateMockData()
+    }
     
     // 同样强制显示个人排名测试数据
     if (!personalRank.value) {

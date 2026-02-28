@@ -77,7 +77,7 @@ export const rankApi = {
       try {
         const res = await axios.get(`${baseUrl}/api/rank`, { 
           params: { limit },
-          timeout: 3000 // 设置超时时间
+          timeout: 5000 // 调整超时时间为 5s，避免等待过久
         })
         return res.data
       } catch (e) {
@@ -136,7 +136,7 @@ export const rankApi = {
     const fetchUser = async (baseUrl) => {
       try {
         const res = await axios.get(`${baseUrl}/api/rank/${userId}`, {
-          timeout: 3000
+          timeout: 5000 // 调整超时时间为 5s
         })
         return res.data
       } catch (e) {
