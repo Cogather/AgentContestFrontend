@@ -110,8 +110,8 @@ export const rankApi = {
           map.set(item.user_id, item)
         } else {
           // 比较时间，保留较新的
-          const existingTime = new Date(existing.updated_at || 0).getTime()
-          const newTime = new Date(item.updated_at || 0).getTime()
+          const existingTime = new Date(existing.update_time || existing.updated_at || 0).getTime()
+          const newTime = new Date(item.update_time || item.updated_at || 0).getTime()
           if (newTime > existingTime) {
             map.set(item.user_id, item)
           }
@@ -159,8 +159,8 @@ export const rankApi = {
       if (!data1 && data2) return res2
 
       // 比较更新时间，返回最新的
-      const time1 = new Date(data1.updated_at || 0).getTime()
-      const time2 = new Date(data2.updated_at || 0).getTime()
+      const time1 = new Date(data1.update_time || data1.updated_at || 0).getTime()
+      const time2 = new Date(data2.update_time || data2.updated_at || 0).getTime()
 
       return time1 >= time2 ? res1 : res2
     } catch (error) {
