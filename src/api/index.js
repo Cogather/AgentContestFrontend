@@ -119,7 +119,12 @@ export const rankApi = {
       })
 
       // 转回数组并按分数排序
-      const mergedList = Array.from(map.values()).sort((a, b) => (b.score || 0) - (a.score || 0))
+      const mergedList = Array.from(map.values())
+        .sort((a, b) => (b.score || 0) - (a.score || 0))
+        .map((item, index) => ({
+          ...item,
+          rank: index + 1 // 重新计算排名
+        }))
 
       return {
         code: 0,
