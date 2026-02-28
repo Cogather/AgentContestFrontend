@@ -27,6 +27,13 @@
           <span class="hint" v-if="formData.user_id && formData.user_id.length !== 8">工号必须为8位</span>
         </div>
         <div class="form-group">
+          <label>区域 <span class="required">*</span></label>
+          <select v-model="formData.area">
+            <option value="yellow">黄区</option>
+            <option value="green">绿区</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label>Agent Name <span class="required">*</span></label>
           <input
             type="text"
@@ -78,6 +85,7 @@ const emit = defineEmits(['close', 'confirm'])
 const formData = ref({
   username: '',
   user_id: '',
+  area: 'yellow',
   team_name: '',
   agent_ip: '',
   agent_port: ''
@@ -200,7 +208,8 @@ const confirm = () => {
   color: #ff6b6b;
 }
 
-.form-group input {
+.form-group input,
+.form-group select {
   width: 100%;
   padding: 12px 16px;
   background: rgba(0, 0, 0, 0.3);
@@ -212,10 +221,25 @@ const confirm = () => {
   box-sizing: border-box;
 }
 
-.form-group input:focus {
+.form-group input:focus,
+.form-group select:focus {
   outline: none;
   border-color: #00d4ff;
   box-shadow: 0 0 12px rgba(0, 212, 255, 0.2);
+}
+
+.form-group select {
+  cursor: pointer;
+  appearance: none; /* Remove default arrow */
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300d4ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+}
+
+.form-group select option {
+  background-color: #16213e;
+  color: #fff;
 }
 
 .form-group input::placeholder {

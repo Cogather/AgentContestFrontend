@@ -1,13 +1,39 @@
 import axios from 'axios'
 
+// 获取 Base URL
+const getBaseUrl = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem('agent_game_user') || '{}')
+    // 根据区域返回不同的 Base URL
+    if (user.area === 'green') {
+      return 'http://10.12.0.10:8080' // 绿区地址
+    }
+    return 'http://172.22.0.10:8080' // 黄区地址（默认）
+  } catch (e) {
+    return 'http://172.22.0.10:8080'
+  }
+}
+
 // 创建 axios 实例
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
+  baseURL: getBaseUrl(),
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'
   }
 })
+
+// 请求拦截器
+api.interceptors.request.use(
+  config => {
+    // 每次请求前动态获取 baseURL，确保配置修改后立即生效
+    config.baseURL = getBaseUrl()
+    return config
+  },
+  error => {
+    return Promise.reject(error)
+  }
+)
 
 // 响应拦截器
 api.interceptors.response.use(
