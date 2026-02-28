@@ -303,7 +303,8 @@ const showGuide = () => {
           
           <button 
             class="btn btn-upload btn-large" 
-            @click="openUpload"
+            disabled
+            style="opacity: 0.5; cursor: not-allowed;"
           >
             <span class="btn-icon">📤</span>
             上传代码
