@@ -178,7 +178,11 @@ export const rankApi = {
 // 通用接口
 export const commonApi = {
   // 上传代码
-  uploadCode: (formData) => api.post('/api/upload', formData)
+  uploadCode: (userId, formData) => api.post(`/api/upload/${userId}`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
 }
 
 export default api

@@ -50,12 +50,10 @@ const uploadFile = async (file, inputTarget = null) => {
   uploading.value = true
   const formData = new FormData()
   formData.append('file', file)
-  if (props.userId) {
-    formData.append('user_id', props.userId)
-  }
-
+  // user_id作为路径参数传递，也可保留在formData中，根据需要
+  
   try {
-    const res = await commonApi.uploadCode(formData)
+    const res = await commonApi.uploadCode(props.userId, formData)
     if (res.code === 0) {
       emit('success')
     } else {
