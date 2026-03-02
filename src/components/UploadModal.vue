@@ -12,9 +12,11 @@ const emit = defineEmits(['close', 'success'])
 const isDragging = ref(false)
 const fileInput = ref(null)
 const uploading = ref(false)
+const selectedFile = ref(null)
 
 const close = () => {
   if (uploading.value) return
+  selectedFile.value = null
   emit('close')
 }
 
@@ -28,33 +30,45 @@ const handleDrop = (event) => {
   isDragging.value = false
   const file = event.dataTransfer.files[0]
   if (file) {
-    uploadFile(file)
+    prepareUpload(file)
   }
 }
 
 const handleFileSelect = (event) => {
   const file = event.target.files[0]
   if (file) {
-    uploadFile(file, event.target)
+    prepareUpload(file, event.target)
   }
 }
 
-const uploadFile = async (file, inputTarget = null) => {
+const prepareUpload = (file, inputTarget = null) => {
   // 验证文件后缀
   if (!file.name.endsWith('.zip')) {
     alert('请上传 .zip 格式的压缩包')
     if (inputTarget) inputTarget.value = ''
     return
   }
+  selectedFile.value = file
+  if (inputTarget) inputTarget.value = ''
+}
+
+const cancelUpload = () => {
+  selectedFile.value = null
+}
+
+const confirmUpload = async () => {
+  if (!selectedFile.value) return
 
   uploading.value = true
   const formData = new FormData()
-  formData.append('file', file)
+  formData.append('file', selectedFile.value)
   // user_id作为路径参数传递，也可保留在formData中，根据需要
   
   try {
     const res = await commonApi.uploadCode(props.userId, formData)
     if (res.code === 0) {
+      alert(res.message || '上传成功！')
+      selectedFile.value = null
       emit('success')
     } else {
       alert(res.message || '上传失败')
@@ -64,7 +78,6 @@ const uploadFile = async (file, inputTarget = null) => {
     alert('上传出错，请检查网络或重试')
   } finally {
     uploading.value = false
-    if (inputTarget) inputTarget.value = ''
   }
 }
 </script>
@@ -79,6 +92,7 @@ const uploadFile = async (file, inputTarget = null) => {
       
       <div class="modal-body">
         <div 
+          v-if="!selectedFile"
           class="upload-area"
           :class="{ 'is-dragging': isDragging, 'is-uploading': uploading }"
           @dragover.prevent="isDragging = true"
@@ -86,11 +100,7 @@ const uploadFile = async (file, inputTarget = null) => {
           @drop.prevent="handleDrop"
           @click="triggerSelect"
         >
-          <div v-if="uploading" class="uploading-state">
-            <div class="spinner"></div>
-            <p>正在上传...</p>
-          </div>
-          <div v-else class="idle-state">
+          <div class="idle-state">
             <span class="upload-icon">☁️</span>
             <p class="primary-text">点击或拖拽文件到此处上传</p>
             <p class="sub-text">支持 .zip 格式压缩包</p>
@@ -105,6 +115,34 @@ const uploadFile = async (file, inputTarget = null) => {
             :disabled="uploading"
           >
         </div>
+
+        <div v-else class="confirm-area">
+          <div v-if="uploading" class="uploading-state">
+            <div class="spinner"></div>
+            <p>正在上传...</p>
+          </div>
+          <div v-else class="file-info" @click="triggerSelect" title="点击重新选择">
+            <span class="file-icon">📦</span>
+            <p class="file-name">{{ selectedFile.name }}</p>
+            <p class="file-size">{{ (selectedFile.size / 1024 / 1024).toFixed(2) }} MB</p>
+            <p class="sub-text" style="margin-top: 8px;">(点击可重新选择文件)</p>
+            <input 
+              type="file" 
+              ref="fileInput" 
+              style="display: none" 
+              accept=".zip"
+              @change="handleFileSelect"
+              :disabled="uploading"
+            >
+          </div>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button class="btn btn-secondary" @click="close" :disabled="uploading">取消</button>
+        <button class="btn btn-primary" @click="confirmUpload" :disabled="!selectedFile || uploading">
+          {{ uploading ? '上传中...' : '确定' }}
+        </button>
       </div>
     </div>
   </div>
@@ -183,6 +221,20 @@ const uploadFile = async (file, inputTarget = null) => {
   padding: 32px;
 }
 
+.modal-footer {
+  padding: 20px 24px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  background: #fafafa;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .upload-area {
   border: 2px dashed #e2e8f0;
   border-radius: 12px;
@@ -249,5 +301,73 @@ const uploadFile = async (file, inputTarget = null) => {
   to {
     transform: rotate(360deg);
   }
+}
+
+.confirm-area {
+  padding: 20px;
+  text-align: center;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.file-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.file-icon {
+  font-size: 48px;
+  margin-bottom: 8px;
+}
+
+.file-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  word-break: break-all;
+}
+
+.file-size {
+  font-size: 14px;
+  color: #64748b;
+  margin-bottom: 24px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  width: 100%;
+}
+
+.btn {
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.btn-primary {
+  background: #10b981;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #059669;
+}
+
+.btn-secondary {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.btn-secondary:hover {
+  background: #e2e8f0;
 }
 </style>
