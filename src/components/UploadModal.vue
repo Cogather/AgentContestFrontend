@@ -14,6 +14,10 @@ const fileInput = ref(null)
 const uploading = ref(false)
 const selectedFile = ref(null)
 
+const isZipFile = (file) => {
+  return file?.name?.toLowerCase().endsWith('.zip')
+}
+
 const close = () => {
   if (uploading.value) return
   selectedFile.value = null
@@ -42,9 +46,8 @@ const handleFileSelect = (event) => {
 }
 
 const prepareUpload = (file, inputTarget = null) => {
-  // 验证文件后缀
-  if (!file.name.endsWith('.zip')) {
-    alert('请上传 .zip 格式的压缩包')
+  if (!isZipFile(file)) {
+    alert('文件类型上传错误，请上传 .zip 格式文件')
     if (inputTarget) inputTarget.value = ''
     return
   }
@@ -58,6 +61,11 @@ const cancelUpload = () => {
 
 const confirmUpload = async () => {
   if (!selectedFile.value) return
+  if (!isZipFile(selectedFile.value)) {
+    alert('文件类型上传错误，请上传 .zip 格式文件')
+    selectedFile.value = null
+    return
+  }
 
   uploading.value = true
   const formData = new FormData()
@@ -75,7 +83,7 @@ const confirmUpload = async () => {
     }
   } catch (error) {
     console.error('Upload error:', error)
-    alert('上传出错，请检查网络或重试')
+    alert(error?.response?.data?.message || '上传出错，请检查网络或重试')
   } finally {
     uploading.value = false
   }

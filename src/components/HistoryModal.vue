@@ -2,7 +2,7 @@
   <div class="modal-overlay" v-if="visible" @click.self="close">
     <div class="modal-content history-modal">
       <div class="modal-header">
-        <h2>提交历史记录</h2>
+        <h2>历史上传记录</h2>
         <button class="close-btn" @click="close">&times;</button>
       </div>
       <div class="modal-body">
@@ -13,7 +13,7 @@
 
         <div v-else-if="history.length === 0" class="empty-state">
           <span class="empty-icon">📋</span>
-          <span>暂无提交记录</span>
+          <span>暂无历史上传记录</span>
         </div>
 
         <div v-else class="history-list">
@@ -66,10 +66,10 @@ watch(() => props.visible, async (newVal) => {
 const loadHistory = async () => {
   loading.value = true
   try {
-    // 获取用户信息作为历史记录
+    // 获取用户信息作为历史上传记录
     const res = await userApi.getUser(props.userId)
     if (res.code === 0 && res.data) {
-      // 模拟历史记录（实际应该从后端获取）
+      // 模拟历史上传记录（实际应该从后端获取）
       history.value = [{
         username: res.data.username,
         team_name: res.data.team_name,

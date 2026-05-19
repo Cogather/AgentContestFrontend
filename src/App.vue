@@ -1,11 +1,11 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { userApi, commonApi } from './api'
+import { userApi } from './api'
 import UploadModal from './components/UploadModal.vue'
 import UserConfigModal from './components/UserConfigModal.vue'
-import ConfirmModal from './components/ConfirmModal.vue'
 import HistoryModal from './components/HistoryModal.vue'
 import RankingBoard from './components/RankingBoard.vue'
+import IconSymbol from './components/IconSymbol.vue'
 
 // 参赛题目
 const challengeContent = ref(`欢迎参加 Agent 大赛！
@@ -26,9 +26,6 @@ const challengeContent = ref(`欢迎参加 Agent 大赛！
 const currentUser = ref(null)
 const showUploadModal = ref(false)
 const showConfigModal = ref(false)
-// header logo 图片加载失败时显示 emoji
-const headerLogoError = ref(false)
-const showConfirmModal = ref(false)
 const showHistoryModal = ref(false)
 const rankingBoardRef = ref(null)
 
@@ -66,7 +63,7 @@ onMounted(async () => {
   }
 })
 
-// 打开配置弹窗（仅修改配置）
+// 打开配置弹窗
 const openConfig = () => {
   showConfigModal.value = true
 }
@@ -104,42 +101,7 @@ const saveConfig = async (data) => {
   }
 }
 
-// 开始判题（根据是否有配置决定行为）
-const handleJudge = () => {
-  if (!currentUser.value) {
-    // 没有配置，提示用户配置
-    alert('请先配置参赛信息')
-    openConfig()
-  } else {
-    // 已配置，弹出确认框
-    openJudgeConfirm()
-  }
-}
-
-// 打开判题确认弹窗
-const openJudgeConfirm = () => {
-  showConfirmModal.value = true
-}
-
-// 关闭判题确认弹窗
-const closeConfirm = () => {
-  showConfirmModal.value = false
-}
-
-// 确认开始判题
-const handleSubmit = async () => {
-  if (!currentUser.value) return
-
-  // 刷新排行榜
-  if (rankingBoardRef.value) {
-    rankingBoardRef.value.refresh()
-  }
-
-  closeConfirm()
-  alert('判题已启动！')
-}
-
-// 打开历史记录
+// 打开历史上传记录
 const openHistory = () => {
   if (!currentUser.value) {
     alert('请先配置参赛信息')
@@ -148,7 +110,7 @@ const openHistory = () => {
   showHistoryModal.value = true
 }
 
-// 关闭历史记录
+// 关闭历史上传记录
 const closeHistory = () => {
   showHistoryModal.value = false
 }
@@ -170,12 +132,10 @@ const closeUpload = () => {
 // 处理上传成功
 const handleUploadSuccess = () => {
   closeUpload()
+  if (rankingBoardRef.value) {
+    rankingBoardRef.value.refresh()
+  }
   alert('代码上传成功！')
-}
-
-// 查看题目详情
-const showChallengeDetail = () => {
-  alert(challengeContent.value)
 }
 
 // 查看平台操作指导
@@ -191,16 +151,10 @@ const showGuide = () => {
     <header class="header">
       <div class="header-content">
         <div class="logo">
-          <img
-            v-show="!headerLogoError"
-            class="logo-img"
-            src="./assets/logo.png"
-            alt="Agent Game"
-            @error="headerLogoError = true"
-          />
-          <span v-show="headerLogoError" class="logo-icon">🤖</span>
-          <span class="logo-text">Agent Game</span>
-          <span class="logo-badge">v1.0</span>
+          <span class="logo-mark">
+            <IconSymbol name="agent" :size="21" />
+          </span>
+          <span class="logo-text">西研软件大赛</span>
         </div>
         <div class="header-right">
           <div class="status-indicator" v-if="currentUser">
@@ -215,106 +169,91 @@ const showGuide = () => {
     <main class="main">
       <!-- 背景图展示区域 -->
       <div class="hero-section">
+        <div class="hero-title-shell" aria-label="西研软件大赛">
+          <h1 class="hero-title" data-text="西研软件大赛">西研软件大赛</h1>
+          <span class="hero-title-line"></span>
+        </div>
       </div>
 
       <!-- 功能模块区域 -->
       <div class="container">
         <!-- 用户信息 + 参赛题目 -->
         <div class="user-section">
-          <!-- 用户操作面板 -->
-          <div class="card user-card">
-            <div class="card-header">
-              <span class="card-icon">👤</span>
-              <h2>参赛信息</h2>
-              <button class="btn-guide" @click="showGuide">
-                <span class="guide-icon">📖</span>
-                平台操作指导
-              </button>
-            </div>
-            <div class="card-body">
-              <!-- 已配置状态 -->
-              <div v-if="currentUser" class="user-info">
-                <div class="info-row">
-                  <span class="label">姓名</span>
-                  <span class="value">{{ currentUser.username }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">工号</span>
-                  <span class="value">{{ currentUser.user_id }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Agent</span>
-                  <span class="value agent">{{ currentUser.team_name }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">地址</span>
-                  <span class="value">{{ currentUser.agent_ip }}:{{ currentUser.agent_port }}</span>
-                </div>
-                <div class="action-buttons">
-                  <button class="btn btn-primary" @click="openConfig">
-                    <span class="btn-icon">✏️</span>
-                    修改配置
-                  </button>
-                  <button class="btn btn-secondary" @click="openHistory">
-                    <span class="btn-icon">📜</span>
-                    历史记录
-                  </button>
-                </div>
-              </div>
-
-              <!-- 未配置状态 -->
-              <div v-else class="no-user">
-                <div class="no-user-icon">👋</div>
-                <p>请先配置您的参赛信息</p>
-                <button class="btn btn-primary btn-large" @click="openConfig">
-                  <span class="btn-icon">⚡</span>
-                  立即配置
-                </button>
-              </div>
-            </div>
-          </div>
-
           <!-- 参赛题目 -->
           <div class="card challenge-card">
             <div class="card-header">
-              <span class="card-icon">📋</span>
+              <span class="card-icon">
+                <IconSymbol name="file" />
+              </span>
               <h2>参赛题目</h2>
             </div>
             <div class="card-body">
               <div class="challenge-content">
                 <pre class="challenge-text">{{ challengeContent }}</pre>
               </div>
-              <div class="challenge-footer">
-                <button class="btn btn-primary btn-detail" @click="showChallengeDetail">
-                  <span class="btn-icon">🔍</span>
-                  查看详情
+            </div>
+          </div>
+
+          <!-- 用户操作面板 -->
+          <div class="card user-card">
+            <div class="card-header">
+              <span class="card-icon">
+                <IconSymbol name="user" />
+              </span>
+              <h2>参赛信息</h2>
+              <button class="btn-guide" @click="showGuide">
+                <IconSymbol name="guide" :size="15" />
+                平台操作指导
+              </button>
+            </div>
+            <div class="card-body">
+              <!-- 已配置状态 -->
+              <div v-if="currentUser" class="user-info">
+                <div class="user-profile">
+                  <div class="user-avatar">{{ currentUser.username?.slice(0, 1) || '参' }}</div>
+                  <div class="user-identity">
+                    <span class="identity-label">当前参赛人</span>
+                    <strong>{{ currentUser.username }}</strong>
+                  </div>
+                </div>
+
+                <div class="info-grid">
+                  <div class="info-item info-item-wide">
+                    <span class="label">工号</span>
+                    <span class="value">{{ currentUser.user_id }}</span>
+                  </div>
+                </div>
+
+                <div class="action-buttons">
+                  <button class="btn btn-upload" @click="openUpload">
+                    <IconSymbol name="upload" :size="16" />
+                    上传代码
+                  </button>
+                  <button class="btn btn-secondary" @click="openHistory">
+                    <IconSymbol name="history" :size="16" />
+                    历史上传记录
+                  </button>
+                </div>
+              </div>
+
+              <!-- 未配置状态 -->
+              <div v-else class="no-user">
+                <p>请先配置您的参赛信息</p>
+                <button class="btn btn-primary btn-large" @click="openConfig">
+                  立即配置
                 </button>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- 开始判题按钮 -->
-        <div class="judge-section">
-          <button class="btn btn-judge btn-large" @click="handleJudge">
-            <span class="btn-icon">🚀</span>
-            开始判题
-          </button>
-          
-          <button 
-            class="btn btn-upload btn-large" 
-            @click="openUpload"
-          >
-            <span class="btn-icon">📤</span>
-            上传代码
-          </button>
-        </div>
-
         <!-- 右侧面板：排行榜 -->
         <div class="right-panel">
           <div class="card ranking-card">
             <div class="card-header">
-              <span class="card-icon">🏆</span>
+              <span class="card-icon">
+                <IconSymbol name="trophy" />
+              </span>
               <h2>实时排名</h2>
               <span class="live-badge">
                 <span class="live-dot"></span>
@@ -347,13 +286,6 @@ const showGuide = () => {
       @confirm="saveConfig"
     />
 
-    <ConfirmModal
-      :visible="showConfirmModal"
-      :data="currentUser || {}"
-      @close="closeConfirm"
-      @submit="handleSubmit"
-    />
-
     <HistoryModal
       :visible="showHistoryModal"
       :userId="currentUser?.user_id"
@@ -371,9 +303,13 @@ const showGuide = () => {
 }
 
 body {
-  font-family: 'SF Mono', 'Fira Code', 'Monaco', 'Consolas', 'Ubuntu Mono', monospace;
-  background: #f5f5f5;
-  color: #333333;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background:
+    linear-gradient(rgba(29, 78, 216, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 124, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(135deg, #f8fbff 0%, #f3f6fb 52%, #ffffff 100%);
+  background-size: 32px 32px, 32px 32px, auto;
+  color: #0f172a;
   min-height: 100vh;
   overflow-x: hidden;
 }
@@ -384,21 +320,36 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(20, 33, 46, 0.05);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 127, 80, 0.3);
+  background: rgba(15, 124, 255, 0.28);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 127, 80, 0.5);
+  background: rgba(15, 124, 255, 0.46);
 }
 </style>
 
 <style scoped>
 .app {
+  --surface: rgba(255, 255, 255, 0.96);
+  --surface-soft: rgba(247, 250, 248, 0.94);
+  --border: rgba(29, 78, 216, 0.13);
+  --text: #0f172a;
+  --muted: #64748b;
+  --accent: #0f7cff;
+  --accent-blue: #1d4ed8;
+  --accent-cyan: #0891b2;
+  --accent-soft: rgba(15, 124, 255, 0.08);
+  --shadow: 0 16px 36px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 124, 255, 0.035);
+  background:
+    linear-gradient(rgba(29, 78, 216, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 124, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(135deg, #f8fbff 0%, #f3f6fb 52%, #ffffff 100%);
+  background-size: 32px 32px, 32px 32px, auto;
   min-height: 100vh;
   position: relative;
 }
@@ -410,8 +361,8 @@ body {
   left: 0;
   right: 0;
   z-index: 100;
-  background: transparent;
-  backdrop-filter: blur(0);
+  background: linear-gradient(180deg, rgba(248, 251, 255, 0.92), rgba(248, 251, 255, 0));
+  backdrop-filter: blur(12px);
   border-bottom: none;
 }
 
@@ -430,33 +381,23 @@ body {
   gap: 12px;
 }
 
-.logo-img {
-  height: 40px;
-  width: auto;
-  display: block;
-  object-fit: contain;
-}
-
-.logo-icon {
-  font-size: 28px;
+.logo-mark {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(15, 124, 255, 0.28);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(238, 245, 255, 0.9));
+  color: var(--accent);
+  box-shadow: inset 0 0 14px rgba(15, 124, 255, 0.08), 0 8px 18px rgba(15, 23, 42, 0.08);
 }
 
 .logo-text {
-  font-size: 22px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #ff7f50, #ff6347);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.logo-badge {
-  padding: 2px 8px;
-  background: rgba(255, 127, 80, 0.15);
-  border: 1px solid rgba(255, 127, 80, 0.3);
-  border-radius: 8px;
-  font-size: 11px;
-  color: #ff6347;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
 }
 
 .header-right {
@@ -470,15 +411,16 @@ body {
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid var(--border);
+  border-radius: 999px;
 }
 
 .status-dot {
   width: 8px;
   height: 8px;
-  background: #48bb78;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(15, 124, 255, 0.38);
   border-radius: 50%;
   animation: pulse 2s infinite;
 }
@@ -494,7 +436,8 @@ body {
 
 .status-text {
   font-size: 13px;
-  color: #666666;
+  color: var(--text);
+  font-weight: 600;
 }
 
 /* 主要内容 */
@@ -505,41 +448,136 @@ body {
 
 /* 背景图展示区域 */
 .hero-section {
-  height: 70vh;
-  min-height: 500px;
-  background-image: url('./assets/bg.png');
-  background-size: cover;
-  background-position: center top;
-}
-
-/* 开始判题按钮区域 */
-.judge-section {
+  height: 320px;
+  min-height: 280px;
   display: flex;
+  align-items: center;
   justify-content: center;
-  gap: 24px;
+  padding: 70px 24px 24px;
+  background-image: url('./assets/banner-ai-v2.png');
+  background-size: cover;
+  background-position: center;
+  background-color: #f8fbff;
+  background-blend-mode: normal;
+  border-bottom: none;
+  position: relative;
+  overflow: hidden;
 }
 
-.judge-section .btn-judge,
-.judge-section .btn-upload {
-  max-width: 300px;
-  padding: 20px 40px;
-  font-size: 18px;
+.hero-section::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(248, 251, 255, 0.02), rgba(248, 251, 255, 0.18) 58%, rgba(248, 251, 255, 0.96) 92%, #f8fbff 100%),
+    linear-gradient(90deg, rgba(15, 124, 255, 0.1), transparent 36%, rgba(8, 145, 178, 0.08));
+  pointer-events: none;
+}
+
+.hero-title-shell {
+  position: relative;
+  z-index: 1;
+  min-width: min(760px, 92vw);
+  padding: 14px 46px 24px;
+  text-align: center;
+  isolation: isolate;
+}
+
+.hero-title-shell::before,
+.hero-title-shell::after {
+  content: "";
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(29, 78, 216, 0.7), rgba(15, 124, 255, 0.8), rgba(8, 145, 178, 0.72), transparent);
+  clip-path: polygon(4% 0, 96% 0, 100% 100%, 0 100%);
+}
+
+.hero-title-shell::before {
+  top: 0;
+}
+
+.hero-title-shell::after {
+  bottom: 8px;
+}
+
+.hero-title {
+  position: relative;
+  margin: 0;
+  font-family: Impact, 'Arial Black', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 74px;
+  font-weight: 900;
+  line-height: 0.98;
+  letter-spacing: 0;
+  transform: skewX(-7deg);
+  color: transparent;
+  background: linear-gradient(180deg, #ffffff 0%, #d7dde3 18%, #4b5563 38%, #1d4ed8 62%, #020617 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-stroke: 1.6px rgba(2, 6, 23, 0.88);
+  filter: drop-shadow(0 16px 20px rgba(15, 23, 42, 0.24));
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.86),
+    2px 2px 0 rgba(8, 145, 178, 0.5),
+    7px 8px 0 rgba(15, 23, 42, 0.18),
+    0 0 20px rgba(15, 124, 255, 0.22);
+}
+
+.hero-title::before,
+.hero-title::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hero-title::before {
+  color: rgba(15, 124, 255, 0.22);
+  -webkit-text-stroke: 1px rgba(15, 124, 255, 0.42);
+  transform: translate(5px, 5px);
+  z-index: -1;
+}
+
+.hero-title::after {
+  color: rgba(255, 255, 255, 0.72);
+  clip-path: polygon(0 12%, 100% 7%, 100% 23%, 0 30%);
+  text-shadow: 0 0 8px rgba(8, 145, 178, 0.2);
+  transform: translate(-3px, -2px);
+}
+
+.hero-title-line {
+  display: block;
+  width: 380px;
+  max-width: 56%;
+  height: 5px;
+  margin: 18px auto 0;
+  background: linear-gradient(90deg, transparent 0%, #1d4ed8 18%, #0f7cff 50%, #0891b2 82%, transparent 100%);
+  box-shadow: 0 0 16px rgba(15, 124, 255, 0.26), 0 5px 0 rgba(29, 78, 216, 0.08);
+  clip-path: polygon(0 0, 94% 0, 100% 100%, 6% 100%);
 }
 
 .container {
-  max-width: 1400px;
+  max-width: 1320px;
   margin: 0 auto;
-  padding: 32px 24px;
+  padding: 22px 24px 40px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 18px;
+  position: relative;
+  z-index: 2;
 }
 
 /* 用户信息区域 */
 .user-section {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.user-section > .card {
+  height: 360px;
 }
 
 /* 左侧面板 */
@@ -551,36 +589,59 @@ body {
 
 /* 卡片通用样式 */
 .card {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 16px;
+  background: var(--surface);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
   overflow: hidden;
-  transition: all 0.3s;
+  position: relative;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #1d4ed8, #0f7cff, #0891b2);
+  opacity: 0.84;
 }
 
 .card:hover {
-  border-color: rgba(255, 127, 80, 0.3);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border-color: rgba(15, 124, 255, 0.28);
+  box-shadow: var(--shadow);
 }
 
 .card-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px 20px;
-  background: rgba(255, 255, 255, 0.5);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  gap: 10px;
+  height: 54px;
+  min-height: 52px;
+  padding: 10px 16px;
+  background: linear-gradient(180deg, rgba(248, 251, 255, 0.98), rgba(255, 255, 255, 0.92));
+  border-bottom: 1px solid var(--border);
 }
 
 .card-icon {
-  font-size: 20px;
+  width: 28px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid rgba(15, 124, 255, 0.16);
+  box-shadow: inset 0 0 12px rgba(15, 124, 255, 0.05);
 }
 
 .card-header h2 {
   font-size: 16px;
   font-weight: 600;
-  color: #333333;
+  color: var(--text);
   flex: 1;
 }
 
@@ -588,108 +649,191 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
-  border: 1px solid rgba(255, 127, 80, 0.3);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.5);
-  color: #ff6347;
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid rgba(29, 78, 216, 0.22);
+  border-radius: 6px;
+  background: rgba(29, 78, 216, 0.07);
+  color: var(--accent-blue);
   font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.2s;
 }
 
 .btn-guide:hover {
-  background: rgba(255, 127, 80, 0.1);
-  transform: translateY(-1px);
+  background: rgba(29, 78, 216, 0.12);
 }
 
 .card-body {
-  padding: 20px;
+  padding: 16px;
 }
 
 /* 参赛题目卡片 */
-.challenge-card .card-body {
-  padding: 0;
+.challenge-card {
   display: flex;
   flex-direction: column;
 }
 
-.challenge-content {
+.challenge-card .card-body {
+  padding: 0;
+  display: flex;
   flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.challenge-content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
 .challenge-text {
-  padding: 20px;
+  flex: 1;
+  margin: 0;
+  padding: 16px 20px 14px;
   font-family: inherit;
   font-size: 14px;
-  line-height: 1.8;
-  color: #666666;
+  line-height: 1.72;
+  color: #334155;
   white-space: pre-wrap;
   word-wrap: break-word;
-  max-height: 220px;
+  min-height: 100%;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(15, 124, 255, 0.32) rgba(15, 42, 77, 0.04);
 }
 
-.challenge-footer {
-  padding: 16px 20px;
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
-  background: rgba(255, 255, 255, 0.3);
+.challenge-text::-webkit-scrollbar {
+  width: 6px;
 }
 
-.btn-detail {
-  width: 100%;
-  justify-content: center;
+.challenge-text::-webkit-scrollbar-track {
+  background: rgba(15, 42, 77, 0.04);
+  border-radius: 3px;
+}
+
+.challenge-text::-webkit-scrollbar-thumb {
+  background: rgba(15, 124, 255, 0.32);
+  border-radius: 3px;
+}
+
+.challenge-text::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 124, 255, 0.48);
 }
 
 /* 用户卡片 */
+.user-card {
+  display: flex;
+  flex-direction: column;
+}
+
 .user-card .card-body {
-  padding: 24px;
+  display: flex;
+  flex: 1;
+  padding: 16px;
+  min-height: 0;
 }
 
 .user-info {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+  height: 100%;
+  width: 100%;
+  min-width: 0;
 }
 
-.info-row {
+.user-profile {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-}
-
-.info-row .label {
-  font-size: 13px;
-  color: #888888;
-}
-
-.info-row .value {
-  font-size: 14px;
-  color: #333333;
-  font-weight: 500;
-}
-
-.info-row .value.agent {
-  padding: 4px 12px;
-  background: rgba(255, 127, 80, 0.15);
-  color: #ff6347;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(15, 124, 255, 0.14);
   border-radius: 8px;
-  font-size: 13px;
+  background: linear-gradient(180deg, rgba(248, 251, 255, 0.98), rgba(255, 255, 255, 0.92));
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(29, 78, 216, 0.12), rgba(8, 145, 178, 0.1));
+  border: 1px solid rgba(15, 124, 255, 0.18);
+  color: var(--accent-blue);
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.user-identity {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.identity-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.user-identity strong {
+  color: var(--text);
+  font-size: 17px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.info-item {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(15, 42, 77, 0.1);
+  border-radius: 8px;
+  background: rgba(248, 251, 255, 0.68);
+}
+
+.info-item-wide {
+  grid-column: 1 / -1;
+}
+
+.info-item .label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.info-item .value {
+  display: block;
+  font-family: 'SF Mono', 'Roboto Mono', monospace;
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .action-buttons {
-  display: flex;
-  gap: 12px;
-  margin-top: 8px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 0;
 }
 
-/* 顶部判题按钮样式 */
-.btn-judge-top {
+.user-card .action-buttons .btn {
   width: 100%;
-  padding: 20px 24px;
-  font-size: 18px;
-  margin-bottom: 20px;
 }
 
 /* 按钮样式 */
@@ -698,121 +842,58 @@ body {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 20px;
+  min-height: 36px;
+  padding: 8px 16px;
   border: none;
-  border-radius: 10px;
+  border-radius: 6px;
   font-family: inherit;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s;
-}
-
-.btn-icon {
-  font-size: 16px;
+  overflow: hidden;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.2s;
 }
 
 .btn-primary {
-  flex: 1;
-  background: linear-gradient(135deg, #ff7f50, #ff6347);
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent));
   color: #fff;
+  box-shadow: 0 0 0 1px rgba(15, 124, 255, 0.14), 0 10px 24px rgba(29, 78, 216, 0.18);
 }
 
 .btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(255, 127, 80, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(29, 78, 216, 0.24);
 }
 
 .btn-secondary {
-  flex: 1;
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  color: #666666;
+  width: 176px;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid var(--border);
+  color: var(--text);
 }
 
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.95);
-  color: #333333;
+  border-color: rgba(29, 78, 216, 0.28);
+  color: var(--accent-blue);
+  box-shadow: 0 8px 20px rgba(29, 78, 216, 0.08);
 }
 
 .btn-large {
-  padding: 16px 32px;
+  padding: 14px 30px;
   font-size: 16px;
-}
-
-.btn-judge {
-  width: 100%;
-  padding: 18px;
-  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-  color: #fff;
-  font-size: 16px;
-  font-weight: 600;
-  border-radius: 12px;
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s;
-  position: relative;
-  overflow: hidden;
-}
-
-.btn-judge::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.5s;
-}
-
-.btn-judge:hover::before {
-  left: 100%;
-}
-
-.btn-judge:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 32px rgba(29, 78, 216, 0.4);
 }
 
 .btn-upload {
-  width: 100%;
-  padding: 18px;
-  background: linear-gradient(135deg, #10b981, #059669);
+  width: 176px;
+  background: linear-gradient(135deg, #1d4ed8, #0f7cff 58%, #0891b2);
   color: #fff;
-  font-size: 16px;
-  font-weight: 600;
-  border-radius: 12px;
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s;
-  position: relative;
-  overflow: hidden;
-}
-
-.btn-upload > * {
-  pointer-events: none;
-}
-
-.btn-upload::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.5s;
-}
-
-.btn-upload:hover::before {
-  left: 100%;
+  border: 1px solid rgba(15, 124, 255, 0.22);
 }
 
 .btn-upload:hover,
 .btn-upload.is-dragging {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 32px rgba(16, 185, 129, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 1px rgba(15, 124, 255, 0.14), 0 12px 30px rgba(29, 78, 216, 0.22);
 }
 
 .btn-upload.is-dragging {
@@ -823,16 +904,11 @@ body {
 /* 未配置状态 */
 .no-user {
   text-align: center;
-  padding: 20px 0;
-}
-
-.no-user-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
+  padding: 24px 0;
 }
 
 .no-user p {
-  color: #888888;
+  color: var(--muted);
   margin-bottom: 20px;
 }
 
@@ -850,20 +926,21 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
-  background: rgba(72, 187, 120, 0.15);
-  border: 1px solid rgba(72, 187, 120, 0.3);
-  border-radius: 12px;
+  padding: 5px 10px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(15, 124, 255, 0.22);
+  border-radius: 999px;
   font-size: 11px;
   font-weight: 600;
-  color: #48bb78;
-  letter-spacing: 1px;
+  color: var(--accent);
+  letter-spacing: 0;
 }
 
 .live-dot {
   width: 6px;
   height: 6px;
-  background: #48bb78;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(15, 124, 255, 0.42);
   border-radius: 50%;
   animation: pulse 1.5s infinite;
 }
@@ -874,7 +951,7 @@ body {
 
 /* 响应式 */
 @media (max-width: 1024px) {
-  .container {
+  .user-section {
     grid-template-columns: 1fr;
   }
 
@@ -892,12 +969,41 @@ body {
     font-size: 18px;
   }
 
-  .main {
-    padding: 20px 16px;
+  .hero-section {
+    height: 250px;
+    min-height: 220px;
+    padding: 66px 16px 24px;
+  }
+
+  .hero-title-shell {
+    min-width: 0;
+    width: 100%;
+    padding: 10px 18px 20px;
+  }
+
+  .hero-title {
+    font-size: 42px;
+  }
+
+  .container {
+    margin: 0 auto;
+    padding: 18px 14px 32px;
+  }
+
+  .card-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 56px;
   }
 
   .action-buttons {
-    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn-secondary,
+  .btn-upload {
+    width: 100%;
   }
 }
 </style>

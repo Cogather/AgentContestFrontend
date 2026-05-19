@@ -3,14 +3,18 @@
     <!-- 顶部统计卡片 -->
     <div class="stats-section">
       <div class="stat-card total">
-        <div class="stat-icon">👥</div>
+        <div class="stat-icon">
+          <IconSymbol name="users" :size="18" />
+        </div>
         <div class="stat-content">
           <div class="stat-value">{{ totalParticipants }}</div>
           <div class="stat-label">参赛人数</div>
         </div>
       </div>
       <div class="stat-card score">
-        <div class="stat-icon">🏆</div>
+        <div class="stat-icon">
+          <IconSymbol name="score" :size="18" />
+        </div>
         <div class="stat-content">
           <div class="stat-value">{{ totalScore }}</div>
           <div class="stat-label">最高得分</div>
@@ -20,10 +24,6 @@
 
     <!-- 个人积分卡片 -->
     <div class="personal-card" v-if="personalRank">
-      <div class="status-badge" :class="personalRank.is_evaluating ? 'status-done' : 'status-processing'">
-        <span class="status-dot"></span>
-        {{ personalRank.is_evaluating ? '判题完成' : '判题中' }}
-      </div>
       <div class="personal-info">
         <div class="personal-rank">
           <span class="rank-number">#{{ personalRank.rank }}</span>
@@ -35,8 +35,12 @@
             <span class="value">{{ personalRank.score }}</span>
           </div>
           <div class="personal-stat">
-            <span class="label">完成任务</span>
-            <span class="value">{{ personalRank.completed_tasks }}</span>
+            <span class="label">执行时间(s)</span>
+            <span class="value">{{ formatDuration(personalRank.execution_time) }}</span>
+          </div>
+          <div class="personal-stat">
+            <span class="label">Token消耗</span>
+            <span class="value">{{ formatNumber(personalRank.token_usage) }}</span>
           </div>
         </div>
       </div>
@@ -44,7 +48,6 @@
 
     <!-- 未登录时的提示 -->
     <div class="personal-card personal-card-empty" v-else>
-      <div class="empty-icon">🔐</div>
       <div class="empty-text">登录后查看我的排名</div>
     </div>
 
@@ -55,7 +58,6 @@
           <option value="all">全部</option>
           <option value="username">姓名</option>
           <option value="user_id">工号</option>
-          <option value="department">部门</option>
         </select>
         <div class="search-input-wrapper">
           <input 
@@ -75,16 +77,14 @@
         <div class="col rank">排名</div>
         <div class="col name">姓名</div>
         <div class="col user-id">工号</div>
-        <div class="col department">部门</div>
-        <div class="col agent">Agent</div>
-        <div class="col tasks">完成任务</div>
         <div class="col score filterable">
           <div class="sort-header" @click="toggleSort('score')">
             得分
             <span class="sort-icon" :class="sortOrder">{{ sortOrder === 'desc' ? '↓' : '↑' }}</span>
           </div>
         </div>
-        <div class="col time">时间</div>
+        <div class="col execution-time">执行时间(s)</div>
+        <div class="col token-usage">Token消耗</div>
       </div>
 
       <div v-if="paginatedList.length === 0" class="empty-row">
@@ -98,6 +98,9 @@
           class="table-row"
           :class="{
             'top-three': item.rank <= 3,
+            'rank-first-row': item.rank === 1,
+            'rank-second-row': item.rank === 2,
+            'rank-third-row': item.rank === 3,
             'top-ten': item.rank > 3 && item.rank <= 10,
             'top-twenty': item.rank > 10 && item.rank <= 20,
             'top-fifty': item.rank > 20 && item.rank <= 50,
@@ -114,17 +117,11 @@
             <span class="me-badge" v-if="item.user_id === currentUserId">我</span>
           </div>
           <div class="col user-id">{{ item.user_id }}</div>
-          <div class="col department">{{ item.department || '-' }}</div>
-          <div class="col agent">
-            <span class="agent-name">{{ item.team_name }}</span>
-          </div>
-          <div class="col tasks">
-            <span class="tasks-count">{{ item.completed_tasks }}</span>
-          </div>
           <div class="col score">
             <span class="score-value">{{ item.score }}</span>
           </div>
-          <div class="col time">{{ formatTime(item.update_time) }}</div>
+          <div class="col execution-time">{{ formatDuration(item.execution_time) }}</div>
+          <div class="col token-usage">{{ formatNumber(item.token_usage) }}</div>
         </div>
       </div>
     </div>
@@ -204,6 +201,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { rankApi } from '../api'
+import IconSymbol from './IconSymbol.vue'
 
 const props = defineProps({
   currentUserId: String
@@ -220,10 +218,9 @@ const sortOrder = ref('desc') // desc | asc
 
 const searchPlaceholder = computed(() => {
   const map = {
-    all: '搜索姓名、工号或部门...',
+    all: '搜索姓名或工号...',
     username: '请输入姓名...',
-    user_id: '请输入工号...',
-    department: '请输入部门...'
+    user_id: '请输入工号...'
   }
   return map[searchField.value]
 })
@@ -236,18 +233,13 @@ const toggleSort = (field) => {
 
 // Mock 数据生成函数
 const generateMockData = (count = 100) => {
-  const departments = ['研发部', '产品部', '测试部', '运维部', '设计部']
-  const agents = ['DeepSeek-V3', 'GPT-4o', 'Claude-3.5', 'Gemini-Pro', 'Llama-3']
-  
   return Array.from({ length: count }, (_, i) => ({
     rank: i + 1,
     username: `参赛者${1000 + i}`,
     user_id: `USER_${2024000 + i}`,
-    department: departments[Math.floor(Math.random() * departments.length)],
-    team_name: agents[Math.floor(Math.random() * agents.length)],
-    completed_tasks: Math.floor(Math.random() * 50) + 10,
     score: Math.floor(Math.random() * 1000) + 500,
-    update_time: new Date(Date.now() - Math.floor(Math.random() * 86400000)).toISOString()
+    execution_time: Number((45 + Math.random() * 150).toFixed(2)),
+    token_usage: Math.floor(Math.random() * 70000) + 20000
   })).sort((a, b) => b.score - a.score).map((item, index) => ({ ...item, rank: index + 1 }))
 }
 
@@ -260,8 +252,7 @@ const filteredRankingList = computed(() => {
     result = result.filter(item => {
       if (searchField.value === 'all') {
         return String(item.username).toLowerCase().includes(keyword) ||
-               String(item.user_id).toLowerCase().includes(keyword) ||
-               String(item.department).toLowerCase().includes(keyword)
+               String(item.user_id).toLowerCase().includes(keyword)
       } else {
         return String(item[searchField.value]).toLowerCase().includes(keyword)
       }
@@ -325,19 +316,16 @@ const visiblePages = computed(() => {
   return pages
 })
 
-const formatTime = (timeStr) => {
-  if (!timeStr) return '-'
-  try {
-    const date = new Date(timeStr)
-    return date.toLocaleString('zh-CN', {
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  } catch {
-    return '-'
-  }
+const formatDuration = (value) => {
+  if (value === null || value === undefined || value === '') return '-'
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric.toFixed(2) : '-'
+}
+
+const formatNumber = (value) => {
+  if (value === null || value === undefined || value === '') return '-'
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric.toLocaleString('zh-CN') : '-'
 }
 
 const changePage = (page) => {
@@ -386,13 +374,12 @@ const loadRanking = async (silent = false) => {
         }
       }
     }
-    // TODO: 测试用，强制显示个人排名数据（模拟判题中状态）
     if (!personalRank.value) {
       personalRank.value = {
         rank: '-',
         score: 0,
-        completed_tasks: 0,
-        is_evaluating: false // false 表示判题中
+        execution_time: null,
+        token_usage: null
       }
     }
   } catch (error) {
@@ -402,13 +389,12 @@ const loadRanking = async (silent = false) => {
       rankingList.value = generateMockData()
     }
     
-    // 同样强制显示个人排名测试数据
     if (!personalRank.value) {
       personalRank.value = {
         rank: '-',
         score: 0,
-        completed_tasks: 0,
-        is_evaluating: false
+        execution_time: null,
+        token_usage: null
       }
     }
   }
@@ -437,48 +423,53 @@ onUnmounted(() => {
 <style scoped>
 .ranking-board {
   width: 100%;
+  color: #0f172a;
 }
 
 .stats-section {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-  margin-bottom: 24px;
+  gap: 14px;
+  margin-bottom: 16px;
 }
 
 .stat-card {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 20px;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  transition: all 0.3s;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(15, 42, 77, 0.12);
+  border-radius: 8px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
 }
 
 .stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border-color: rgba(15, 124, 255, 0.3);
+  box-shadow: 0 12px 28px rgba(24, 67, 88, 0.08), 0 0 18px rgba(15, 124, 255, 0.08);
+  transform: translateY(-1px);
 }
 
 .stat-icon {
-  width: 48px;
-  height: 48px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
-  border-radius: 12px;
+  border-radius: 8px;
 }
 
 .stat-card.total .stat-icon {
-  background: rgba(255, 127, 80, 0.15);
+  background: rgba(15, 124, 255, 0.1);
+  border: 1px solid rgba(15, 124, 255, 0.18);
+  color: #0f7cff;
 }
 
 .stat-card.score .stat-icon {
-  background: rgba(237, 137, 54, 0.15);
+  background: rgba(29, 78, 216, 0.09);
+  border: 1px solid rgba(29, 78, 216, 0.16);
+  color: #1d4ed8;
 }
 
 .stat-content {
@@ -486,52 +477,46 @@ onUnmounted(() => {
 }
 
 .stat-value {
-  font-size: 28px;
+  font-family: 'SF Mono', 'Roboto Mono', monospace;
+  font-size: 24px;
   font-weight: 700;
-  color: #333333;
+  color: #0f172a;
   line-height: 1.2;
+  letter-spacing: 0;
 }
 
 .stat-label {
   font-size: 13px;
-  color: #888888;
+  color: #64748b;
   margin-top: 4px;
 }
 
 .personal-card {
   position: relative;
-  padding: 24px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 127, 80, 0.3);
-  border-radius: 16px;
-  margin-bottom: 24px;
+  padding: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 251, 255, 0.9));
+  border: 1px solid rgba(15, 124, 255, 0.18);
+  border-radius: 8px;
+  margin-bottom: 16px;
   overflow: hidden;
 }
 
-/* 未登录提示卡片 */
 .personal-card-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px;
-  background: rgba(255, 255, 255, 0.6);
-  border: 1px dashed rgba(0, 0, 0, 0.1);
+  padding: 24px;
+  border-style: dashed;
+  background: rgba(248, 251, 255, 0.76);
 }
 
 .personal-card-empty::before {
   display: none;
 }
 
-.personal-card-empty .empty-icon {
-  font-size: 32px;
-  margin-bottom: 12px;
-  opacity: 0.6;
-}
-
 .personal-card-empty .empty-text {
-  color: #888888;
+  color: #64748b;
   font-size: 14px;
 }
 
@@ -541,52 +526,14 @@ onUnmounted(() => {
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #ff7f50, #ff6347);
-}
-
-
-.status-badge {
-  position: absolute;
-  top: 50%;
-  right: 24px;
-  transform: translateY(-50%);
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.status-processing {
-  background: rgba(59, 130, 246, 0.15);
-  color: #3b82f6;
-  border: 1px solid rgba(59, 130, 246, 0.3);
-}
-
-.status-done {
-  background: rgba(72, 187, 120, 0.15);
-  color: #48bb78;
-  border: 1px solid rgba(72, 187, 120, 0.3);
-}
-
-.status-badge .status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-.status-processing .status-dot {
-  animation: pulse 1.5s infinite;
+  height: 2px;
+  background: linear-gradient(90deg, #0f7cff, #1d4ed8, #10b981);
 }
 
 .personal-info {
   display: flex;
   align-items: center;
-  gap: 32px;
+  gap: 28px;
 }
 
 .personal-rank {
@@ -596,21 +543,23 @@ onUnmounted(() => {
 }
 
 .rank-number {
-  font-size: 42px;
+  font-family: 'SF Mono', 'Roboto Mono', monospace;
+  font-size: 34px;
   font-weight: 700;
-  color: #ff6347;
+  color: #0f7cff;
   line-height: 1;
+  letter-spacing: 0;
 }
 
 .rank-label {
   font-size: 13px;
-  color: #888888;
+  color: #64748b;
   margin-top: 4px;
 }
 
 .personal-stats {
   display: flex;
-  gap: 40px;
+  gap: 32px;
 }
 
 .personal-stat {
@@ -620,92 +569,115 @@ onUnmounted(() => {
 
 .personal-stat .label {
   font-size: 13px;
-  color: #888888;
+  color: #64748b;
   margin-bottom: 4px;
 }
 
 .personal-stat .value {
-  font-size: 24px;
+  font-family: 'SF Mono', 'Roboto Mono', monospace;
+  font-size: 20px;
   font-weight: 600;
-  color: #333333;
+  color: #0f172a;
+  letter-spacing: 0;
 }
 
-.filter-bar {
+.search-bar {
   margin-bottom: 16px;
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
+}
+
+.search-group {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(15, 42, 77, 0.14);
+  border-radius: 8px;
+  box-shadow: 0 8px 22px rgba(24, 67, 88, 0.06);
+  padding: 4px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  overflow: hidden;
+}
+
+.search-group:hover,
+.search-group:focus-within {
+  border-color: rgba(15, 124, 255, 0.34);
+  box-shadow: 0 10px 24px rgba(15, 124, 255, 0.08);
+}
+
+.search-select {
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  color: #334155;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+  border-right: 1px solid rgba(15, 42, 77, 0.12);
+  height: 36px;
 }
 
 .search-input-wrapper {
   position: relative;
-  width: 240px;
   display: flex;
   align-items: center;
-}
-
-.search-icon {
-  position: absolute;
-  left: 12px;
-  font-size: 14px;
-  color: #888;
-  pointer-events: none;
+  width: 240px;
 }
 
 .search-input {
   width: 100%;
-  padding: 10px 36px 10px 36px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.8);
+  padding: 8px 32px 8px 12px;
+  border: none;
+  background: transparent;
   font-size: 14px;
-  color: #333;
+  color: #0f172a;
   outline: none;
-  transition: all 0.3s;
+  height: 36px;
 }
 
-.search-input:focus {
-  background: #fff;
-  border-color: rgba(0, 212, 255, 0.5);
-  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+.search-input::placeholder {
+  color: #94a3b8;
 }
 
 .clear-btn {
   position: absolute;
-  right: 10px;
-  background: none;
-  border: none;
-  font-size: 16px;
-  color: #999;
-  cursor: pointer;
-  padding: 0;
+  right: 8px;
   width: 20px;
   height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
+  background: rgba(20, 33, 46, 0.06);
+  border: none;
   border-radius: 50%;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s, color 0.2s;
 }
 
 .clear-btn:hover {
-  background: rgba(0, 0, 0, 0.05);
-  color: #666;
+  background: rgba(15, 124, 255, 0.12);
+  color: #0f7cff;
 }
 
 .table-container {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(15, 42, 77, 0.14);
+  border-radius: 8px;
   overflow: hidden;
+  box-shadow: 0 14px 32px rgba(24, 67, 88, 0.06);
 }
 
 .table-header {
   display: grid;
-  grid-template-columns: 80px 100px 100px 100px 1fr 100px 100px 140px;
+  grid-template-columns: 80px minmax(120px, 1.2fr) minmax(120px, 1fr) minmax(100px, 0.8fr) minmax(120px, 0.9fr) minmax(120px, 0.9fr);
   gap: 8px;
-  padding: 16px 20px;
-  background: rgba(255, 255, 255, 0.5);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  padding: 12px 16px;
+  background: linear-gradient(180deg, rgba(248, 251, 255, 0.98), rgba(239, 246, 255, 0.86));
+  border-bottom: 1px solid rgba(15, 42, 77, 0.12);
 }
 
 .sort-header {
@@ -717,28 +689,26 @@ onUnmounted(() => {
 }
 
 .sort-header:hover {
-  color: #333;
+  color: #0f7cff;
 }
 
 .sort-icon {
   font-size: 12px;
-  font-weight: bold;
+  font-weight: 700;
 }
 
 .table-header .col {
   font-size: 12px;
   font-weight: 600;
-  color: #888888;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: #64748b;
+  letter-spacing: 0;
 }
 
 .table-body {
-  max-height: 500px;
+  max-height: 460px;
   overflow-y: auto;
-  /* 自定义滚动条样式 */
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 127, 80, 0.3) rgba(0, 0, 0, 0.05);
+  scrollbar-color: rgba(15, 124, 255, 0.32) rgba(20, 33, 46, 0.04);
 }
 
 .table-body::-webkit-scrollbar {
@@ -746,71 +716,79 @@ onUnmounted(() => {
 }
 
 .table-body::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(20, 33, 46, 0.04);
   border-radius: 3px;
 }
 
 .table-body::-webkit-scrollbar-thumb {
-  background: rgba(255, 127, 80, 0.3);
+  background: rgba(15, 124, 255, 0.32);
   border-radius: 3px;
 }
 
 .table-body::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 127, 80, 0.5);
+  background: rgba(15, 124, 255, 0.48);
 }
 
 .table-row {
   display: grid;
-  grid-template-columns: 80px 100px 100px 100px 1fr 100px 100px 140px;
+  grid-template-columns: 80px minmax(120px, 1.2fr) minmax(120px, 1fr) minmax(100px, 0.8fr) minmax(120px, 0.9fr) minmax(120px, 0.9fr);
   gap: 8px;
-  padding: 16px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-  transition: all 0.3s;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(15, 42, 77, 0.08);
+  transition: background 0.2s, box-shadow 0.2s;
 }
 
 .table-row:hover {
-  background: rgba(0, 212, 255, 0.05);
+  background: rgba(15, 124, 255, 0.055);
 }
 
 .table-row.is-me {
-  background: rgba(0, 212, 255, 0.1);
-  border-left: 3px solid #00d4ff;
+  background: rgba(15, 124, 255, 0.08);
+  border-left: 3px solid #0f7cff;
 }
 
-.table-row.top-three {
-  background: linear-gradient(90deg, rgba(237, 137, 54, 0.1), transparent);
+.table-row.rank-first-row {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.12), rgba(255, 255, 255, 0.7) 58%, transparent);
+  box-shadow: inset 3px 0 0 rgba(245, 158, 11, 0.35);
+}
+
+.table-row.rank-second-row {
+  background: linear-gradient(90deg, rgba(100, 116, 139, 0.12), rgba(255, 255, 255, 0.7) 58%, transparent);
+  box-shadow: inset 3px 0 0 rgba(100, 116, 139, 0.32);
+}
+
+.table-row.rank-third-row {
+  background: linear-gradient(90deg, rgba(180, 83, 9, 0.12), rgba(255, 255, 255, 0.7) 58%, transparent);
+  box-shadow: inset 3px 0 0 rgba(180, 83, 9, 0.3);
 }
 
 .table-row.top-ten {
-  background: linear-gradient(90deg, rgba(59, 130, 246, 0.08), transparent);
+  background: linear-gradient(90deg, rgba(15, 124, 255, 0.06), transparent);
 }
 
 .table-row.top-twenty {
-  background: linear-gradient(90deg, rgba(16, 185, 129, 0.08), transparent);
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.06), transparent);
 }
 
 .table-row.top-fifty {
-  background: linear-gradient(90deg, rgba(139, 92, 246, 0.05), transparent);
+  background: linear-gradient(90deg, rgba(29, 78, 216, 0.045), transparent);
 }
 
-.table-row.top-hundred {
-  background: linear-gradient(90deg, rgba(236, 72, 153, 0.05), transparent);
-}
-
+.table-row.top-hundred,
 .table-row.top-two-hundred {
-  background: linear-gradient(90deg, rgba(107, 114, 128, 0.05), transparent);
+  background: linear-gradient(90deg, rgba(15, 42, 77, 0.035), transparent);
 }
 
 .table-row .col {
   display: flex;
   align-items: center;
   font-size: 14px;
-  color: #666666;
+  color: #334155;
 }
 
 .table-row .col.name {
   font-weight: 500;
-  color: #333333;
+  color: #0f172a;
 }
 
 .rank-badge {
@@ -819,27 +797,41 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  background: rgba(20, 33, 46, 0.06);
+  border-radius: 8px;
+  color: #64748b;
   font-size: 12px;
   font-weight: 700;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.05);
-  color: #666666;
 }
 
 .rank-badge.rank-1 {
-  background: linear-gradient(135deg, #ffd700, #ffb700);
-  color: #000;
-  box-shadow: 0 0 16px rgba(255, 215, 0, 0.4);
+  width: 38px;
+  height: 34px;
+  background: linear-gradient(135deg, #fef3c7, #f59e0b);
+  border: 1px solid rgba(217, 119, 6, 0.42);
+  color: #7c2d12;
+  font-size: 18px;
+  box-shadow: 0 8px 18px rgba(245, 158, 11, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
 
 .rank-badge.rank-2 {
-  background: linear-gradient(135deg, #c0c0c0, #a0a0a0);
-  color: #000;
+  width: 36px;
+  height: 32px;
+  background: linear-gradient(135deg, #f8fafc, #cbd5e1);
+  border: 1px solid rgba(100, 116, 139, 0.36);
+  color: #334155;
+  font-size: 17px;
+  box-shadow: 0 7px 16px rgba(100, 116, 139, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
 .rank-badge.rank-3 {
-  background: linear-gradient(135deg, #cd7f32, #b87333);
-  color: #000;
+  width: 36px;
+  height: 32px;
+  background: linear-gradient(135deg, #ffedd5, #b45309);
+  border: 1px solid rgba(146, 64, 14, 0.34);
+  color: #fff7ed;
+  font-size: 17px;
+  box-shadow: 0 7px 16px rgba(180, 83, 9, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 
 .name-text {
@@ -852,34 +844,17 @@ onUnmounted(() => {
 .me-badge {
   margin-left: 8px;
   padding: 2px 8px;
-  background: rgba(0, 212, 255, 0.2);
-  color: #00d4ff;
+  background: rgba(15, 124, 255, 0.1);
+  color: #0f7cff;
   font-size: 10px;
   font-weight: 600;
   border-radius: 8px;
 }
 
-.agent-name {
-  padding: 4px 10px;
-  background: rgba(0, 212, 255, 0.1);
-  color: #00d4ff;
-  font-size: 12px;
-  border-radius: 6px;
-  max-width: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tasks-count {
-  font-weight: 600;
-  color: #48bb78;
-}
-
 .score-value {
-  font-weight: 700;
+  color: #1d4ed8;
   font-size: 16px;
-  color: #ed8936;
+  font-weight: 700;
 }
 
 .loading-row,
@@ -888,15 +863,15 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  padding: 40px;
-  color: #718096;
+  padding: 34px;
+  color: #64748b;
 }
 
 .loading-spinner {
   width: 24px;
   height: 24px;
-  border: 2px solid rgba(0, 212, 255, 0.2);
-  border-top-color: #00d4ff;
+  border: 2px solid rgba(15, 124, 255, 0.18);
+  border-top-color: #0f7cff;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -911,7 +886,7 @@ onUnmounted(() => {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-top: 20px;
+  margin-top: 16px;
   padding: 10px;
   position: relative;
   min-height: 40px;
@@ -924,7 +899,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #666;
+  color: #64748b;
 }
 
 .jump-page {
@@ -934,39 +909,39 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #666;
+  color: #64748b;
 }
 
 .jump-page input {
   width: 48px;
   padding: 4px 0;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(15, 42, 77, 0.14);
   border-radius: 6px;
   text-align: center;
   outline: none;
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.9);
   font-size: 13px;
-  color: #333;
+  color: #0f172a;
 }
 
 .jump-page input:focus {
-  border-color: rgba(0, 212, 255, 0.5);
-  background: #fff;
+  border-color: rgba(15, 124, 255, 0.48);
+  box-shadow: 0 0 0 3px rgba(15, 124, 255, 0.1);
 }
 
 .page-size-select select {
   padding: 4px 8px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(15, 42, 77, 0.14);
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.5);
-  color: #333;
+  background: rgba(255, 255, 255, 0.9);
+  color: #0f172a;
   font-size: 13px;
   outline: none;
   cursor: pointer;
 }
 
 .page-size-select select:hover {
-  border-color: rgba(0, 212, 255, 0.3);
+  border-color: rgba(15, 124, 255, 0.34);
 }
 
 .pagination {
@@ -977,23 +952,23 @@ onUnmounted(() => {
 
 .page-btn {
   padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(15, 42, 77, 0.14);
   border-radius: 8px;
-  color: #a0aec0;
+  color: #64748b;
   font-size: 13px;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
 
 .page-btn:hover:not(:disabled) {
-  background: rgba(0, 212, 255, 0.1);
-  border-color: rgba(0, 212, 255, 0.3);
-  color: #00d4ff;
+  background: rgba(15, 124, 255, 0.08);
+  border-color: rgba(15, 124, 255, 0.32);
+  color: #0f7cff;
 }
 
 .page-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
@@ -1011,102 +986,20 @@ onUnmounted(() => {
   background: transparent;
   border: 1px solid transparent;
   border-radius: 8px;
-  color: #a0aec0;
+  color: #64748b;
   font-size: 13px;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: background 0.2s, color 0.2s;
 }
 
 .page-num:hover {
-  background: rgba(0, 212, 255, 0.1);
-  color: #00d4ff;
-}
-
-.search-bar {
-  margin-bottom: 20px;
-  display: flex;
-  justify-content: flex-start;
-}
-
-.search-group {
-  display: flex;
-  align-items: center;
-  background: #fff;
-  border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  padding: 4px;
-  transition: all 0.3s;
-  overflow: hidden;
-}
-
-.search-group:hover,
-.search-group:focus-within {
-  border-color: rgba(0, 212, 255, 0.4);
-  box-shadow: 0 4px 12px rgba(0, 212, 255, 0.1);
-}
-
-.search-select {
-  padding: 8px 12px;
-  border: none;
-  background: transparent;
-  font-size: 14px;
-  color: #555;
-  font-weight: 500;
-  outline: none;
-  cursor: pointer;
-  border-right: 1px solid rgba(0, 0, 0, 0.06);
-  height: 36px;
-}
-
-.search-input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  width: 240px;
-}
-
-.search-input {
-  width: 100%;
-  padding: 8px 32px 8px 12px;
-  border: none;
-  background: transparent;
-  font-size: 14px;
-  color: #333;
-  outline: none;
-  height: 36px;
-}
-
-.search-input::placeholder {
-  color: #999;
-}
-
-.clear-btn {
-  position: absolute;
-  right: 8px;
-  background: rgba(0, 0, 0, 0.05);
-  border: none;
-  font-size: 14px;
-  color: #999;
-  cursor: pointer;
-  padding: 0;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: all 0.2s;
-}
-
-.clear-btn:hover {
-  background: rgba(0, 0, 0, 0.1);
-  color: #666;
+  background: rgba(15, 124, 255, 0.08);
+  color: #0f7cff;
 }
 
 .page-num.active {
-  background: linear-gradient(135deg, #00d4ff, #0099cc);
-  color: #000;
+  background: linear-gradient(135deg, #0f7cff, #1d4ed8);
+  color: #fff;
   font-weight: 600;
 }
 
@@ -1129,14 +1022,9 @@ onUnmounted(() => {
 
   .table-header,
   .table-row {
-    grid-template-columns: 60px 80px 80px 1fr 80px 80px;
-  }
-
-  .table-header .col.time,
-  .table-row .col.time,
-  .table-header .col.department,
-  .table-row .col.department {
-    display: none;
+    grid-template-columns: 56px minmax(76px, 1fr) minmax(86px, 1fr) minmax(72px, 0.8fr) minmax(96px, 0.9fr) minmax(96px, 0.9fr);
+    padding: 14px 12px;
+    gap: 6px;
   }
 
   .personal-info {
