@@ -64,7 +64,6 @@
             v-model="searchValue" 
             :placeholder="searchPlaceholder" 
             class="search-input"
-            @input="currentPage = 1"
           />
           <button v-if="searchValue" class="clear-btn" @click="searchValue = ''; currentPage = 1">×</button>
         </div>
@@ -127,7 +126,7 @@
     </div>
 
     <!-- 分页控制区 -->
-    <div class="pagination-bar" v-if="rankingList.length > 0">
+    <div class="pagination-bar" v-if="totalItems > 0">
       <div class="page-size-select">
         <span>每页显示</span>
         <select v-model="pageSize" @change="currentPage = 1">
@@ -210,6 +209,10 @@ const props = defineProps({
 const rankingList = ref([])
 const currentPage = ref(1)
 const pageSize = ref(10)
+const totalItems = ref(0)
+const totalPagesCount = ref(0)
+const totalParticipantsCount = ref(0)
+const maxScore = ref(0)
 const personalRank = ref(null)
 const jumpPageNum = ref('')
 const searchField = ref('all')
@@ -243,50 +246,13 @@ const generateMockData = (count = 100) => {
   })).sort((a, b) => b.score - a.score).map((item, index) => ({ ...item, rank: index + 1 }))
 }
 
-const filteredRankingList = computed(() => {
-  let result = rankingList.value
+const totalParticipants = computed(() => totalParticipantsCount.value)
 
-  // 统一搜索
-  if (searchValue.value) {
-    const keyword = searchValue.value.trim().toLowerCase()
-    result = result.filter(item => {
-      if (searchField.value === 'all') {
-        return String(item.username).toLowerCase().includes(keyword) ||
-               String(item.user_id).toLowerCase().includes(keyword)
-      } else {
-        return String(item[searchField.value]).toLowerCase().includes(keyword)
-      }
-    })
-  }
+const totalScore = computed(() => maxScore.value)
 
-  // 排序
-  result = [...result].sort((a, b) => {
-    if (sortOrder.value === 'desc') {
-      return (b.score || 0) - (a.score || 0)
-    } else {
-      return (a.score || 0) - (b.score || 0)
-    }
-  })
+const totalPages = computed(() => totalPagesCount.value)
 
-  return result
-})
-
-const totalParticipants = computed(() => rankingList.value.length)
-
-const totalScore = computed(() => {
-  if (rankingList.value.length === 0) return 0
-  return Math.max(...rankingList.value.map(item => item.score || 0))
-})
-
-const totalPages = computed(() => {
-  return Math.ceil(filteredRankingList.value.length / pageSize.value)
-})
-
-const paginatedList = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value
-  const end = start + pageSize.value
-  return filteredRankingList.value.slice(start, end)
-})
+const paginatedList = computed(() => rankingList.value)
 
 const visiblePages = computed(() => {
   const pages = []
@@ -345,59 +311,111 @@ const handleJump = () => {
 const POLL_INTERVAL = 5000 // 每 5 秒刷新一次实时排名
 let pollTimer = null
 
+const emptyPersonalRank = () => ({
+  rank: '-',
+  score: 0,
+  execution_time: null,
+  token_usage: null
+})
+
+const applyLocalFilters = (list) => {
+  const keyword = searchValue.value.trim().toLowerCase()
+  let result = [...list]
+
+  if (keyword) {
+    result = result.filter(item => {
+      if (searchField.value === 'username') {
+        return String(item.username).toLowerCase().includes(keyword)
+      }
+      if (searchField.value === 'user_id') {
+        return String(item.user_id).toLowerCase().includes(keyword)
+      }
+      return String(item.username).toLowerCase().includes(keyword) ||
+        String(item.user_id).toLowerCase().includes(keyword)
+    })
+  }
+
+  result.sort((a, b) => {
+    return sortOrder.value === 'desc'
+      ? (b.score || 0) - (a.score || 0)
+      : (a.score || 0) - (b.score || 0)
+  })
+
+  return result
+}
+
+const applyFallbackRanking = () => {
+  const mockData = generateMockData()
+  const filtered = applyLocalFilters(mockData)
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+
+  rankingList.value = filtered.slice(start, end)
+  totalItems.value = filtered.length
+  totalPagesCount.value = Math.ceil(filtered.length / pageSize.value)
+  totalParticipantsCount.value = mockData.length
+  maxScore.value = Math.max(...mockData.map(item => item.score || 0))
+}
+
+const loadPersonalRank = async () => {
+  if (!props.currentUserId) {
+    personalRank.value = null
+    return
+  }
+
+  const myRank = rankingList.value.find(item => item.user_id === props.currentUserId)
+  if (myRank) {
+    personalRank.value = myRank
+    return
+  }
+
+  try {
+    const userRankRes = await rankApi.getUserRank(props.currentUserId)
+    personalRank.value = userRankRes?.data || emptyPersonalRank()
+  } catch (e) {
+    personalRank.value = emptyPersonalRank()
+  }
+}
+
 const loadRanking = async (silent = false) => {
   try {
-    const res = await rankApi.getRankList(1000)
-    // 只要有数据就显示，不管 code 是否为 0（因为部分成功也会返回数据）
-    if (res.data && res.data.length > 0) {
-      rankingList.value = res.data
-    } else if (res.code !== 0 && rankingList.value.length === 0) {
-      // 只有在完全失败且当前没有数据时，才加载 Mock 数据
-      rankingList.value = generateMockData()
-    }
-    // 如果返回空数组但 code 为 0，说明确实没数据，保持为空或清空（视需求而定，这里暂不清空以防闪烁）
+    const res = await rankApi.getRankPage({
+      page: currentPage.value,
+      pageSize: pageSize.value,
+      searchField: searchField.value,
+      keyword: searchValue.value.trim(),
+      sortOrder: sortOrder.value
+    })
 
-    // 查找当前用户排名
-    if (props.currentUserId) {
-      const myRank = rankingList.value.find(item => item.user_id === props.currentUserId)
-      if (myRank) {
-        personalRank.value = myRank
-      } else {
-        // 如果排行榜中没有，尝试获取单独的用户排名
-        try {
-          const userRankRes = await rankApi.getUserRank(props.currentUserId)
-          if (userRankRes && userRankRes.data) {
-            personalRank.value = userRankRes.data
-          }
-        } catch (e) {
-          // 忽略错误，保持现有状态
-        }
-      }
+    if (res.code === 0 && res.data) {
+      const pageData = res.data
+      rankingList.value = pageData.items || []
+      totalItems.value = Number(pageData.total || 0)
+      totalPagesCount.value = Number(pageData.total_pages || 0)
+      totalParticipantsCount.value = Number(pageData.total_participants || 0)
+      maxScore.value = Number(pageData.max_score || 0)
+      currentPage.value = Number(pageData.page || currentPage.value)
+      pageSize.value = Number(pageData.page_size || pageSize.value)
+    } else if (rankingList.value.length === 0) {
+      applyFallbackRanking()
     }
-    if (!personalRank.value) {
-      personalRank.value = {
-        rank: '-',
-        score: 0,
-        execution_time: null,
-        token_usage: null
-      }
-    }
+
+    await loadPersonalRank()
   } catch (error) {
     if (!silent) console.error('Failed to load ranking:', error)
-    // 接口失败时也加载 Mock 数据，方便演示
     if (rankingList.value.length === 0) {
-      rankingList.value = generateMockData()
+      applyFallbackRanking()
     }
-    
-    if (!personalRank.value) {
-      personalRank.value = {
-        rank: '-',
-        score: 0,
-        execution_time: null,
-        token_usage: null
-      }
-    }
+    await loadPersonalRank()
   }
+}
+
+const reloadFirstPage = () => {
+  if (currentPage.value === 1) {
+    loadRanking(true)
+    return
+  }
+  currentPage.value = 1
 }
 
 // 暴露刷新方法（强制显示 loading）
@@ -411,6 +429,12 @@ onMounted(() => {
   loadRanking(false)
   pollTimer = setInterval(() => loadRanking(true), POLL_INTERVAL)
 })
+
+watch(currentPage, () => loadRanking(true))
+
+watch([pageSize, searchField, searchValue, sortOrder], reloadFirstPage)
+
+watch(() => props.currentUserId, () => loadPersonalRank())
 
 onUnmounted(() => {
   if (pollTimer) {

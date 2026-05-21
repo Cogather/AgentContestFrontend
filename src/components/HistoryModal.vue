@@ -30,6 +30,7 @@
               </div>
               <div class="history-meta">
                 <span class="time">{{ formatTime(item.update_time) }}</span>
+                <span class="score">得分 {{ formatScore(item.score) }}</span>
                 <span class="status" :class="item.status">{{ item.statusText }}</span>
               </div>
             </div>
@@ -57,6 +58,13 @@ const emit = defineEmits(['close'])
 const history = ref([])
 const loading = ref(false)
 
+const statusTextMap = {
+  uploaded: '已提交',
+  evaluating: '评测中',
+  completed: '已完成',
+  failed: '失败'
+}
+
 watch(() => props.visible, async (newVal) => {
   if (newVal && props.userId) {
     await loadHistory()
@@ -66,18 +74,18 @@ watch(() => props.visible, async (newVal) => {
 const loadHistory = async () => {
   loading.value = true
   try {
-    // 获取用户信息作为历史上传记录
     const res = await userApi.getUser(props.userId)
-    if (res.code === 0 && res.data) {
-      // 模拟历史上传记录（实际应该从后端获取）
+    if (res.code === 0 && res.data?.latest_submission_id) {
+      const status = String(res.data.latest_submission_status || 'uploaded').toLowerCase()
       history.value = [{
         username: res.data.username,
         team_name: res.data.team_name,
         agent_ip: res.data.agent_ip,
         agent_port: res.data.agent_port,
-        update_time: new Date().toISOString(),
-        status: 'active',
-        statusText: '已提交'
+        score: res.data.score,
+        update_time: res.data.update_time,
+        status,
+        statusText: statusTextMap[status] || '已提交'
       }]
     } else {
       history.value = []
@@ -100,6 +108,11 @@ const formatTime = (timeStr) => {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+const formatScore = (value) => {
+  if (value === null || value === undefined || value === '') return '-'
+  return value
 }
 
 const close = () => {
@@ -273,6 +286,11 @@ const close = () => {
   font-size: 12px;
 }
 
+.history-meta .score {
+  color: #cbd5e0;
+  font-size: 12px;
+}
+
 .history-meta .status {
   padding: 2px 10px;
   border-radius: 12px;
@@ -280,9 +298,20 @@ const close = () => {
   font-weight: 500;
 }
 
-.history-meta .status.active {
+.history-meta .status.uploaded,
+.history-meta .status.evaluating {
+  background: rgba(0, 212, 255, 0.16);
+  color: #00d4ff;
+}
+
+.history-meta .status.completed {
   background: rgba(72, 187, 120, 0.2);
   color: #48bb78;
+}
+
+.history-meta .status.failed {
+  background: rgba(245, 101, 101, 0.18);
+  color: #fc8181;
 }
 
 .modal-footer {

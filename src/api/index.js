@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8080'
+const DEFAULT_API_BASE_URL = ''
 
 const normalizeBaseUrl = (url) => {
   return String(url || '').replace(/\/+$/, '')
@@ -45,6 +45,9 @@ export const userApi = {
 export const rankApi = {
   getRankList: (limit) => api.get('/api/rank', {
     params: { limit }
+  }),
+  getRankPage: (params) => api.get('/api/rank/page', {
+    params
   }),
   getUserRank: (userId) => api.get(`/api/rank/${userId}`)
 }

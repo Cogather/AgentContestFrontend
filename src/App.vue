@@ -22,46 +22,168 @@ const challengeContent = ref(`欢迎参加 Agent 大赛！
 
 祝各位参赛者取得好成绩！`)
 
+const USER_STORAGE_KEY = 'agent_game_user'
+const THIRD_PARTY_USER_ID_STORAGE_KEY = 'agent_game_third_party_user_id'
+const THIRD_PARTY_USER_ID_QUERY_KEYS = ['user_id', 'userId', 'employee_id', 'employeeId', 'work_id', 'workId']
+const DEV_MOCK_THIRD_PARTY_USER_ID = import.meta.env.VITE_MOCK_THIRD_PARTY_USER_ID || '10000001'
+
 // 用户配置
 const currentUser = ref(null)
+const sessionReady = ref(false)
 const showUploadModal = ref(false)
 const showConfigModal = ref(false)
 const showHistoryModal = ref(false)
 const rankingBoardRef = ref(null)
+const registerForm = ref({
+  user_id: '',
+  username: ''
+})
+const registerLoading = ref(false)
+const registerError = ref('')
+
+const saveCurrentUser = (user) => {
+  currentUser.value = user
+  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user))
+}
+
+const normalizeUserId = (value) => {
+  const normalized = String(value || '').replace(/\D/g, '').slice(0, 8)
+  return normalized.length === 8 ? normalized : ''
+}
+
+const resolveThirdPartyUserId = () => {
+  const params = new URLSearchParams(window.location.search)
+  const queryUserId = THIRD_PARTY_USER_ID_QUERY_KEYS
+    .map(key => params.get(key))
+    .find(value => value)
+  const normalizedQueryUserId = normalizeUserId(queryUserId)
+  if (normalizedQueryUserId) {
+    localStorage.setItem(THIRD_PARTY_USER_ID_STORAGE_KEY, normalizedQueryUserId)
+    return normalizedQueryUserId
+  }
+  const storedUserId = normalizeUserId(localStorage.getItem(THIRD_PARTY_USER_ID_STORAGE_KEY))
+  if (storedUserId) {
+    return storedUserId
+  }
+  if (import.meta.env.DEV) {
+    return normalizeUserId(DEV_MOCK_THIRD_PARTY_USER_ID)
+  }
+  return ''
+}
+
+const logoutUser = () => {
+  const previousUserId = normalizeUserId(currentUser.value?.user_id)
+  if (previousUserId) {
+    localStorage.setItem(THIRD_PARTY_USER_ID_STORAGE_KEY, previousUserId)
+  }
+  currentUser.value = null
+  showUploadModal.value = false
+  showConfigModal.value = false
+  showHistoryModal.value = false
+  registerForm.value = {
+    user_id: previousUserId || resolveThirdPartyUserId(),
+    username: ''
+  }
+  registerError.value = ''
+  localStorage.removeItem(USER_STORAGE_KEY)
+}
 
 // 页面加载时尝试获取当前用户信息
 onMounted(async () => {
-  // 注入一条测试用户数据，方便调试
-  const testUser = {
-    username: '测试选手',
-    user_id: 'USER_TEST_001',
-    team_name: 'DeepSeek-Test',
-    agent_ip: '127.0.0.1',
-    agent_port: '8000'
-  }
-  currentUser.value = testUser
-  localStorage.setItem('agent_game_user', JSON.stringify(testUser))
+  try {
+    registerForm.value.user_id = resolveThirdPartyUserId()
 
-  // 从 localStorage 读取之前保存的用户信息
-  const savedUser = localStorage.getItem('agent_game_user')
-  if (savedUser) {
-    try {
-      const userData = JSON.parse(savedUser)
-      currentUser.value = userData
-      // 尝试从后端验证用户是否存在
+    // 从 localStorage 读取之前保存的用户信息
+    const savedUser = localStorage.getItem(USER_STORAGE_KEY)
+    if (savedUser) {
       try {
-        const res = await userApi.getUser(userData.user_id)
-        if (res.code === 0 && res.data) {
-          currentUser.value = res.data
+        const userData = JSON.parse(savedUser)
+        currentUser.value = userData
+        // 尝试从后端验证用户是否存在
+        try {
+          const res = await userApi.getUser(userData.user_id)
+          if (res.code === 0 && res.data) {
+            currentUser.value = res.data
+          }
+        } catch (e) {
+          // 用户可能不存在，保持本地数据
         }
       } catch (e) {
-        // 用户可能不存在，保持本地数据
+        console.error('Failed to parse saved user:', e)
+        localStorage.removeItem(USER_STORAGE_KEY)
       }
-    } catch (e) {
-      console.error('Failed to parse saved user:', e)
     }
+  } finally {
+    sessionReady.value = true
   }
 })
+
+const buildDefaultProfile = () => {
+  const username = registerForm.value.username.trim()
+  return {
+    user_id: registerForm.value.user_id.trim(),
+    username,
+    area: 'yellow',
+    department: '',
+    team_name: `${username}-Agent`,
+    agent_ip: '127.0.0.1',
+    agent_port: 8000
+  }
+}
+
+const buildExistingProfile = (existingUser, username) => ({
+  user_id: existingUser.user_id,
+  username,
+  area: existingUser.area || 'yellow',
+  department: existingUser.department || '',
+  team_name: existingUser.team_name || `${username}-Agent`,
+  agent_ip: existingUser.agent_ip || '127.0.0.1',
+  agent_port: Number(existingUser.agent_port || 8000)
+})
+
+const loginUser = async () => {
+  registerError.value = ''
+  const userId = registerForm.value.user_id.trim()
+  const username = registerForm.value.username.trim()
+
+  if (!userId || userId.length !== 8) {
+    registerError.value = '未获取到有效工号，请先完成第三方登录'
+    return
+  }
+  if (!username) {
+    registerError.value = '请输入昵称'
+    return
+  }
+
+  registerLoading.value = true
+  try {
+    let existingUser = null
+    try {
+      const existingRes = await userApi.getUser(userId)
+      existingUser = existingRes.code === 0 ? existingRes.data : null
+    } catch (e) {
+      existingUser = null
+    }
+
+    const payload = existingUser
+      ? buildExistingProfile(existingUser, username)
+      : buildDefaultProfile()
+    const res = existingUser
+      ? await userApi.updateUser(payload.user_id, payload)
+      : await userApi.addUser(payload)
+
+    if (res.code === 0 || res.code === 409) {
+      saveCurrentUser(res.data || payload)
+    } else {
+      registerError.value = res.message || '登录失败'
+    }
+  } catch (error) {
+    console.error('Login error:', error)
+    registerError.value = '登录失败，请检查网络连接'
+  } finally {
+    registerLoading.value = false
+  }
+}
 
 // 打开配置弹窗
 const openConfig = () => {
@@ -89,8 +211,7 @@ const saveConfig = async (data) => {
 
     if (res.code === 0 || res.code === 409) {
       // 保存到本地存储
-      currentUser.value = data
-      localStorage.setItem('agent_game_user', JSON.stringify(data))
+      saveCurrentUser(res.data || data)
       alert('配置保存成功！')
     } else {
       alert(res.message || '保存失败')
@@ -161,12 +282,59 @@ const showGuide = () => {
             <span class="status-dot"></span>
             <span class="status-text">{{ currentUser.username }}</span>
           </div>
+          <button v-if="currentUser" class="logout-btn" @click="logoutUser">
+            退出登录
+          </button>
         </div>
       </div>
     </header>
 
+    <main v-if="sessionReady && !currentUser" class="register-main">
+      <section class="register-shell">
+        <div class="register-brand" aria-label="西研软件大赛">
+          <h1 class="register-title">西研软件大赛</h1>
+          <span class="register-line"></span>
+        </div>
+
+        <form class="register-panel" @submit.prevent="loginUser">
+          <div class="register-panel-header">
+            <span class="card-icon">
+              <IconSymbol name="user" />
+            </span>
+            <h2>参赛登录</h2>
+          </div>
+
+          <div class="register-fields">
+            <div class="register-field">
+              <span>工号</span>
+              <div class="register-readonly-value" :class="{ empty: !registerForm.user_id }">
+                {{ registerForm.user_id || '等待第三方登录返回工号' }}
+              </div>
+              <p class="register-helper">工号仅供提交使用，不会出现在排行榜中</p>
+            </div>
+
+            <label class="register-field">
+              <span>昵称</span>
+              <input
+                v-model="registerForm.username"
+                type="text"
+                maxlength="20"
+                placeholder="请输入昵称"
+              />
+            </label>
+          </div>
+
+          <p v-if="registerError" class="register-error">{{ registerError }}</p>
+
+          <button class="btn btn-primary register-submit" type="submit" :disabled="registerLoading || !registerForm.user_id">
+            {{ registerLoading ? '登录中...' : '登录' }}
+          </button>
+        </form>
+      </section>
+    </main>
+
     <!-- 主要内容 -->
-    <main class="main">
+    <main v-else-if="sessionReady" class="main">
       <!-- 背景图展示区域 -->
       <div class="hero-section">
         <div class="hero-title-shell" aria-label="西研软件大赛">
@@ -440,10 +608,183 @@ body {
   font-weight: 600;
 }
 
+.logout-btn {
+  min-height: 32px;
+  padding: 6px 12px;
+  border: 1px solid rgba(29, 78, 216, 0.2);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--accent-blue);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+
+.logout-btn:hover {
+  border-color: rgba(29, 78, 216, 0.34);
+  background: rgba(29, 78, 216, 0.08);
+  box-shadow: 0 8px 18px rgba(29, 78, 216, 0.08);
+}
+
 /* 主要内容 */
 .main {
   position: relative;
   z-index: 1;
+}
+
+.register-main {
+  min-height: 100vh;
+  padding: 110px 24px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-image:
+    linear-gradient(180deg, rgba(248, 251, 255, 0.18), rgba(248, 251, 255, 0.96) 88%),
+    url('./assets/banner-ai-v2.png');
+  background-size: cover;
+  background-position: center;
+}
+
+.register-shell {
+  width: min(460px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.register-brand {
+  text-align: center;
+}
+
+.register-title {
+  margin: 0;
+  font-family: Impact, 'Arial Black', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 52px;
+  line-height: 1;
+  letter-spacing: 0;
+  color: transparent;
+  background: linear-gradient(180deg, #ffffff 0%, #dbeafe 26%, #60a5fa 58%, #1d4ed8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 12px 18px rgba(29, 78, 216, 0.2));
+  text-shadow: 2px 2px 0 rgba(8, 145, 178, 0.3);
+}
+
+.register-line {
+  display: block;
+  width: 220px;
+  max-width: 62%;
+  height: 4px;
+  margin: 16px auto 0;
+  background: linear-gradient(90deg, transparent 0%, #1d4ed8 18%, #0f7cff 50%, #0891b2 82%, transparent 100%);
+  clip-path: polygon(0 0, 94% 0, 100% 100%, 6% 100%);
+}
+
+.register-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+}
+
+.register-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.register-panel-header h2 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.register-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.register-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.register-field span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.register-field input {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid rgba(15, 42, 77, 0.14);
+  border-radius: 6px;
+  background: rgba(248, 251, 255, 0.84);
+  color: var(--text);
+  font: inherit;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.register-field input:focus {
+  border-color: rgba(15, 124, 255, 0.5);
+  box-shadow: 0 0 0 3px rgba(15, 124, 255, 0.1);
+}
+
+.register-readonly-value {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid rgba(15, 42, 77, 0.12);
+  border-radius: 6px;
+  background: rgba(226, 232, 240, 0.62);
+  color: var(--text);
+  font-family: 'SF Mono', 'Roboto Mono', monospace;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.register-readonly-value.empty {
+  color: var(--muted);
+  font-family: inherit;
+  font-weight: 500;
+}
+
+.register-helper {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.register-error {
+  min-height: 20px;
+  margin: -4px 0 0;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+.register-submit {
+  width: 100%;
+  min-height: 42px;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.64;
+  transform: none;
 }
 
 /* 背景图展示区域 */
@@ -512,15 +853,14 @@ body {
   letter-spacing: 0;
   transform: skewX(-7deg);
   color: transparent;
-  background: linear-gradient(180deg, #ffffff 0%, #d7dde3 18%, #4b5563 38%, #1d4ed8 62%, #020617 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #dbeafe 24%, #60a5fa 54%, #1d4ed8 100%);
   -webkit-background-clip: text;
   background-clip: text;
-  -webkit-text-stroke: 1.6px rgba(2, 6, 23, 0.88);
-  filter: drop-shadow(0 16px 20px rgba(15, 23, 42, 0.24));
+  -webkit-text-stroke: 0;
+  filter: drop-shadow(0 12px 18px rgba(29, 78, 216, 0.18));
   text-shadow:
     0 1px 0 rgba(255, 255, 255, 0.86),
-    2px 2px 0 rgba(8, 145, 178, 0.5),
-    7px 8px 0 rgba(15, 23, 42, 0.18),
+    2px 2px 0 rgba(8, 145, 178, 0.32),
     0 0 20px rgba(15, 124, 255, 0.22);
 }
 
@@ -983,6 +1323,19 @@ body {
 
   .hero-title {
     font-size: 42px;
+  }
+
+  .register-main {
+    padding: 96px 16px 32px;
+    align-items: flex-start;
+  }
+
+  .register-title {
+    font-size: 40px;
+  }
+
+  .register-panel {
+    padding: 18px;
   }
 
   .container {
