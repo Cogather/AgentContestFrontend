@@ -60,6 +60,8 @@ const loading = ref(false)
 
 const statusTextMap = {
   uploaded: '已提交',
+  uploading: '上传中',
+  validating: '校验中',
   evaluating: '评测中',
   completed: '已完成',
   failed: '失败'
@@ -299,6 +301,8 @@ const close = () => {
 }
 
 .history-meta .status.uploaded,
+.history-meta .status.uploading,
+.history-meta .status.validating,
 .history-meta .status.evaluating {
   background: rgba(0, 212, 255, 0.16);
   color: #00d4ff;

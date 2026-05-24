@@ -37,6 +37,7 @@ api.interceptors.response.use(
 export const userApi = {
   getUsers: () => api.get('/api/users'),
   getUser: (userId) => api.get(`/api/users/${userId}`),
+  getSubmissions: (userId) => api.get(`/api/users/${userId}/submissions`),
   addUser: (data) => api.post('/api/users', data),
   updateUser: (userId, data) => api.put(`/api/users/${userId}`, data),
   deleteUser: (userId) => api.delete(`/api/users/${userId}`)

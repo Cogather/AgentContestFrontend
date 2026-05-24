@@ -24,6 +24,15 @@ const icons = {
     <path d="M12 4V2.3M9.8 2.3h4.4"></path>
     <path d="M6.2 11H4.6v3h1.6M17.8 11h1.6v3h-1.6"></path>
   `,
+  network: `
+    <circle cx="6" cy="7" r="2.2"></circle>
+    <circle cx="18" cy="6" r="2.2"></circle>
+    <circle cx="12" cy="18" r="2.2"></circle>
+    <path d="M8 7.4 16 6.5"></path>
+    <path d="m7.3 9 3.6 7"></path>
+    <path d="M17 8 13 16"></path>
+    <path d="M4 17.5c2.2-1.4 4.5-2 7-1.8M13.5 4.6c1.4-.7 2.8-.9 4.2-.5"></path>
+  `,
   user: `
     <circle cx="12" cy="8" r="3.2"></circle>
     <path d="M5.5 19c1.1-3.6 3.5-5.4 6.5-5.4s5.4 1.8 6.5 5.4"></path>
@@ -69,6 +78,10 @@ const icons = {
   detail: `
     <path d="M3 12s3.3-6 9-6 9 6 9 6-3.3 6-9 6-9-6-9-6z"></path>
     <circle cx="12" cy="12" r="2.5"></circle>
+  `,
+  'arrow-left': `
+    <path d="M19 12H5"></path>
+    <path d="m12 19-7-7 7-7"></path>
   `
 }
 </script>

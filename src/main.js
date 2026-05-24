@@ -58,4 +58,5 @@ const initializeApp = async () => {
   redirectToLogin()
 }
 
-initializeApp()
+//initializeApp()
+mountApp();

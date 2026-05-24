@@ -35,10 +35,6 @@
             <span class="value">{{ personalRank.score }}</span>
           </div>
           <div class="personal-stat">
-            <span class="label">执行时间(s)</span>
-            <span class="value">{{ formatDuration(personalRank.execution_time) }}</span>
-          </div>
-          <div class="personal-stat">
             <span class="label">Token消耗</span>
             <span class="value">{{ formatNumber(personalRank.token_usage) }}</span>
           </div>
@@ -54,11 +50,6 @@
     <!-- 统一搜索区 -->
     <div class="search-bar">
       <div class="search-group">
-        <select v-model="searchField" class="search-select">
-          <option value="all">全部</option>
-          <option value="username">姓名</option>
-          <option value="user_id">工号</option>
-        </select>
         <div class="search-input-wrapper">
           <input 
             v-model="searchValue" 
@@ -74,15 +65,13 @@
     <div class="table-container">
       <div class="table-header">
         <div class="col rank">排名</div>
-        <div class="col name">姓名</div>
-        <div class="col user-id">工号</div>
+        <div class="col name">昵称</div>
         <div class="col score filterable">
           <div class="sort-header" @click="toggleSort('score')">
             得分
             <span class="sort-icon" :class="sortOrder">{{ sortOrder === 'desc' ? '↓' : '↑' }}</span>
           </div>
         </div>
-        <div class="col execution-time">执行时间(s)</div>
         <div class="col token-usage">Token消耗</div>
       </div>
 
@@ -93,7 +82,7 @@
       <div v-else class="table-body">
         <div
           v-for="(item, index) in paginatedList"
-          :key="item.user_id"
+          :key="`${item.rank}-${item.nickname}-${index}`"
           class="table-row"
           :class="{
             'top-three': item.rank <= 3,
@@ -104,22 +93,18 @@
             'top-twenty': item.rank > 10 && item.rank <= 20,
             'top-fifty': item.rank > 20 && item.rank <= 50,
             'top-hundred': item.rank > 50 && item.rank <= 100,
-            'top-two-hundred': item.rank > 100 && item.rank <= 200,
-            'is-me': item.user_id === currentUserId
+            'top-two-hundred': item.rank > 100 && item.rank <= 200
           }"
         >
           <div class="col rank">
             <span class="rank-badge" :class="'rank-' + item.rank">{{ item.rank }}</span>
           </div>
           <div class="col name">
-            <span class="name-text">{{ item.username }}</span>
-            <span class="me-badge" v-if="item.user_id === currentUserId">我</span>
+            <span class="name-text">{{ item.nickname }}</span>
           </div>
-          <div class="col user-id">{{ item.user_id }}</div>
           <div class="col score">
             <span class="score-value">{{ item.score }}</span>
           </div>
-          <div class="col execution-time">{{ formatDuration(item.execution_time) }}</div>
           <div class="col token-usage">{{ formatNumber(item.token_usage) }}</div>
         </div>
       </div>
@@ -215,18 +200,10 @@ const totalParticipantsCount = ref(0)
 const maxScore = ref(0)
 const personalRank = ref(null)
 const jumpPageNum = ref('')
-const searchField = ref('all')
 const searchValue = ref('')
 const sortOrder = ref('desc') // desc | asc
 
-const searchPlaceholder = computed(() => {
-  const map = {
-    all: '搜索姓名或工号...',
-    username: '请输入姓名...',
-    user_id: '请输入工号...'
-  }
-  return map[searchField.value]
-})
+const searchPlaceholder = computed(() => '搜索昵称...')
 
 const toggleSort = (field) => {
   if (field === 'score') {
@@ -238,10 +215,8 @@ const toggleSort = (field) => {
 const generateMockData = (count = 100) => {
   return Array.from({ length: count }, (_, i) => ({
     rank: i + 1,
-    username: `参赛者${1000 + i}`,
-    user_id: `USER_${2024000 + i}`,
+    nickname: `参赛者${1000 + i}`,
     score: Math.floor(Math.random() * 1000) + 500,
-    execution_time: Number((45 + Math.random() * 150).toFixed(2)),
     token_usage: Math.floor(Math.random() * 70000) + 20000
   })).sort((a, b) => b.score - a.score).map((item, index) => ({ ...item, rank: index + 1 }))
 }
@@ -282,12 +257,6 @@ const visiblePages = computed(() => {
   return pages
 })
 
-const formatDuration = (value) => {
-  if (value === null || value === undefined || value === '') return '-'
-  const numeric = Number(value)
-  return Number.isFinite(numeric) ? numeric.toFixed(2) : '-'
-}
-
 const formatNumber = (value) => {
   if (value === null || value === undefined || value === '') return '-'
   const numeric = Number(value)
@@ -314,7 +283,6 @@ let pollTimer = null
 const emptyPersonalRank = () => ({
   rank: '-',
   score: 0,
-  execution_time: null,
   token_usage: null
 })
 
@@ -324,14 +292,7 @@ const applyLocalFilters = (list) => {
 
   if (keyword) {
     result = result.filter(item => {
-      if (searchField.value === 'username') {
-        return String(item.username).toLowerCase().includes(keyword)
-      }
-      if (searchField.value === 'user_id') {
-        return String(item.user_id).toLowerCase().includes(keyword)
-      }
-      return String(item.username).toLowerCase().includes(keyword) ||
-        String(item.user_id).toLowerCase().includes(keyword)
+      return String(item.nickname).toLowerCase().includes(keyword)
     })
   }
 
@@ -363,12 +324,6 @@ const loadPersonalRank = async () => {
     return
   }
 
-  const myRank = rankingList.value.find(item => item.user_id === props.currentUserId)
-  if (myRank) {
-    personalRank.value = myRank
-    return
-  }
-
   try {
     const userRankRes = await rankApi.getUserRank(props.currentUserId)
     personalRank.value = userRankRes?.data || emptyPersonalRank()
@@ -382,7 +337,7 @@ const loadRanking = async (silent = false) => {
     const res = await rankApi.getRankPage({
       page: currentPage.value,
       pageSize: pageSize.value,
-      searchField: searchField.value,
+      searchField: 'nickname',
       keyword: searchValue.value.trim(),
       sortOrder: sortOrder.value
     })
@@ -432,7 +387,7 @@ onMounted(() => {
 
 watch(currentPage, () => loadRanking(true))
 
-watch([pageSize, searchField, searchValue, sortOrder], reloadFirstPage)
+watch([pageSize, searchValue, sortOrder], reloadFirstPage)
 
 watch(() => props.currentUserId, () => loadPersonalRank())
 
@@ -487,13 +442,13 @@ onUnmounted(() => {
 .stat-card.total .stat-icon {
   background: rgba(15, 124, 255, 0.1);
   border: 1px solid rgba(15, 124, 255, 0.18);
-  color: #0f7cff;
+  color: #b4232f;
 }
 
 .stat-card.score .stat-icon {
   background: rgba(29, 78, 216, 0.09);
   border: 1px solid rgba(29, 78, 216, 0.16);
-  color: #1d4ed8;
+  color: #4b5563;
 }
 
 .stat-content {
@@ -551,7 +506,7 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, #0f7cff, #1d4ed8, #10b981);
+  background: linear-gradient(90deg, #b4232f, #1b6fd8, #64748b);
 }
 
 .personal-info {
@@ -570,7 +525,7 @@ onUnmounted(() => {
   font-family: 'SF Mono', 'Roboto Mono', monospace;
   font-size: 34px;
   font-weight: 700;
-  color: #0f7cff;
+  color: #b4232f;
   line-height: 1;
   letter-spacing: 0;
 }
@@ -684,7 +639,7 @@ onUnmounted(() => {
 
 .clear-btn:hover {
   background: rgba(15, 124, 255, 0.12);
-  color: #0f7cff;
+  color: #b4232f;
 }
 
 .table-container {
@@ -697,7 +652,7 @@ onUnmounted(() => {
 
 .table-header {
   display: grid;
-  grid-template-columns: 80px minmax(120px, 1.2fr) minmax(120px, 1fr) minmax(100px, 0.8fr) minmax(120px, 0.9fr) minmax(120px, 0.9fr);
+  grid-template-columns: 80px minmax(180px, 1.7fr) minmax(110px, 0.9fr) minmax(140px, 1fr);
   gap: 8px;
   padding: 12px 16px;
   background: linear-gradient(180deg, rgba(248, 251, 255, 0.98), rgba(239, 246, 255, 0.86));
@@ -713,7 +668,7 @@ onUnmounted(() => {
 }
 
 .sort-header:hover {
-  color: #0f7cff;
+  color: #b4232f;
 }
 
 .sort-icon {
@@ -755,7 +710,7 @@ onUnmounted(() => {
 
 .table-row {
   display: grid;
-  grid-template-columns: 80px minmax(120px, 1.2fr) minmax(120px, 1fr) minmax(100px, 0.8fr) minmax(120px, 0.9fr) minmax(120px, 0.9fr);
+  grid-template-columns: 80px minmax(180px, 1.7fr) minmax(110px, 0.9fr) minmax(140px, 1fr);
   gap: 8px;
   padding: 12px 16px;
   border-bottom: 1px solid rgba(15, 42, 77, 0.08);
@@ -768,7 +723,7 @@ onUnmounted(() => {
 
 .table-row.is-me {
   background: rgba(15, 124, 255, 0.08);
-  border-left: 3px solid #0f7cff;
+  border-left: 3px solid #b4232f;
 }
 
 .table-row.rank-first-row {
@@ -859,7 +814,7 @@ onUnmounted(() => {
 }
 
 .name-text {
-  max-width: 80px;
+  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -869,14 +824,14 @@ onUnmounted(() => {
   margin-left: 8px;
   padding: 2px 8px;
   background: rgba(15, 124, 255, 0.1);
-  color: #0f7cff;
+  color: #b4232f;
   font-size: 10px;
   font-weight: 600;
   border-radius: 8px;
 }
 
 .score-value {
-  color: #1d4ed8;
+  color: #4b5563;
   font-size: 16px;
   font-weight: 700;
 }
@@ -895,7 +850,7 @@ onUnmounted(() => {
   width: 24px;
   height: 24px;
   border: 2px solid rgba(15, 124, 255, 0.18);
-  border-top-color: #0f7cff;
+  border-top-color: #b4232f;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -988,7 +943,7 @@ onUnmounted(() => {
 .page-btn:hover:not(:disabled) {
   background: rgba(15, 124, 255, 0.08);
   border-color: rgba(15, 124, 255, 0.32);
-  color: #0f7cff;
+  color: #b4232f;
 }
 
 .page-btn:disabled {
@@ -1018,11 +973,11 @@ onUnmounted(() => {
 
 .page-num:hover {
   background: rgba(15, 124, 255, 0.08);
-  color: #0f7cff;
+  color: #b4232f;
 }
 
 .page-num.active {
-  background: linear-gradient(135deg, #0f7cff, #1d4ed8);
+  background: linear-gradient(135deg, #b4232f, #4b5563);
   color: #fff;
   font-weight: 600;
 }
@@ -1046,7 +1001,7 @@ onUnmounted(() => {
 
   .table-header,
   .table-row {
-    grid-template-columns: 56px minmax(76px, 1fr) minmax(86px, 1fr) minmax(72px, 0.8fr) minmax(96px, 0.9fr) minmax(96px, 0.9fr);
+    grid-template-columns: 56px minmax(108px, 1.4fr) minmax(78px, 0.8fr) minmax(104px, 1fr);
     padding: 14px 12px;
     gap: 6px;
   }
@@ -1062,4 +1017,724 @@ onUnmounted(() => {
     justify-content: space-around;
   }
 }
+
+/* Enterprise technology ranking theme */
+.ranking-board {
+  color: #111827;
+}
+
+.stats-section {
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.stat-card {
+  border-color: rgba(71, 96, 136, 0.14);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(244, 248, 255, 0.88));
+  box-shadow: 0 1px 2px rgba(23, 44, 76, 0.04);
+}
+
+.stat-card:hover {
+  border-color: rgba(27, 111, 216, 0.22);
+  box-shadow: 0 14px 30px rgba(23, 44, 76, 0.08);
+  transform: translateY(-1px);
+}
+
+.stat-card.total .stat-icon,
+.stat-card.score .stat-icon {
+  border-color: rgba(27, 111, 216, 0.14);
+  background: rgba(27, 111, 216, 0.07);
+  color: #374151;
+}
+
+.stat-card.score .stat-value,
+.rank-number,
+.score-value {
+  color: #b4232f;
+}
+
+.stat-value,
+.personal-stat .value,
+.table-row .col.name {
+  color: #111827;
+}
+
+.stat-label,
+.rank-label,
+.personal-stat .label,
+.table-header .col,
+.page-size-select,
+.jump-page {
+  color: #627086;
+}
+
+.personal-card {
+  border-color: rgba(71, 96, 136, 0.14);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(244, 248, 255, 0.9));
+  box-shadow: 0 1px 2px rgba(23, 44, 76, 0.04);
+}
+
+.personal-card::before {
+  background: linear-gradient(90deg, #b4232f, #1b6fd8, #64748b);
+}
+
+.personal-card-empty {
+  background: rgba(247, 250, 255, 0.7);
+}
+
+.search-group,
+.table-container {
+  border-color: rgba(71, 96, 136, 0.14);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 1px 2px rgba(23, 44, 76, 0.04);
+}
+
+.search-group:hover,
+.search-group:focus-within {
+  border-color: rgba(27, 111, 216, 0.26);
+  box-shadow: 0 12px 24px rgba(23, 44, 76, 0.06);
+}
+
+.search-input {
+  color: #111827;
+}
+
+.clear-btn {
+  background: rgba(27, 111, 216, 0.08);
+  color: #627086;
+}
+
+.clear-btn:hover {
+  background: rgba(180, 35, 47, 0.08);
+  color: #b4232f;
+}
+
+.table-header {
+  background: linear-gradient(180deg, rgba(248, 251, 255, 0.98), rgba(241, 247, 255, 0.92));
+  border-bottom-color: rgba(71, 96, 136, 0.12);
+}
+
+.sort-header:hover {
+  color: #b4232f;
+}
+
+.table-body {
+  scrollbar-color: rgba(27, 111, 216, 0.3) rgba(23, 44, 76, 0.04);
+}
+
+.table-row {
+  border-bottom-color: rgba(71, 96, 136, 0.08);
+}
+
+.table-row:hover {
+  background: rgba(27, 111, 216, 0.045);
+}
+
+.table-row.rank-first-row {
+  background: linear-gradient(90deg, rgba(180, 35, 47, 0.08), rgba(255, 255, 255, 0.78) 58%, transparent);
+  box-shadow: inset 3px 0 0 rgba(180, 35, 47, 0.42);
+}
+
+.table-row.rank-second-row {
+  background: linear-gradient(90deg, rgba(27, 111, 216, 0.08), rgba(255, 255, 255, 0.76) 58%, transparent);
+  box-shadow: inset 3px 0 0 rgba(27, 111, 216, 0.32);
+}
+
+.table-row.rank-third-row {
+  background: linear-gradient(90deg, rgba(8, 145, 178, 0.08), rgba(255, 255, 255, 0.76) 58%, transparent);
+  box-shadow: inset 3px 0 0 rgba(8, 145, 178, 0.32);
+}
+
+.table-row.top-ten {
+  background: linear-gradient(90deg, rgba(129, 119, 216, 0.045), transparent);
+}
+
+.table-row .col {
+  color: #334155;
+}
+
+.rank-badge {
+  background: rgba(27, 111, 216, 0.08);
+  border: 1px solid rgba(27, 111, 216, 0.12);
+  color: #627086;
+  border-radius: 8px;
+}
+
+.rank-badge.rank-1 {
+  background: linear-gradient(135deg, #b4232f, #7f1d2d);
+  border-color: rgba(180, 35, 47, 0.42);
+  color: #fff;
+  box-shadow: 0 10px 18px rgba(180, 35, 47, 0.22);
+}
+
+.rank-badge.rank-2 {
+  background: linear-gradient(135deg, #eaf2ff, #bcd5ff);
+  border-color: rgba(27, 111, 216, 0.26);
+  color: #374151;
+}
+
+.rank-badge.rank-3 {
+  background: linear-gradient(135deg, #e8fbff, #80d8e8);
+  border-color: rgba(8, 145, 178, 0.26);
+  color: #075985;
+}
+
+.loading-spinner {
+  border-color: rgba(180, 35, 47, 0.16);
+  border-top-color: #b4232f;
+}
+
+.jump-page input,
+.page-size-select select,
+.page-btn,
+.page-num {
+  border-color: rgba(71, 96, 136, 0.16);
+  background: rgba(255, 255, 255, 0.82);
+  color: #526176;
+}
+
+.jump-page input:focus {
+  border-color: rgba(180, 35, 47, 0.48);
+  box-shadow: 0 0 0 3px rgba(180, 35, 47, 0.1);
+}
+
+.page-size-select select:hover,
+.page-btn:hover:not(:disabled),
+.page-num:hover {
+  border-color: rgba(180, 35, 47, 0.24);
+  background: rgba(180, 35, 47, 0.055);
+  color: #b4232f;
+}
+
+.page-num.active {
+  background: linear-gradient(135deg, #b4232f, #921927);
+  border-color: rgba(180, 35, 47, 0.2);
+  color: #fff;
+}
+
+/* Cohesive data cockpit polish */
+.ranking-board {
+  position: relative;
+}
+
+.stats-section {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.stat-card {
+  min-height: 86px;
+  padding: 18px;
+  border-radius: 8px;
+  backdrop-filter: blur(12px);
+}
+
+.stat-card.total {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(239, 247, 255, 0.88)),
+    linear-gradient(90deg, rgba(27, 111, 216, 0.08), transparent);
+}
+
+.stat-card.score {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(255, 245, 247, 0.78)),
+    linear-gradient(90deg, rgba(180, 35, 47, 0.08), transparent);
+}
+
+.stat-icon {
+  width: 42px;
+  height: 42px;
+}
+
+.stat-card.score .stat-icon {
+  border-color: rgba(180, 35, 47, 0.16);
+  background: rgba(180, 35, 47, 0.075);
+  color: #b4232f;
+}
+
+.stat-value {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.personal-card {
+  min-height: 112px;
+  margin-bottom: 18px;
+  padding: 20px;
+  overflow: hidden;
+}
+
+.personal-card::after {
+  content: "";
+  position: absolute;
+  right: -30px;
+  top: 18px;
+  width: 240px;
+  height: 72px;
+  pointer-events: none;
+  background:
+    linear-gradient(100deg, transparent, rgba(27, 111, 216, 0.11), rgba(129, 119, 216, 0.08), transparent),
+    linear-gradient(75deg, transparent 20%, rgba(180, 35, 47, 0.07), transparent 70%);
+  transform: rotate(-10deg);
+}
+
+.personal-info {
+  position: relative;
+  z-index: 1;
+}
+
+.rank-number {
+  font-size: 38px;
+}
+
+.search-bar {
+  margin-bottom: 14px;
+}
+
+.search-group {
+  width: min(340px, 100%);
+  padding: 5px;
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+}
+
+.search-input-wrapper {
+  width: 100%;
+}
+
+.table-container {
+  border-radius: 8px;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+}
+
+.table-header,
+.table-row {
+  grid-template-columns: 72px minmax(110px, 0.82fr) minmax(120px, 0.95fr) minmax(150px, 1.05fr);
+}
+
+.table-header {
+  min-height: 46px;
+  padding: 14px 18px;
+}
+
+.table-row {
+  min-height: 54px;
+  padding: 13px 18px;
+}
+
+.table-body {
+  max-height: 520px;
+}
+
+.rank-badge {
+  width: 30px;
+  height: 30px;
+}
+
+.rank-badge.rank-1,
+.rank-badge.rank-2,
+.rank-badge.rank-3 {
+  width: 38px;
+  height: 34px;
+}
+
+.name-text {
+  max-width: 132px;
+}
+
+.score-value {
+  font-size: 17px;
+}
+
+.pagination-bar {
+  margin-top: 18px;
+  padding: 14px 10px 4px;
+}
+
+.page-btn,
+.page-num,
+.page-size-select select,
+.jump-page input {
+  border-radius: 6px;
+}
+
+/* Remove legacy ranking colors and align with page panels */
+.ranking-board {
+  --rank-panel-bg: rgba(255, 255, 255, 0.66);
+  --rank-panel-border: rgba(71, 96, 136, 0.12);
+  --rank-blue: #1b6fd8;
+  --rank-cyan: #64748b;
+  --rank-violet: #8177d8;
+  --rank-red: #b4232f;
+}
+
+.stat-card,
+.personal-card,
+.search-group,
+.table-container {
+  background:
+    linear-gradient(130deg, rgba(255, 255, 255, 0.9), rgba(246, 250, 255, 0.74)),
+    linear-gradient(90deg, rgba(27, 111, 216, 0.04), transparent);
+  border-color: var(--rank-panel-border);
+  box-shadow: 0 1px 2px rgba(23, 44, 76, 0.04);
+}
+
+.stat-card.score,
+.personal-card {
+  background:
+    linear-gradient(130deg, rgba(255, 255, 255, 0.9), rgba(246, 250, 255, 0.74)),
+    linear-gradient(90deg, rgba(180, 35, 47, 0.045), transparent 62%);
+}
+
+.personal-card::before {
+  height: 3px;
+  background: linear-gradient(90deg, var(--rank-red), var(--rank-blue), var(--rank-cyan), var(--rank-violet));
+}
+
+.table-header {
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.table-row,
+.table-row.top-ten,
+.table-row.top-twenty,
+.table-row.top-fifty,
+.table-row.top-hundred,
+.table-row.top-two-hundred {
+  background: rgba(255, 255, 255, 0.54);
+  box-shadow: none;
+}
+
+.table-row:nth-child(even),
+.table-row.top-ten:nth-child(even),
+.table-row.top-twenty:nth-child(even),
+.table-row.top-fifty:nth-child(even),
+.table-row.top-hundred:nth-child(even),
+.table-row.top-two-hundred:nth-child(even) {
+  background: rgba(247, 250, 255, 0.58);
+}
+
+.table-row:hover,
+.table-row.top-ten:hover,
+.table-row.top-twenty:hover,
+.table-row.top-fifty:hover,
+.table-row.top-hundred:hover,
+.table-row.top-two-hundred:hover {
+  background: rgba(232, 242, 255, 0.74);
+}
+
+.table-row.rank-first-row {
+  background: linear-gradient(90deg, rgba(180, 35, 47, 0.09), rgba(255, 255, 255, 0.64) 54%, rgba(247, 250, 255, 0.42));
+  box-shadow: inset 3px 0 0 rgba(180, 35, 47, 0.45);
+}
+
+.table-row.rank-second-row {
+  background: linear-gradient(90deg, rgba(27, 111, 216, 0.08), rgba(255, 255, 255, 0.62) 54%, rgba(247, 250, 255, 0.42));
+  box-shadow: inset 3px 0 0 rgba(27, 111, 216, 0.34);
+}
+
+.table-row.rank-third-row {
+  background: linear-gradient(90deg, rgba(8, 145, 178, 0.08), rgba(255, 255, 255, 0.62) 54%, rgba(247, 250, 255, 0.42));
+  box-shadow: inset 3px 0 0 rgba(8, 145, 178, 0.34);
+}
+
+.sort-header:hover,
+.clear-btn:hover,
+.page-btn:hover:not(:disabled),
+.page-num:hover {
+  color: var(--rank-red);
+}
+
+.page-num.active {
+  background: linear-gradient(135deg, var(--rank-red), #921927);
+}
+
+@media (max-width: 900px) {
+  .stats-section {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-card {
+    min-height: 76px;
+  }
+
+  .personal-card::after {
+    right: -90px;
+  }
+
+  .table-header,
+  .table-row {
+    grid-template-columns: 52px minmax(86px, 0.9fr) minmax(74px, 0.8fr) minmax(96px, 1fr);
+    padding: 13px 12px;
+  }
+
+  .name-text {
+    max-width: 92px;
+  }
+}
+
+/* Enterprise event final ranking baseline */
+.ranking-board {
+  color: #111827;
+}
+
+.stat-card.total .stat-icon,
+.stat-card.score .stat-icon {
+  color: #374151;
+}
+
+.stat-card.score .stat-icon,
+.rank-badge.rank-1 {
+  color: #ffffff;
+}
+
+.stat-card.score .stat-value,
+.rank-number,
+.score-value {
+  color: #b4232f;
+}
+
+.personal-card-empty .empty-text,
+.stat-label,
+.rank-label,
+.personal-stat .label,
+.table-header .col,
+.page-size-select,
+.jump-page {
+  color: #627086;
+}
+
+.table-row.is-me {
+  background: rgba(180, 35, 47, 0.06);
+  border-left: 3px solid #b4232f;
+}
+
+.me-badge {
+  background: rgba(180, 35, 47, 0.08);
+  color: #b4232f;
+}
+
+.rank-badge.rank-2 {
+  color: #374151;
+}
+
+.rank-badge.rank-3 {
+  color: #075985;
+}
+
+.loading-row,
+.empty-row {
+  color: #627086;
+}
+
+.page-num.active {
+  background: #b4232f;
+}
+
+/* Reduce foreground blue for red-white enterprise style */
+.ranking-board {
+  --rank-blue: #4b5563;
+  --rank-cyan: #64748b;
+  --rank-violet: #9ca3af;
+}
+
+.stat-card.total .stat-icon,
+.stat-card.score .stat-icon {
+  border-color: rgba(180, 35, 47, 0.14);
+  background: rgba(180, 35, 47, 0.07);
+  color: #b4232f;
+}
+
+.stat-card.total {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.88)),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.08), transparent);
+}
+
+.personal-card::before {
+  background: linear-gradient(90deg, #b4232f, #4b5563 72%, transparent);
+}
+
+.personal-card::after {
+  background:
+    linear-gradient(100deg, transparent, rgba(148, 163, 184, 0.12), rgba(180, 35, 47, 0.055), transparent),
+    linear-gradient(75deg, transparent 20%, rgba(180, 35, 47, 0.06), transparent 70%);
+}
+
+.table-row.rank-second-row,
+.table-row.rank-third-row {
+  background: linear-gradient(90deg, rgba(75, 85, 99, 0.065), rgba(255, 255, 255, 0.62) 54%, rgba(248, 250, 252, 0.42));
+  box-shadow: inset 3px 0 0 rgba(75, 85, 99, 0.32);
+}
+
+.rank-badge,
+.rank-badge.rank-2,
+.rank-badge.rank-3 {
+  background: linear-gradient(135deg, #f8fafc, #e5e7eb);
+  border-color: rgba(75, 85, 99, 0.18);
+  color: #374151;
+  box-shadow: none;
+}
+
+.rank-badge.rank-1 {
+  background: linear-gradient(135deg, #b4232f, #7f1d2d);
+  color: #ffffff;
+}
+
+.rank-badge.rank-2,
+.rank-badge.rank-3 {
+  color: #374151;
+}
+
+.table-row:hover,
+.table-row.top-ten:hover,
+.table-row.top-twenty:hover,
+.table-row.top-fifty:hover,
+.table-row.top-hundred:hover,
+.table-row.top-two-hundred:hover {
+  background: rgba(248, 250, 252, 0.88);
+}
+
+.search-group:hover,
+.search-group:focus-within {
+  border-color: rgba(75, 85, 99, 0.2);
+  box-shadow: 0 12px 24px rgba(23, 44, 76, 0.06);
+}
+
+/* Tone down red accents in secondary ranking elements */
+.stat-card.total .stat-icon,
+.stat-card.score .stat-icon {
+  border-color: rgba(75, 85, 99, 0.14);
+  background: rgba(75, 85, 99, 0.055);
+  color: #374151;
+}
+
+.personal-card::before {
+  background: linear-gradient(90deg, #111827, #6b7280 72%, transparent);
+}
+
+.personal-card::after {
+  background: linear-gradient(100deg, transparent, rgba(148, 163, 184, 0.12), rgba(17, 24, 39, 0.045), transparent);
+}
+
+.rank-badge.rank-1 {
+  background: linear-gradient(135deg, #111827, #4b5563);
+}
+
+.table-row.rank-first-row {
+  background: linear-gradient(90deg, rgba(17, 24, 39, 0.07), rgba(255, 255, 255, 0.62) 54%, rgba(248, 250, 252, 0.42));
+  box-shadow: inset 3px 0 0 rgba(17, 24, 39, 0.34);
+}
+
+/* Data area: black first, red as accent */
+.stat-card.score .stat-value,
+.rank-number {
+  color: #111827;
+}
+
+.score-value {
+  color: #b4232f;
+}
+
+.me-badge,
+.page-num.active {
+  background: #111827;
+  color: #ffffff;
+}
+
+.table-row.is-me {
+  background: rgba(17, 24, 39, 0.045);
+  border-left-color: #111827;
+}
+
+.loading-spinner {
+  border-color: rgba(17, 24, 39, 0.12);
+  border-top-color: #111827;
+}
+
+/* Scroll performance and top-three emphasis */
+.stat-card,
+.search-group,
+.table-container {
+  backdrop-filter: none;
+}
+
+.stat-card,
+.personal-card,
+.table-container {
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 1px 2px rgba(23, 44, 76, 0.04);
+}
+
+.personal-card::after {
+  display: none;
+}
+
+.table-row,
+.table-row.top-ten,
+.table-row.top-twenty,
+.table-row.top-fifty,
+.table-row.top-hundred,
+.table-row.top-two-hundred {
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.table-row:nth-child(even),
+.table-row.top-ten:nth-child(even),
+.table-row.top-twenty:nth-child(even),
+.table-row.top-fifty:nth-child(even),
+.table-row.top-hundred:nth-child(even),
+.table-row.top-two-hundred:nth-child(even) {
+  background: #f8fafc;
+}
+
+.table-row.rank-first-row {
+  background: rgba(180, 35, 47, 0.13);
+  box-shadow: inset 4px 0 0 #8f1723;
+}
+
+.table-row.rank-second-row {
+  background: rgba(180, 35, 47, 0.09);
+  box-shadow: inset 4px 0 0 #b4232f;
+}
+
+.table-row.rank-third-row {
+  background: rgba(180, 35, 47, 0.055);
+  box-shadow: inset 4px 0 0 #d45b64;
+}
+
+.rank-badge.rank-1 {
+  background: #8f1723;
+  border-color: rgba(143, 23, 35, 0.18);
+  color: #ffffff;
+}
+
+.rank-badge.rank-2 {
+  background: #b4232f;
+  border-color: rgba(180, 35, 47, 0.16);
+  color: #ffffff;
+}
+
+.rank-badge.rank-3 {
+  background: #d45b64;
+  border-color: rgba(212, 91, 100, 0.16);
+  color: #ffffff;
+}
+
+.table-row.rank-first-row .score-value,
+.table-row.rank-second-row .score-value,
+.table-row.rank-third-row .score-value {
+  color: #8f1723;
+}
+
+.table-row:hover,
+.table-row.top-ten:hover,
+.table-row.top-twenty:hover,
+.table-row.top-fifty:hover,
+.table-row.top-hundred:hover,
+.table-row.top-two-hundred:hover {
+  background: #f1f5f9;
+}
+
 </style>

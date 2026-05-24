@@ -13,6 +13,7 @@ const isDragging = ref(false)
 const fileInput = ref(null)
 const uploading = ref(false)
 const selectedFile = ref(null)
+const invalidZipMessage = '程序包的格式错误，请上传zip格式的压缩包'
 
 const isZipFile = (file) => {
   return file?.name?.toLowerCase().endsWith('.zip')
@@ -47,7 +48,7 @@ const handleFileSelect = (event) => {
 
 const prepareUpload = (file, inputTarget = null) => {
   if (!isZipFile(file)) {
-    alert('文件类型上传错误，请上传 .zip 格式文件')
+    alert(invalidZipMessage)
     if (inputTarget) inputTarget.value = ''
     return
   }
@@ -62,7 +63,7 @@ const cancelUpload = () => {
 const confirmUpload = async () => {
   if (!selectedFile.value) return
   if (!isZipFile(selectedFile.value)) {
-    alert('文件类型上传错误，请上传 .zip 格式文件')
+    alert(invalidZipMessage)
     selectedFile.value = null
     return
   }
@@ -109,7 +110,7 @@ const confirmUpload = async () => {
           @click="triggerSelect"
         >
           <div class="idle-state">
-            <span class="upload-icon">☁️</span>
+            <span class="upload-icon">ZIP</span>
             <p class="primary-text">点击或拖拽文件到此处上传</p>
             <p class="sub-text">支持 .zip 格式压缩包</p>
           </div>
@@ -130,7 +131,7 @@ const confirmUpload = async () => {
             <p>正在上传...</p>
           </div>
           <div v-else class="file-info" @click="triggerSelect" title="点击重新选择">
-            <span class="file-icon">📦</span>
+            <span class="file-icon">ZIP</span>
             <p class="file-name">{{ selectedFile.name }}</p>
             <p class="file-size">{{ (selectedFile.size / 1024 / 1024).toFixed(2) }} MB</p>
             <p class="sub-text" style="margin-top: 8px;">(点击可重新选择文件)</p>
@@ -254,12 +255,12 @@ const confirmUpload = async () => {
 }
 
 .upload-area:hover {
-  border-color: #10b981;
+  border-color: #b4232f;
   background: #ecfdf5;
 }
 
 .upload-area.is-dragging {
-  border-color: #10b981;
+  border-color: #b4232f;
   background: #d1fae5;
   transform: scale(1.02);
 }
@@ -300,7 +301,7 @@ const confirmUpload = async () => {
   width: 32px;
   height: 32px;
   border: 3px solid #e2e8f0;
-  border-top-color: #10b981;
+  border-top-color: #b4232f;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -362,12 +363,12 @@ const confirmUpload = async () => {
 }
 
 .btn-primary {
-  background: #10b981;
+  background: #b4232f;
   color: white;
 }
 
 .btn-primary:hover {
-  background: #059669;
+  background: #921927;
 }
 
 .btn-secondary {
@@ -377,5 +378,143 @@ const confirmUpload = async () => {
 
 .btn-secondary:hover {
   background: #e2e8f0;
+}
+
+/* Enterprise event upload dialog theme */
+.modal-overlay {
+  background: rgba(17, 24, 39, 0.42);
+  backdrop-filter: blur(8px);
+}
+
+.modal-content {
+  max-width: 520px;
+  border: 1px solid rgba(71, 96, 136, 0.14);
+  border-radius: 8px;
+  background:
+    linear-gradient(130deg, rgba(255, 255, 255, 0.96), rgba(246, 250, 255, 0.86));
+  box-shadow: 0 24px 64px rgba(23, 44, 76, 0.22);
+}
+
+.modal-content::before {
+  content: "";
+  display: block;
+  height: 3px;
+  background: linear-gradient(90deg, #b4232f, #1b6fd8 46%, #64748b 72%, #8177d8);
+}
+
+.modal-header {
+  border-bottom-color: rgba(71, 96, 136, 0.1);
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.modal-header h3 {
+  color: #111827;
+  font-weight: 800;
+}
+
+.close-btn {
+  color: #627086;
+}
+
+.close-btn:hover {
+  color: #111827;
+}
+
+.modal-footer {
+  border-top-color: rgba(71, 96, 136, 0.1);
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.upload-area,
+.confirm-area {
+  border: 1px dashed rgba(71, 96, 136, 0.22);
+  border-radius: 8px;
+  background:
+    linear-gradient(130deg, rgba(255, 255, 255, 0.86), rgba(246, 250, 255, 0.74)),
+    linear-gradient(90deg, rgba(27, 111, 216, 0.04), transparent);
+}
+
+.upload-area:hover,
+.upload-area.is-dragging {
+  border-color: rgba(180, 35, 47, 0.32);
+  background:
+    linear-gradient(130deg, rgba(255, 255, 255, 0.92), rgba(246, 250, 255, 0.78)),
+    linear-gradient(90deg, rgba(180, 35, 47, 0.055), transparent);
+  transform: none;
+}
+
+.upload-icon,
+.file-icon {
+  width: 54px;
+  height: 54px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(180, 35, 47, 0.18);
+  border-radius: 8px;
+  background: rgba(180, 35, 47, 0.08);
+  color: #b4232f;
+  font-size: 15px;
+  font-weight: 850;
+  letter-spacing: 0;
+}
+
+.primary-text,
+.file-name {
+  color: #111827;
+  font-weight: 700;
+}
+
+.sub-text,
+.file-size {
+  color: #627086;
+}
+
+.spinner {
+  border-color: rgba(180, 35, 47, 0.16);
+  border-top-color: #b4232f;
+}
+
+.btn {
+  border-radius: 6px;
+  font-weight: 700;
+}
+
+.btn-primary {
+  background: #b4232f;
+  color: #ffffff;
+}
+
+.btn-primary:hover {
+  background: #921927;
+}
+
+.btn-secondary {
+  border: 1px solid rgba(71, 96, 136, 0.16);
+  background: rgba(255, 255, 255, 0.78);
+  color: #1f2a44;
+}
+
+.btn-secondary:hover {
+  border-color: rgba(27, 111, 216, 0.24);
+  background: rgba(27, 111, 216, 0.06);
+}
+
+/* Reduce foreground blue for red-white enterprise style */
+.modal-content::before {
+  background: linear-gradient(90deg, transparent, #b4232f 18%, #4b5563 72%, transparent);
+}
+
+.upload-area,
+.confirm-area {
+  background:
+    linear-gradient(130deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.76)),
+    linear-gradient(90deg, rgba(180, 35, 47, 0.035), transparent);
+}
+
+.btn-secondary:hover {
+  border-color: rgba(180, 35, 47, 0.2);
+  background: rgba(180, 35, 47, 0.055);
+  color: #b4232f;
 }
 </style>
