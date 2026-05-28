@@ -45,6 +45,7 @@ const competitionStartDate = new Date(COMPETITION_START_AT)
 const competitionEndDate = new Date(COMPETITION_END_AT)
 const uploadCooldownEndsAt = ref(0)
 const cooldownTick = ref(Date.now())
+const isUploadCooldownLoading = ref(false)
 let cooldownTimer = null
 
 const uploadCooldownRemainingMs = computed(() => {
@@ -122,7 +123,7 @@ const isCompetitionEnded = computed(() => {
 })
 
 const canUploadNow = computed(() => {
-  return !isCompetitionPending.value && !isCompetitionEnded.value && !isUploadCoolingDown.value
+  return !isCompetitionPending.value && !isCompetitionEnded.value && !isUploadCooldownLoading.value && !isUploadCoolingDown.value
 })
 
 const uploadButtonText = computed(() => {
@@ -131,6 +132,9 @@ const uploadButtonText = computed(() => {
   }
   if (isCompetitionEnded.value) {
     return '个人赛已结束'
+  }
+  if (isUploadCooldownLoading.value) {
+    return '提交状态加载中'
   }
   if (isUploadCoolingDown.value) {
     return `${uploadCooldownText.value} 后可上传`
@@ -144,6 +148,9 @@ const uploadTipText = computed(() => {
   }
   if (isCompetitionEnded.value) {
     return '提交通道已关闭'
+  }
+  if (isUploadCooldownLoading.value) {
+    return '正在同步提交状态'
   }
   if (isUploadCoolingDown.value) {
     return '每次上传间隔需满10分钟'
@@ -208,8 +215,10 @@ const parseSubmissionTime = (submission) => {
 const refreshUploadCooldown = async (userId) => {
   if (!userId) {
     uploadCooldownEndsAt.value = 0
+    isUploadCooldownLoading.value = false
     return
   }
+  isUploadCooldownLoading.value = true
   try {
     const res = await userApi.getSubmissions(userId)
     const submissions = res.code === 0 && Array.isArray(res.data) ? res.data : []
@@ -221,6 +230,8 @@ const refreshUploadCooldown = async (userId) => {
   } catch (error) {
     console.error('Failed to load upload cooldown:', error)
     uploadCooldownEndsAt.value = 0
+  } finally {
+    isUploadCooldownLoading.value = false
   }
 }
 
@@ -235,7 +246,7 @@ onMounted(async () => {
 
     const userExists = await loadExistingUser(resolvedUserId)
     if (userExists) {
-      await refreshUploadCooldown(resolvedUserId)
+      refreshUploadCooldown(resolvedUserId)
     }
     if (!userExists) {
       currentUser.value = null
@@ -259,6 +270,23 @@ const buildDefaultProfile = () => {
     user_id: registerForm.value.user_id.trim(),
     username
   }
+}
+
+const getRequestErrorMessage = (error, fallback) => {
+  const responseMessage = error?.response?.data?.message
+  if (responseMessage) {
+    return `${fallback}：${responseMessage}`
+  }
+  if (error?.response?.status) {
+    return `${fallback}：HTTP ${error.response.status}`
+  }
+  if (error?.code === 'ECONNABORTED') {
+    return `${fallback}：请求超时`
+  }
+  if (error?.message) {
+    return `${fallback}：${error.message}`
+  }
+  return fallback
 }
 
 const loginUser = async () => {
@@ -288,7 +316,7 @@ const loginUser = async () => {
     }
   } catch (error) {
     console.error('Login error:', error)
-    registerError.value = '登录失败，请检查网络连接'
+    registerError.value = getRequestErrorMessage(error, '登录失败，请检查网络连接')
   } finally {
     registerLoading.value = false
   }
@@ -345,11 +373,16 @@ const handleUploadSuccess = () => {
   alert('代码上传成功！')
 }
 
-// 查看平台操作指导
-const showGuide = () => {
-  // TODO: 请替换为实际的操作指导文档链接
-  window.open('https://www.example.com/guide', '_blank')
+const handleUploadPending = (message) => {
+  closeUpload()
+  uploadCooldownEndsAt.value = Date.now() + UPLOAD_INTERVAL_MS
+  cooldownTick.value = Date.now()
+  if (rankingBoardRef.value) {
+    rankingBoardRef.value.refresh()
+  }
+  alert(message || '程序包同步未完成，提交已保留为上传中')
 }
+
 </script>
 
 <template>
@@ -519,10 +552,6 @@ const showGuide = () => {
                 <IconSymbol name="user" />
               </span>
               <h2>参赛信息</h2>
-              <button class="btn-guide" @click="showGuide">
-                <IconSymbol name="guide" :size="15" />
-                平台操作指导
-              </button>
             </div>
             <div class="card-body">
               <!-- 已配置状态 -->
@@ -591,6 +620,7 @@ const showGuide = () => {
       :userId="currentUser?.user_id"
       @close="closeUpload"
       @success="handleUploadSuccess"
+      @pending="handleUploadPending"
     />
 
   </div>
@@ -1094,26 +1124,6 @@ body {
   font-weight: 600;
   color: var(--text);
   flex: 1;
-}
-
-.btn-guide {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 30px;
-  padding: 5px 10px;
-  border: 1px solid rgba(29, 78, 216, 0.22);
-  border-radius: 6px;
-  background: rgba(29, 78, 216, 0.07);
-  color: var(--accent-blue);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-guide:hover {
-  background: rgba(29, 78, 216, 0.12);
 }
 
 .card-body {
@@ -1780,16 +1790,6 @@ body {
   font-weight: 750;
 }
 
-.btn-guide {
-  border-color: rgba(27, 111, 216, 0.16);
-  background: rgba(255, 255, 255, 0.72);
-  color: #374151;
-}
-
-.btn-guide:hover {
-  background: rgba(27, 111, 216, 0.08);
-}
-
 .user-profile {
   border-color: rgba(71, 96, 136, 0.14);
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(243, 248, 255, 0.9));
@@ -1991,7 +1991,6 @@ button::before {
   border-color: rgba(71, 96, 136, 0.12);
 }
 
-.btn-guide,
 .btn-secondary {
   background: rgba(255, 255, 255, 0.68);
 }
@@ -2185,15 +2184,13 @@ body {
   box-shadow: 0 14px 28px rgba(180, 35, 47, 0.2);
 }
 
-.btn-secondary,
-.btn-guide {
+.btn-secondary {
   border-color: rgba(71, 96, 136, 0.16);
   background: rgba(255, 255, 255, 0.7);
   color: #1f2a44;
 }
 
-.btn-secondary:hover,
-.btn-guide:hover {
+.btn-secondary:hover {
   border-color: rgba(27, 111, 216, 0.24);
   background: rgba(27, 111, 216, 0.06);
   color: #374151;
@@ -2255,7 +2252,6 @@ body {
     linear-gradient(76deg, transparent 24%, rgba(180, 35, 47, 0.055), transparent 72%);
 }
 
-.btn-guide:hover,
 .btn-secondary:hover {
   border-color: rgba(180, 35, 47, 0.2);
   background: rgba(180, 35, 47, 0.055);
@@ -2433,7 +2429,6 @@ body {
   box-shadow: 0 0 0 5px rgba(75, 85, 99, 0.055);
 }
 
-.btn-guide:hover,
 .btn-secondary:hover {
   border-color: rgba(75, 85, 99, 0.2);
   background: rgba(75, 85, 99, 0.055);

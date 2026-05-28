@@ -5,8 +5,8 @@ import App from './App.vue'
 
 const THIRD_PARTY_USER_ID_STORAGE_KEY = 'agent_game_third_party_user_id'
 const LOGIN_STATUS_PATH = import.meta.env.VITE_LOGIN_STATUS_PATH || '/auth/login'
-const LOGIN_PAGE_URL = import.meta.env.VITE_LOGIN_PAGE_URL || 'xxx'
-const ENABLE_LOGIN_GUARD = !import.meta.env.DEV || import.meta.env.VITE_ENABLE_LOGIN_GUARD === 'true'
+const LOGIN_PAGE_URL = import.meta.env.VITE_LOGIN_PAGE_URL || '/auth/login'
+const ENABLE_LOGIN_GUARD = import.meta.env.VITE_ENABLE_LOGIN_GUARD === 'true'
 
 const normalizeUserId = (value) => {
   const normalized = String(value || '').replace(/\D/g, '').slice(0, 8)
@@ -58,5 +58,4 @@ const initializeApp = async () => {
   redirectToLogin()
 }
 
-//initializeApp()
-mountApp();
+initializeApp()

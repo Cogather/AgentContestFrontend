@@ -15,6 +15,7 @@ const loading = ref(false)
 const errorMessage = ref('')
 const toastMessage = ref('')
 const detailItem = ref(null)
+const selectedQuestion = ref(1)
 let toastTimer = null
 
 const statusTextMap = {
@@ -86,8 +87,147 @@ const formatNumber = (value) => {
   return Number.isFinite(numeric) ? numeric.toLocaleString('zh-CN') : value
 }
 
+const parseScoreDetail = (value) => {
+  if (Array.isArray(value)) {
+    return normalizeScoreDetail(value)
+  }
+  if (typeof value !== 'string' || !value.trim()) {
+    return []
+  }
+  try {
+    const parsed = JSON.parse(value)
+    return normalizeScoreDetail(parsed)
+  } catch (error) {
+    return []
+  }
+}
+
+const normalizeScoreDetail = (value) => {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  const normalized = value
+    .map((item, index) => {
+      const question = Number(item?.question ?? item?.id ?? index + 1)
+      const score = Number(item?.score)
+      const total = Number(item?.total ?? item?.fullScore ?? item?.max_score)
+      return {
+        question: Number.isFinite(question) ? question : index + 1,
+        score,
+        total
+      }
+    })
+    .filter(item => (
+      item.question >= 1
+      && item.question <= 10
+      && Number.isFinite(item.score)
+      && Number.isFinite(item.total)
+      && item.total > 0
+    ))
+    .sort((left, right) => left.question - right.question)
+
+  const uniqueQuestions = new Set(normalized.map(item => item.question))
+  if (uniqueQuestions.size < 10) {
+    return []
+  }
+
+  return normalized.slice(0, 10)
+}
+
+const normalizeQuestionDetails = (value) => {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  const normalized = value
+    .map((item, index) => {
+      const question = Number(item?.question ?? item?.id ?? index + 1)
+      const id = Number(item?.id ?? question)
+      const title = String(item?.title ?? item?.name ?? '').trim()
+      const detail = String(item?.detail ?? item?.description ?? item?.content ?? '').trim()
+      return {
+        id: Number.isFinite(id) ? id : question,
+        question: Number.isFinite(question) ? question : index + 1,
+        title,
+        detail
+      }
+    })
+    .filter(item => item.question >= 1 && item.question <= 10 && item.title && item.detail)
+    .sort((left, right) => left.question - right.question)
+
+  const uniqueQuestions = new Set(normalized.map(item => item.question))
+  if (uniqueQuestions.size < 10) {
+    return []
+  }
+
+  return normalized.slice(0, 10)
+}
+
+const scoreDetailsForItem = (item) => {
+  return parseScoreDetail(item?.score_detail ?? item?.scoreDetail)
+}
+
+const questionDetailsForItem = (item) => {
+  return normalizeQuestionDetails(item?.question_details ?? item?.questionDetails)
+}
+
+const detailScores = computed(() => {
+  if (!detailItem.value || !canShowScoreDetail(detailItem.value)) {
+    return []
+  }
+  return scoreDetailsForItem(detailItem.value)
+})
+
+const questionDetails = computed(() => {
+  return questionDetailsForItem(detailItem.value)
+})
+
+const mergedQuestionDetails = computed(() => {
+  const scoreMap = new Map(detailScores.value.map(item => [item.question, item]))
+  return questionDetails.value.map((item) => {
+    const scoreItem = scoreMap.get(item.question) || { score: 0, total: 100 }
+    return {
+      ...item,
+      score: scoreItem.score,
+      total: scoreItem.total
+    }
+  })
+})
+
+const selectedQuestionDetail = computed(() => {
+  return mergedQuestionDetails.value.find(item => item.question === selectedQuestion.value)
+    || mergedQuestionDetails.value[0]
+    || null
+})
+
 const showFailureReason = (item) => {
   showToast(item.message || '暂无失败原因')
+}
+
+const hasScoreValue = (item) => {
+  return item?.score !== null && item?.score !== undefined && item?.score !== ''
+}
+
+const canShowScoreDetail = (item) => {
+  return normalizeStatus(item?.status) === 'completed'
+    && hasScoreValue(item)
+    && scoreDetailsForItem(item).length === 10
+    && questionDetailsForItem(item).length === 10
+}
+
+const scoreDetailUnavailableText = (item) => {
+  const status = normalizeStatus(item?.status)
+  if (status === 'failed') {
+    return '无得分'
+  }
+  if (status === 'uploading' || status === 'uploaded' || status === 'evaluating') {
+    return '待评测'
+  }
+  if (status === 'completed' && hasScoreValue(item)) {
+    return '暂无明细'
+  }
+  return '暂无得分'
 }
 
 const showToast = (message) => {
@@ -103,6 +243,7 @@ const showToast = (message) => {
 
 const openDetail = (item) => {
   detailItem.value = item
+  selectedQuestion.value = 1
 }
 
 const closeDetail = () => {
@@ -148,7 +289,15 @@ const closeDetail = () => {
             <div class="time-cell">{{ formatTime(item.created_at || item.update_time) }}</div>
             <div class="score-cell">
               <span>{{ formatNumber(item.score) }}</span>
-              <button class="detail-link" type="button" @click="openDetail(item)">查看详情</button>
+              <button
+                v-if="canShowScoreDetail(item)"
+                class="detail-link"
+                type="button"
+                @click="openDetail(item)"
+              >
+                得分详情
+              </button>
+              <span v-else class="detail-unavailable">{{ scoreDetailUnavailableText(item) }}</span>
             </div>
             <div>{{ formatNumber(item.token_usage) }}</div>
             <div>
@@ -174,29 +323,64 @@ const closeDetail = () => {
     <div v-if="detailItem" class="detail-overlay" @click.self="closeDetail">
       <div class="detail-dialog">
         <div class="detail-header">
-          <h2>提交详情</h2>
+          <h2>得分详情</h2>
           <button type="button" class="detail-close" @click="closeDetail">×</button>
         </div>
         <div class="detail-body">
-          <div class="detail-line">
-            <span>提交编号</span>
-            <strong>{{ detailItem.id }}</strong>
-          </div>
-          <div class="detail-line">
-            <span>提交时间</span>
-            <strong>{{ formatTime(detailItem.created_at || detailItem.update_time) }}</strong>
-          </div>
-          <div class="detail-line">
-            <span>总得分</span>
-            <strong>{{ formatNumber(detailItem.score) }}</strong>
-          </div>
-          <div class="detail-line">
-            <span>总 token 消耗</span>
-            <strong>{{ formatNumber(detailItem.token_usage) }}</strong>
-          </div>
-          <div class="detail-line">
-            <span>当前状态</span>
-            <strong>{{ statusText(detailItem.status) }}</strong>
+          <section class="detail-meta-bar">
+            <div>
+              <span>总得分</span>
+              <strong>{{ formatNumber(detailItem.score) }}</strong>
+            </div>
+            <div>
+              <span>提交时间</span>
+              <strong>{{ formatTime(detailItem.created_at || detailItem.update_time) }}</strong>
+            </div>
+            <div>
+              <span>Token 消耗</span>
+              <strong>{{ formatNumber(detailItem.token_usage) }}</strong>
+            </div>
+            <div>
+              <span>当前状态</span>
+              <strong>{{ statusText(detailItem.status) }}</strong>
+            </div>
+          </section>
+
+          <div class="question-detail-layout">
+            <aside class="question-nav" aria-label="题目目录">
+              <div class="question-nav-title">题目目录</div>
+              <button
+                v-for="questionItem in mergedQuestionDetails"
+                :key="questionItem.question"
+                class="question-nav-item"
+                :class="{ active: selectedQuestion === questionItem.question }"
+                type="button"
+                @click="selectedQuestion = questionItem.question"
+              >
+                <span>题目 {{ questionItem.question }}</span>
+                <strong>{{ questionItem.title }}</strong>
+                <em class="question-score-line">
+                  <span class="score-value">{{ formatNumber(questionItem.score) }}</span>
+                  <span class="score-divider">/</span>
+                  <span class="score-total">{{ formatNumber(questionItem.total) }}</span>
+                </em>
+              </button>
+            </aside>
+
+            <section v-if="selectedQuestionDetail" class="question-reader">
+              <div class="question-reader-head">
+                <div>
+                  <span>题目 {{ selectedQuestionDetail.question }}</span>
+                  <h3>{{ selectedQuestionDetail.title }}</h3>
+                </div>
+                <strong class="question-score-line">
+                  <span class="score-value">{{ formatNumber(selectedQuestionDetail.score) }}</span>
+                  <span class="score-divider">/</span>
+                  <span class="score-total">{{ formatNumber(selectedQuestionDetail.total) }}</span>
+                </strong>
+              </div>
+              <div class="question-detail-text">{{ selectedQuestionDetail.detail }}</div>
+            </section>
           </div>
         </div>
       </div>
@@ -327,6 +511,12 @@ const closeDetail = () => {
   text-decoration: underline;
 }
 
+.detail-unavailable {
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;
@@ -383,16 +573,19 @@ const closeDetail = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 12px;
   z-index: 1100;
 }
 
 .detail-dialog {
-  width: min(460px, 100%);
+  width: min(1120px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
   background: #ffffff;
   border-radius: 8px;
   box-shadow: 0 24px 64px rgba(15, 23, 42, 0.24);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .detail-header {
@@ -417,21 +610,228 @@ const closeDetail = () => {
 }
 
 .detail-body {
-  padding: 18px 20px 22px;
-  display: grid;
-  gap: 12px;
+  min-height: 0;
+  padding: 18px 20px 20px;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  overflow: hidden;
 }
 
-.detail-line {
+.detail-meta-bar {
+  border: 1px solid rgba(71, 96, 136, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.detail-meta-bar > div {
+  min-width: 0;
+  border-left: 1px solid rgba(71, 96, 136, 0.12);
+  padding-left: 12px;
+}
+
+.detail-meta-bar > div:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.detail-meta-bar span,
+.question-nav-title,
+.question-nav-item span,
+.question-reader-head span {
+  display: block;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.detail-meta-bar strong {
+  display: block;
+  color: #0f172a;
+  font-size: 17px;
+  margin-top: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.question-detail-layout {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(360px, 420px) minmax(0, 1fr);
+  gap: 14px;
+  flex: 1;
+}
+
+.question-nav {
+  min-height: 0;
+  border: 1px solid rgba(71, 96, 136, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 10px;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(82px, auto);
+  align-content: start;
+  gap: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(180, 35, 47, 0.28) rgba(17, 24, 39, 0.05);
+}
+
+.question-nav-title {
+  display: none;
+  grid-column: 1 / -1;
+  padding: 0 3px 6px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.question-nav-item {
+  width: 100%;
+  border: 1px solid transparent;
+  border-left: 3px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  padding: 7px 9px 7px 10px;
+  min-height: 82px;
   display: flex;
+  flex-direction: column;
   justify-content: space-between;
-  gap: 16px;
+  gap: 4px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.question-nav-item strong {
+  color: #111827;
+  font-size: 13px;
+  line-height: 1.32;
+  font-weight: 800;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.question-score-line {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.score-value {
+  color: #b4232f;
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.score-divider,
+.score-total {
+  color: #475569;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.question-nav-item .score-value {
+  color: #b4232f;
+}
+
+.question-nav-item .score-divider,
+.question-nav-item .score-total {
   color: #64748b;
 }
 
-.detail-line strong {
-  color: #0f172a;
-  text-align: right;
+.question-nav-item.active {
+  border-color: rgba(180, 35, 47, 0.14);
+  border-left-color: #b4232f;
+  background: rgba(180, 35, 47, 0.055);
+}
+
+.question-reader {
+  min-height: 0;
+  border: 1px solid rgba(71, 96, 136, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.question-reader-head {
+  border-bottom: 1px solid rgba(71, 96, 136, 0.1);
+  padding: 16px 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.question-reader-head h3 {
+  color: #111827;
+  font-size: 24px;
+  line-height: 1.25;
+  margin-top: 6px;
+}
+
+.question-reader-head strong {
+  color: #111827;
+  font-size: 22px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.question-reader-head .score-value {
+  color: #b4232f;
+  font-size: 24px;
+}
+
+.question-reader-head .score-divider,
+.question-reader-head .score-total {
+  color: #475569;
+  font-size: 17px;
+}
+
+.question-detail-text {
+  color: #334155;
+  font-size: 15px;
+  line-height: 1.85;
+  padding: 18px;
+  overflow-y: auto;
+  white-space: pre-line;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(180, 35, 47, 0.28) rgba(17, 24, 39, 0.05);
+}
+
+.detail-overlay::-webkit-scrollbar,
+.question-nav::-webkit-scrollbar,
+.question-detail-text::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+.detail-overlay::-webkit-scrollbar-track,
+.question-nav::-webkit-scrollbar-track,
+.question-detail-text::-webkit-scrollbar-track {
+  background: rgba(17, 24, 39, 0.05);
+  border-radius: 999px;
+}
+
+.detail-overlay::-webkit-scrollbar-thumb,
+.question-nav::-webkit-scrollbar-thumb,
+.question-detail-text::-webkit-scrollbar-thumb {
+  background: rgba(180, 35, 47, 0.28);
+  border-radius: 999px;
+}
+
+.detail-overlay::-webkit-scrollbar-thumb:hover,
+.question-nav::-webkit-scrollbar-thumb:hover,
+.question-detail-text::-webkit-scrollbar-thumb:hover {
+  background: rgba(180, 35, 47, 0.42);
 }
 
 @media (max-width: 720px) {
@@ -653,14 +1053,6 @@ const closeDetail = () => {
   color: #627086;
 }
 
-.detail-line {
-  color: #627086;
-}
-
-.detail-line strong {
-  color: #111827;
-}
-
 /* Reduce foreground blue for red-white enterprise style */
 .refresh-btn {
   background: #b4232f;
@@ -873,6 +1265,75 @@ const closeDetail = () => {
 
   .history-heading h1 {
     font-size: 24px;
+  }
+
+  .detail-overlay {
+    padding: 14px;
+    align-items: flex-start;
+    overflow-y: auto;
+  }
+
+  .detail-dialog {
+    margin-top: 72px;
+    width: 100%;
+    max-height: none;
+  }
+
+  .detail-body {
+    overflow: visible;
+  }
+
+  .detail-meta-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-meta-bar > div {
+    border-left: 0;
+    border-top: 1px solid rgba(71, 96, 136, 0.12);
+    padding-left: 0;
+    padding-top: 10px;
+  }
+
+  .detail-meta-bar > div:first-child {
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .question-detail-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .question-nav {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    align-content: initial;
+  }
+
+  .question-nav-title {
+    display: none;
+  }
+
+  .question-nav-item {
+    min-width: 148px;
+    min-height: 82px;
+  }
+
+  .question-reader {
+    min-height: 520px;
+  }
+
+  .question-reader-head {
+    display: grid;
+  }
+
+  .question-reader-head h3 {
+    font-size: 20px;
+  }
+
+  .question-detail-text {
+    max-height: 58vh;
   }
 }
 </style>

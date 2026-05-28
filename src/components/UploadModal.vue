@@ -7,7 +7,7 @@ const props = defineProps({
   userId: String
 })
 
-const emit = defineEmits(['close', 'success'])
+const emit = defineEmits(['close', 'success', 'pending'])
 
 const isDragging = ref(false)
 const fileInput = ref(null)
@@ -61,7 +61,7 @@ const cancelUpload = () => {
 }
 
 const confirmUpload = async () => {
-  if (!selectedFile.value) return
+  if (uploading.value || !selectedFile.value) return
   if (!isZipFile(selectedFile.value)) {
     alert(invalidZipMessage)
     selectedFile.value = null
@@ -76,7 +76,6 @@ const confirmUpload = async () => {
   try {
     const res = await commonApi.uploadCode(props.userId, formData)
     if (res.code === 0) {
-      alert(res.message || '上传成功！')
       selectedFile.value = null
       emit('success')
     } else {
@@ -84,7 +83,13 @@ const confirmUpload = async () => {
     }
   } catch (error) {
     console.error('Upload error:', error)
-    alert(error?.response?.data?.message || '上传出错，请检查网络或重试')
+    const message = error?.response?.data?.message || '上传出错，请检查网络或重试'
+    if (error?.response?.status === 409 && message.includes('程序包同步未完成')) {
+      selectedFile.value = null
+      emit('pending', message)
+      return
+    }
+    alert(message)
   } finally {
     uploading.value = false
   }

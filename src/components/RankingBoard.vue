@@ -38,6 +38,10 @@
             <span class="label">Token消耗</span>
             <span class="value">{{ formatNumber(personalRank.token_usage) }}</span>
           </div>
+          <div class="personal-stat">
+            <span class="label">提交次数</span>
+            <span class="value">{{ formatNumber(getSubmissionCount(personalRank)) }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -72,11 +76,12 @@
             <span class="sort-icon" :class="sortOrder">{{ sortOrder === 'desc' ? '↓' : '↑' }}</span>
           </div>
         </div>
+        <div class="col submission-count">提交次数</div>
         <div class="col token-usage">Token消耗</div>
       </div>
 
       <div v-if="paginatedList.length === 0" class="empty-row">
-        暂无排名数据
+        {{ rankingError || '暂无排名数据' }}
       </div>
 
       <div v-else class="table-body">
@@ -105,6 +110,7 @@
           <div class="col score">
             <span class="score-value">{{ item.score }}</span>
           </div>
+          <div class="col submission-count">{{ formatNumber(getSubmissionCount(item)) }}</div>
           <div class="col token-usage">{{ formatNumber(item.token_usage) }}</div>
         </div>
       </div>
@@ -202,6 +208,7 @@ const personalRank = ref(null)
 const jumpPageNum = ref('')
 const searchValue = ref('')
 const sortOrder = ref('desc') // desc | asc
+const rankingError = ref('')
 
 const searchPlaceholder = computed(() => '搜索昵称...')
 
@@ -209,16 +216,6 @@ const toggleSort = (field) => {
   if (field === 'score') {
     sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'
   }
-}
-
-// Mock 数据生成函数
-const generateMockData = (count = 100) => {
-  return Array.from({ length: count }, (_, i) => ({
-    rank: i + 1,
-    nickname: `参赛者${1000 + i}`,
-    score: Math.floor(Math.random() * 1000) + 500,
-    token_usage: Math.floor(Math.random() * 70000) + 20000
-  })).sort((a, b) => b.score - a.score).map((item, index) => ({ ...item, rank: index + 1 }))
 }
 
 const totalParticipants = computed(() => totalParticipantsCount.value)
@@ -263,6 +260,8 @@ const formatNumber = (value) => {
   return Number.isFinite(numeric) ? numeric.toLocaleString('zh-CN') : '-'
 }
 
+const getSubmissionCount = (item) => item?.submission_count ?? item?.submissionCount ?? 0
+
 const changePage = (page) => {
   if (page >= 1 && page <= totalPages.value) {
     currentPage.value = page
@@ -283,40 +282,9 @@ let pollTimer = null
 const emptyPersonalRank = () => ({
   rank: '-',
   score: 0,
-  token_usage: null
+  token_usage: null,
+  submission_count: 0
 })
-
-const applyLocalFilters = (list) => {
-  const keyword = searchValue.value.trim().toLowerCase()
-  let result = [...list]
-
-  if (keyword) {
-    result = result.filter(item => {
-      return String(item.nickname).toLowerCase().includes(keyword)
-    })
-  }
-
-  result.sort((a, b) => {
-    return sortOrder.value === 'desc'
-      ? (b.score || 0) - (a.score || 0)
-      : (a.score || 0) - (b.score || 0)
-  })
-
-  return result
-}
-
-const applyFallbackRanking = () => {
-  const mockData = generateMockData()
-  const filtered = applyLocalFilters(mockData)
-  const start = (currentPage.value - 1) * pageSize.value
-  const end = start + pageSize.value
-
-  rankingList.value = filtered.slice(start, end)
-  totalItems.value = filtered.length
-  totalPagesCount.value = Math.ceil(filtered.length / pageSize.value)
-  totalParticipantsCount.value = mockData.length
-  maxScore.value = Math.max(...mockData.map(item => item.score || 0))
-}
 
 const loadPersonalRank = async () => {
   if (!props.currentUserId) {
@@ -344,6 +312,7 @@ const loadRanking = async (silent = false) => {
 
     if (res.code === 0 && res.data) {
       const pageData = res.data
+      rankingError.value = ''
       rankingList.value = pageData.items || []
       totalItems.value = Number(pageData.total || 0)
       totalPagesCount.value = Number(pageData.total_pages || 0)
@@ -351,15 +320,22 @@ const loadRanking = async (silent = false) => {
       maxScore.value = Number(pageData.max_score || 0)
       currentPage.value = Number(pageData.page || currentPage.value)
       pageSize.value = Number(pageData.page_size || pageSize.value)
-    } else if (rankingList.value.length === 0) {
-      applyFallbackRanking()
+    } else {
+      rankingError.value = res.message || '排行榜加载失败，请稍后重试'
+      rankingList.value = []
+      totalItems.value = 0
+      totalPagesCount.value = 0
     }
 
     await loadPersonalRank()
   } catch (error) {
     if (!silent) console.error('Failed to load ranking:', error)
+    if (!silent || rankingList.value.length === 0) {
+      rankingError.value = error?.response?.data?.message || '排行榜加载失败，请稍后重试'
+    }
     if (rankingList.value.length === 0) {
-      applyFallbackRanking()
+      totalItems.value = 0
+      totalPagesCount.value = 0
     }
     await loadPersonalRank()
   }
@@ -652,9 +628,9 @@ onUnmounted(() => {
 
 .table-header {
   display: grid;
-  grid-template-columns: 80px minmax(180px, 1.7fr) minmax(110px, 0.9fr) minmax(140px, 1fr);
+  grid-template-columns: 50px minmax(74px, 1fr) 60px 68px 86px;
   gap: 8px;
-  padding: 12px 16px;
+  padding: 12px 14px;
   background: linear-gradient(180deg, rgba(248, 251, 255, 0.98), rgba(239, 246, 255, 0.86));
   border-bottom: 1px solid rgba(15, 42, 77, 0.12);
 }
@@ -710,9 +686,9 @@ onUnmounted(() => {
 
 .table-row {
   display: grid;
-  grid-template-columns: 80px minmax(180px, 1.7fr) minmax(110px, 0.9fr) minmax(140px, 1fr);
+  grid-template-columns: 50px minmax(74px, 1fr) 60px 68px 86px;
   gap: 8px;
-  padding: 12px 16px;
+  padding: 12px 14px;
   border-bottom: 1px solid rgba(15, 42, 77, 0.08);
   transition: background 0.2s, box-shadow 0.2s;
 }
@@ -768,6 +744,11 @@ onUnmounted(() => {
 .table-row .col.name {
   font-weight: 500;
   color: #0f172a;
+}
+
+.table-row .col.submission-count {
+  color: #374151;
+  font-weight: 700;
 }
 
 .rank-badge {
@@ -1001,7 +982,7 @@ onUnmounted(() => {
 
   .table-header,
   .table-row {
-    grid-template-columns: 56px minmax(108px, 1.4fr) minmax(78px, 0.8fr) minmax(104px, 1fr);
+    grid-template-columns: 44px minmax(66px, 1fr) 52px 60px 74px;
     padding: 14px 12px;
     gap: 6px;
   }
@@ -1309,7 +1290,7 @@ onUnmounted(() => {
 
 .table-header,
 .table-row {
-  grid-template-columns: 72px minmax(110px, 0.82fr) minmax(120px, 0.95fr) minmax(150px, 1.05fr);
+  grid-template-columns: 50px minmax(74px, 1fr) 60px 68px 86px;
 }
 
 .table-header {
@@ -1464,7 +1445,7 @@ onUnmounted(() => {
 
   .table-header,
   .table-row {
-    grid-template-columns: 52px minmax(86px, 0.9fr) minmax(74px, 0.8fr) minmax(96px, 1fr);
+    grid-template-columns: 44px minmax(66px, 1fr) 52px 60px 74px;
     padding: 13px 12px;
   }
 
@@ -1735,6 +1716,112 @@ onUnmounted(() => {
 .table-row.top-hundred:hover,
 .table-row.top-two-hundred:hover {
   background: #f1f5f9;
+}
+
+/* Final column sizing for the five ranking fields. Keep this block late in the
+   file because earlier theme sections redefine the same table grid. */
+.ranking-board {
+  --ranking-table-columns: 72px minmax(180px, 0.68fr) minmax(104px, 0.14fr) minmax(112px, 0.14fr) minmax(136px, 0.18fr);
+  --ranking-table-gap: 18px;
+}
+
+.table-header,
+.table-row {
+  grid-template-columns: var(--ranking-table-columns);
+  gap: var(--ranking-table-gap);
+}
+
+.table-header .col.score,
+.table-row .col.score,
+.table-header .col.submission-count,
+.table-row .col.submission-count,
+.table-header .col.token-usage,
+.table-row .col.token-usage {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.table-header .col.score .sort-header {
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.table-header .col.name,
+.table-row .col.name {
+  min-width: 0;
+}
+
+.name-text {
+  max-width: min(260px, 100%);
+}
+
+.personal-stats {
+  display: grid;
+  grid-template-columns: 96px 124px 96px;
+  gap: 28px;
+  align-items: start;
+}
+
+.personal-stat {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .ranking-board {
+    --ranking-table-columns: 46px minmax(78px, 1fr) 58px 72px 84px;
+    --ranking-table-gap: 8px;
+  }
+
+  .personal-stats {
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .name-text {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .ranking-board {
+    min-width: 0;
+  }
+
+  .table-header,
+  .table-row {
+    grid-template-columns: 32px minmax(54px, 1fr) 42px 50px 62px;
+    gap: 4px;
+    padding: 11px 6px;
+    font-size: 12px;
+  }
+
+  .table-header .col,
+  .table-row .col {
+    min-width: 0;
+  }
+
+  .rank-badge,
+  .rank-badge.rank-1,
+  .rank-badge.rank-2,
+  .rank-badge.rank-3 {
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
+  }
+
+  .name-text {
+    max-width: 100%;
+  }
+
+  .score-value {
+    font-size: 13px;
+  }
+
+  .col.submission-count,
+  .col.token-usage {
+    font-size: 11px;
+  }
 }
 
 </style>
