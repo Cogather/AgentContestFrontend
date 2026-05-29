@@ -389,16 +389,35 @@ const closeDetail = () => {
 }
 
 .detail-link {
-  border: 0;
-  background: transparent;
-  color: #2563eb;
+  min-height: 30px;
+  border: 1px solid rgba(180, 35, 47, 0.22);
+  border-radius: 8px;
+  background: rgba(180, 35, 47, 0.075);
+  color: #b4232f;
   cursor: pointer;
-  padding: 0;
-  font-weight: 600;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.76);
+  transition: background 0.18s, border-color 0.18s, box-shadow 0.18s, color 0.18s, transform 0.18s;
 }
 
 .detail-link:hover {
-  text-decoration: underline;
+  border-color: rgba(180, 35, 47, 0.38);
+  background: rgba(180, 35, 47, 0.12);
+  color: #921927;
+  box-shadow: 0 8px 18px rgba(180, 35, 47, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.84);
+  transform: translateY(-1px);
+}
+
+.detail-link:focus-visible {
+  outline: 2px solid rgba(180, 35, 47, 0.32);
+  outline-offset: 2px;
 }
 
 .detail-unavailable {

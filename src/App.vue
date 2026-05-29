@@ -5,6 +5,7 @@ import UploadModal from './components/UploadModal.vue'
 import HistoryPage from './components/HistoryPage.vue'
 import RankingBoard from './components/RankingBoard.vue'
 import IconSymbol from './components/IconSymbol.vue'
+import ErrorModal from './components/ErrorModal.vue'
 
 // 参赛题目
 const challengeContent = ref(`欢迎参加 Agent 大赛！
@@ -31,6 +32,10 @@ const sessionReady = ref(false)
 const showUploadModal = ref(false)
 const showHistoryPage = ref(false)
 const rankingBoardRef = ref(null)
+const errorDialog = ref({
+  visible: false,
+  message: ''
+})
 const registerForm = ref({
   user_id: '',
   username: ''
@@ -305,6 +310,20 @@ const getRequestErrorMessage = (error, fallback) => {
   return fallback
 }
 
+const showErrorDialog = (message) => {
+  errorDialog.value = {
+    visible: true,
+    message
+  }
+}
+
+const closeErrorDialog = () => {
+  errorDialog.value = {
+    visible: false,
+    message: ''
+  }
+}
+
 const loginUser = async () => {
   registerError.value = ''
   const userId = registerForm.value.user_id.trim()
@@ -341,7 +360,7 @@ const loginUser = async () => {
 // 打开历史上传记录
 const openHistory = () => {
   if (!currentUser.value) {
-    alert('请先配置参赛信息')
+    showErrorDialog('请先配置参赛信息')
     return
   }
   showHistoryPage.value = true
@@ -355,7 +374,7 @@ const closeHistory = () => {
 // 打开上传弹窗
 const openUpload = () => {
   if (!currentUser.value) {
-    alert('请先配置参赛信息')
+    showErrorDialog('请先配置参赛信息')
     return
   }
   if (isCurrentUserTestAccount.value) {
@@ -363,15 +382,15 @@ const openUpload = () => {
     return
   }
   if (isCompetitionPending.value) {
-    alert('未到参赛时间，无法提交')
+    showErrorDialog('未到参赛时间，无法提交')
     return
   }
   if (isCompetitionEnded.value) {
-    alert('个人赛已结束')
+    showErrorDialog('个人赛已结束')
     return
   }
   if (isUploadCoolingDown.value) {
-    alert(`距离上次上传不足30分钟，请在 ${uploadCooldownText.value} 后再次上传`)
+    showErrorDialog(`距离上次上传不足30分钟，请在 ${uploadCooldownText.value} 后再次上传`)
     return
   }
   showUploadModal.value = true
@@ -629,6 +648,12 @@ const handleUploadSuccess = () => {
       :userId="currentUser?.user_id"
       @close="closeUpload"
       @success="handleUploadSuccess"
+    />
+
+    <ErrorModal
+      :visible="errorDialog.visible"
+      :message="errorDialog.message"
+      @close="closeErrorDialog"
     />
 
   </div>

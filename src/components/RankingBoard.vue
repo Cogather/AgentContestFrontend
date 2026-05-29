@@ -10,6 +10,11 @@
           <div class="stat-value">{{ totalParticipants }}</div>
           <div class="stat-label">参赛人数</div>
         </div>
+        <span class="stat-signal" aria-hidden="true">
+          <i></i>
+          <i></i>
+          <i></i>
+        </span>
       </div>
       <div class="stat-card score">
         <div class="stat-icon">
@@ -19,6 +24,11 @@
           <div class="stat-value">{{ totalScore }}</div>
           <div class="stat-label">最高得分</div>
         </div>
+        <span class="stat-signal" aria-hidden="true">
+          <i></i>
+          <i></i>
+          <i></i>
+        </span>
       </div>
     </div>
 
@@ -30,15 +40,15 @@
           <span class="rank-label">我的排名</span>
         </div>
         <div class="personal-stats">
-          <div class="personal-stat">
+          <div class="personal-stat personal-stat-score">
             <span class="label">我的得分</span>
             <span class="value">{{ personalRank.score }}</span>
           </div>
-          <div class="personal-stat">
+          <div class="personal-stat personal-stat-token">
             <span class="label">Token消耗</span>
             <span class="value">{{ formatNumber(personalRank.token_usage) }}</span>
           </div>
-          <div class="personal-stat">
+          <div class="personal-stat personal-stat-count">
             <span class="label">提交次数</span>
             <span class="value">{{ formatNumber(getSubmissionCount(personalRank)) }}</span>
           </div>
@@ -71,13 +81,35 @@
         <div class="col rank">排名</div>
         <div class="col name">昵称</div>
         <div class="col score filterable">
-          <div class="sort-header" @click="toggleSort('score')">
+          <div
+            class="sort-header"
+            :class="{ active: sortField === 'score' }"
+            @click="toggleSort('score')"
+          >
             得分
-            <span class="sort-icon" :class="sortOrder">{{ sortOrder === 'desc' ? '↓' : '↑' }}</span>
+            <span class="sort-icon" :class="{ active: sortField === 'score' }">{{ sortIconFor('score') }}</span>
           </div>
         </div>
-        <div class="col submission-count">提交次数</div>
-        <div class="col token-usage">Token消耗</div>
+        <div class="col submission-count filterable">
+          <div
+            class="sort-header"
+            :class="{ active: sortField === 'submission_count' }"
+            @click="toggleSort('submission_count')"
+          >
+            提交次数
+            <span class="sort-icon" :class="{ active: sortField === 'submission_count' }">{{ sortIconFor('submission_count') }}</span>
+          </div>
+        </div>
+        <div class="col token-usage filterable">
+          <div
+            class="sort-header"
+            :class="{ active: sortField === 'token_usage' }"
+            @click="toggleSort('token_usage')"
+          >
+            Token消耗
+            <span class="sort-icon" :class="{ active: sortField === 'token_usage' }">{{ sortIconFor('token_usage') }}</span>
+          </div>
+        </div>
       </div>
 
       <div v-if="paginatedList.length === 0" class="empty-row">
@@ -207,15 +239,26 @@ const maxScore = ref(0)
 const personalRank = ref(null)
 const jumpPageNum = ref('')
 const searchValue = ref('')
+const sortField = ref('score')
 const sortOrder = ref('desc') // desc | asc
 const rankingError = ref('')
 
 const searchPlaceholder = computed(() => '搜索昵称...')
 
 const toggleSort = (field) => {
-  if (field === 'score') {
+  if (sortField.value === field) {
     sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'
+    return
   }
+  sortField.value = field
+  sortOrder.value = 'desc'
+}
+
+const sortIconFor = (field) => {
+  if (sortField.value !== field) {
+    return '↕'
+  }
+  return sortOrder.value === 'desc' ? '↓' : '↑'
 }
 
 const totalParticipants = computed(() => totalParticipantsCount.value)
@@ -308,6 +351,7 @@ const loadRanking = async (silent = false) => {
   const requestPage = currentPage.value
   const requestPageSize = pageSize.value
   const requestKeyword = searchValue.value.trim()
+  const requestSortField = sortField.value
   const requestSortOrder = sortOrder.value
 
   try {
@@ -316,6 +360,7 @@ const loadRanking = async (silent = false) => {
       pageSize: requestPageSize,
       searchField: 'nickname',
       keyword: requestKeyword,
+      sortField: requestSortField,
       sortOrder: requestSortOrder
     })
 
@@ -374,7 +419,7 @@ onMounted(() => {
 
 watch(currentPage, () => loadRanking(true))
 
-watch([pageSize, searchValue, sortOrder], reloadFirstPage)
+watch([pageSize, searchValue, sortField, sortOrder], reloadFirstPage)
 
 watch(() => props.currentUserId, () => loadPersonalRank())
 </script>
@@ -651,9 +696,18 @@ watch(() => props.currentUserId, () => loadPersonalRank())
   color: #b4232f;
 }
 
+.sort-header.active {
+  color: #b4232f;
+}
+
 .sort-icon {
   font-size: 12px;
   font-weight: 700;
+  color: #94a3b8;
+}
+
+.sort-icon.active {
+  color: #b4232f;
 }
 
 .table-header .col {
@@ -1725,8 +1779,8 @@ watch(() => props.currentUserId, () => loadPersonalRank())
 /* Final column sizing for the five ranking fields. Keep this block late in the
    file because earlier theme sections redefine the same table grid. */
 .ranking-board {
-  --ranking-table-columns: 72px minmax(180px, 0.68fr) minmax(104px, 0.14fr) minmax(112px, 0.14fr) minmax(136px, 0.18fr);
-  --ranking-table-gap: 18px;
+  --ranking-table-columns: 64px minmax(124px, 0.42fr) minmax(94px, 0.18fr) minmax(104px, 0.18fr) minmax(124px, 0.22fr);
+  --ranking-table-gap: 14px;
 }
 
 .table-header,
@@ -1756,18 +1810,154 @@ watch(() => props.currentUserId, () => loadPersonalRank())
 }
 
 .name-text {
-  max-width: min(260px, 100%);
+  max-width: min(160px, 100%);
 }
 
 .personal-stats {
   display: grid;
-  grid-template-columns: 96px 124px 96px;
-  gap: 28px;
-  align-items: start;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: stretch;
+  width: 100%;
 }
 
 .personal-stat {
+  position: relative;
   min-width: 0;
+  min-height: 76px;
+  padding: 13px 14px 12px;
+  border-left: 3px solid rgba(71, 96, 136, 0.22);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.84), rgba(248, 251, 255, 0.62)),
+    linear-gradient(90deg, rgba(71, 96, 136, 0.055), transparent);
+  justify-content: center;
+  overflow: hidden;
+}
+
+.personal-stat::after {
+  content: "";
+  position: absolute;
+  right: 10px;
+  top: 12px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(71, 96, 136, 0.12);
+  opacity: 0.65;
+}
+
+.personal-stat .label,
+.personal-stat .value {
+  position: relative;
+  z-index: 1;
+}
+
+.personal-stat .value {
+  margin-top: 8px;
+  font-size: 22px;
+  line-height: 1.05;
+  font-weight: 850;
+}
+
+.personal-stat-score {
+  border-left-color: #b4232f;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 244, 246, 0.78)),
+    linear-gradient(90deg, rgba(180, 35, 47, 0.095), transparent);
+}
+
+.personal-stat-score::after {
+  border-color: rgba(180, 35, 47, 0.18);
+  background: rgba(180, 35, 47, 0.07);
+}
+
+.personal-stat-score .value {
+  color: #b4232f;
+  font-size: 28px;
+}
+
+.personal-stat-token::after {
+  background: rgba(27, 111, 216, 0.06);
+}
+
+.personal-stat-count::after {
+  background: rgba(100, 116, 139, 0.07);
+}
+
+.personal-info {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 20px;
+  align-items: stretch;
+}
+
+.personal-rank {
+  min-width: 104px;
+  justify-content: center;
+  padding-right: 20px;
+  border-right: 1px solid rgba(71, 96, 136, 0.12);
+}
+
+.stat-card {
+  position: relative;
+  justify-content: space-between;
+  overflow: hidden;
+}
+
+.stat-card::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 4px;
+  border-radius: 999px 0 0 999px;
+  background: rgba(27, 111, 216, 0.28);
+}
+
+.stat-card.score::after {
+  background: rgba(180, 35, 47, 0.34);
+}
+
+.stat-content,
+.stat-icon,
+.stat-signal {
+  position: relative;
+  z-index: 1;
+}
+
+.stat-signal {
+  width: 46px;
+  height: 42px;
+  margin-left: auto;
+  padding: 6px 4px 5px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 5px;
+}
+
+.stat-signal i {
+  display: block;
+  border-radius: 999px 999px 3px 3px;
+  background: rgba(27, 111, 216, 0.18);
+}
+
+.stat-card.score .stat-signal i {
+  background: rgba(180, 35, 47, 0.2);
+}
+
+.stat-signal i:nth-child(1) {
+  height: 40%;
+}
+
+.stat-signal i:nth-child(2) {
+  height: 68%;
+}
+
+.stat-signal i:nth-child(3) {
+  height: 100%;
 }
 
 @media (max-width: 900px) {
@@ -1780,6 +1970,19 @@ watch(() => props.currentUserId, () => loadPersonalRank())
     width: 100%;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 16px;
+  }
+
+  .personal-info {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .personal-rank {
+    min-width: 0;
+    padding-right: 0;
+    padding-bottom: 14px;
+    border-right: 0;
+    border-bottom: 1px solid rgba(71, 96, 136, 0.12);
   }
 
   .name-text {

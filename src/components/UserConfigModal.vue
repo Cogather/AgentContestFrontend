@@ -67,10 +67,16 @@
       </div>
     </div>
   </div>
+  <ErrorModal
+    :visible="Boolean(validationError)"
+    :message="validationError"
+    @close="closeValidationError"
+  />
 </template>
 
 <script setup>
 import { ref, watch } from 'vue'
+import ErrorModal from './ErrorModal.vue'
 
 const props = defineProps({
   visible: Boolean,
@@ -90,6 +96,7 @@ const formData = ref({
   agent_ip: '',
   agent_port: ''
 })
+const validationError = ref('')
 
 watch(() => props.initialData, (newVal) => {
   if (newVal) {
@@ -103,29 +110,38 @@ const validateUserId = (e) => {
 }
 
 const close = () => {
+  closeValidationError()
   emit('close')
+}
+
+const showValidationError = (message) => {
+  validationError.value = message
+}
+
+const closeValidationError = () => {
+  validationError.value = ''
 }
 
 const confirm = () => {
   // 表单验证
   if (!formData.value.username.trim()) {
-    alert('请输入姓名')
+    showValidationError('请输入姓名')
     return
   }
   if (!formData.value.user_id || formData.value.user_id.length !== 8) {
-    alert('请输入8位工号')
+    showValidationError('请输入8位工号')
     return
   }
   if (!formData.value.team_name.trim()) {
-    alert('请输入Agent名称')
+    showValidationError('请输入Agent名称')
     return
   }
   if (!formData.value.agent_ip.trim()) {
-    alert('请输入本机IP地址')
+    showValidationError('请输入本机IP地址')
     return
   }
   if (!formData.value.agent_port || formData.value.agent_port < 1 || formData.value.agent_port > 65535) {
-    alert('请输入有效的端口号')
+    showValidationError('请输入有效的端口号')
     return
   }
 
@@ -133,6 +149,7 @@ const confirm = () => {
     ...formData.value,
     agent_port: parseInt(formData.value.agent_port)
   })
+  closeValidationError()
 }
 </script>
 

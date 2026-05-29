@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import { test } from 'node:test'
 
 import {
@@ -48,4 +48,75 @@ test('ranking board does not start an interval-based auto refresh', async () => 
 
   assert.equal(source.includes('setInterval('), false)
   assert.equal(source.includes('POLL_INTERVAL'), false)
+})
+
+test('frontend does not use native alert for error messages', async () => {
+  const srcRoot = new URL('../src/', import.meta.url)
+  const collectSourceFiles = async (directory) => {
+    const entries = await readdir(directory, { withFileTypes: true })
+    const nestedFiles = await Promise.all(entries.map((entry) => {
+      const entryUrl = new URL(entry.name, directory)
+      if (entry.isDirectory()) {
+        return collectSourceFiles(new URL(`${entry.name}/`, directory))
+      }
+      if (entry.isFile() && /\.(vue|js|mjs|ts)$/.test(entry.name)) {
+        return [entryUrl]
+      }
+      return []
+    }))
+    return nestedFiles.flat()
+  }
+  const files = await collectSourceFiles(srcRoot)
+  const sources = await Promise.all(
+    files.map(async file => [file.pathname, await readFile(file, 'utf8')])
+  )
+  const alertUsages = sources
+    .filter(([, source]) => /\balert\s*\(/.test(source))
+    .map(([file]) => file)
+
+  assert.deepEqual(alertUsages, [])
+})
+
+test('history score detail trigger has a visible button affordance', async () => {
+  const source = await readFile(new URL('../src/components/HistoryPage.vue', import.meta.url), 'utf8')
+  const detailLinkBlocks = [...source.matchAll(/\.detail-link\s*\{([^}]*)\}/g)].map(match => match[1])
+  const hasButtonAffordance = detailLinkBlocks.some(block => (
+    /border:\s*1px\s+solid/.test(block)
+    && /border-radius:/.test(block)
+    && /background:\s*(?!transparent)/.test(block)
+    && /min-height:/.test(block)
+  ))
+
+  assert.equal(hasButtonAffordance, true)
+})
+
+test('ranking nickname column stays compact on desktop', async () => {
+  const source = await readFile(new URL('../src/components/RankingBoard.vue', import.meta.url), 'utf8')
+  const desktopColumns = source.match(/--ranking-table-columns:\s*([^;]+);/)?.[1] || ''
+  const nicknameColumn = desktopColumns.match(/minmax\((\d+)px,\s*([0-9.]+)fr\)/)
+  const nameMaxWidth = source.match(/\.name-text\s*\{\s*max-width:\s*min\((\d+)px,\s*100%\);/s)?.[1]
+
+  assert.ok(nicknameColumn, 'desktop ranking grid should define a nickname minmax column')
+  assert.ok(Number(nicknameColumn[1]) <= 132, 'nickname column minimum should stay compact')
+  assert.ok(Number(nicknameColumn[2]) <= 0.46, 'nickname column flex share should not dominate the table')
+  assert.ok(Number(nameMaxWidth) <= 170, 'nickname text should truncate before it over-expands')
+})
+
+test('ranking summary and personal metrics have emphasized right-side structure', async () => {
+  const source = await readFile(new URL('../src/components/RankingBoard.vue', import.meta.url), 'utf8')
+
+  assert.ok(source.includes('class="stat-signal"'), 'summary cards should fill the right side with a visual signal')
+  assert.ok(source.includes('personal-stat-score'), 'my score should have a dedicated emphasized metric class')
+  assert.ok(/\.stat-card::after\s*\{/.test(source), 'summary cards should have a right-side accent rail')
+  assert.ok(/\.personal-info\s*\{[^}]*grid-template-columns:\s*auto\s+minmax\(0,\s*1fr\)/s.test(source), 'personal info should give metrics the main horizontal area')
+  assert.ok(/\.personal-stat-score\s+\.value\s*\{[^}]*font-size:\s*(2[4-9]|3\d)px/s.test(source), 'my score value should be visually emphasized')
+})
+
+test('ranking score token usage and submission count headers are sortable', async () => {
+  const source = await readFile(new URL('../src/components/RankingBoard.vue', import.meta.url), 'utf8')
+
+  for (const field of ['score', 'submission_count', 'token_usage']) {
+    assert.ok(source.includes(`@click="toggleSort('${field}')"`), `${field} header should toggle sorting`)
+  }
+  assert.ok(source.includes('sortField: requestSortField'), 'rank page request should include sortField')
 })
