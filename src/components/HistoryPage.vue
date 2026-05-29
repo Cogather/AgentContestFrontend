@@ -1,6 +1,13 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { userApi } from '../api'
+import {
+  canShowScoreDetail,
+  getTokenUsage,
+  hasScoreValue,
+  mergeQuestionScoreDetails,
+  normalizeStatus
+} from './historyScoreDetail'
 import IconSymbol from './IconSymbol.vue'
 
 const props = defineProps({
@@ -61,8 +68,6 @@ const loadHistory = async () => {
   }
 }
 
-const normalizeStatus = (status) => String(status || 'uploaded').toLowerCase()
-
 const statusText = (status) => {
   const normalized = normalizeStatus(status)
   return statusTextMap[normalized] || status || '未知'
@@ -87,112 +92,8 @@ const formatNumber = (value) => {
   return Number.isFinite(numeric) ? numeric.toLocaleString('zh-CN') : value
 }
 
-const parseScoreDetail = (value) => {
-  if (Array.isArray(value)) {
-    return normalizeScoreDetail(value)
-  }
-  if (typeof value !== 'string' || !value.trim()) {
-    return []
-  }
-  try {
-    const parsed = JSON.parse(value)
-    return normalizeScoreDetail(parsed)
-  } catch (error) {
-    return []
-  }
-}
-
-const normalizeScoreDetail = (value) => {
-  if (!Array.isArray(value)) {
-    return []
-  }
-
-  const normalized = value
-    .map((item, index) => {
-      const question = Number(item?.question ?? item?.id ?? index + 1)
-      const score = Number(item?.score)
-      const total = Number(item?.total ?? item?.fullScore ?? item?.max_score)
-      return {
-        question: Number.isFinite(question) ? question : index + 1,
-        score,
-        total
-      }
-    })
-    .filter(item => (
-      item.question >= 1
-      && item.question <= 10
-      && Number.isFinite(item.score)
-      && Number.isFinite(item.total)
-      && item.total > 0
-    ))
-    .sort((left, right) => left.question - right.question)
-
-  const uniqueQuestions = new Set(normalized.map(item => item.question))
-  if (uniqueQuestions.size < 10) {
-    return []
-  }
-
-  return normalized.slice(0, 10)
-}
-
-const normalizeQuestionDetails = (value) => {
-  if (!Array.isArray(value)) {
-    return []
-  }
-
-  const normalized = value
-    .map((item, index) => {
-      const question = Number(item?.question ?? item?.id ?? index + 1)
-      const id = Number(item?.id ?? question)
-      const title = String(item?.title ?? item?.name ?? '').trim()
-      const detail = String(item?.detail ?? item?.description ?? item?.content ?? '').trim()
-      return {
-        id: Number.isFinite(id) ? id : question,
-        question: Number.isFinite(question) ? question : index + 1,
-        title,
-        detail
-      }
-    })
-    .filter(item => item.question >= 1 && item.question <= 10 && item.title && item.detail)
-    .sort((left, right) => left.question - right.question)
-
-  const uniqueQuestions = new Set(normalized.map(item => item.question))
-  if (uniqueQuestions.size < 10) {
-    return []
-  }
-
-  return normalized.slice(0, 10)
-}
-
-const scoreDetailsForItem = (item) => {
-  return parseScoreDetail(item?.score_detail ?? item?.scoreDetail)
-}
-
-const questionDetailsForItem = (item) => {
-  return normalizeQuestionDetails(item?.question_details ?? item?.questionDetails)
-}
-
-const detailScores = computed(() => {
-  if (!detailItem.value || !canShowScoreDetail(detailItem.value)) {
-    return []
-  }
-  return scoreDetailsForItem(detailItem.value)
-})
-
-const questionDetails = computed(() => {
-  return questionDetailsForItem(detailItem.value)
-})
-
 const mergedQuestionDetails = computed(() => {
-  const scoreMap = new Map(detailScores.value.map(item => [item.question, item]))
-  return questionDetails.value.map((item) => {
-    const scoreItem = scoreMap.get(item.question) || { score: 0, total: 100 }
-    return {
-      ...item,
-      score: scoreItem.score,
-      total: scoreItem.total
-    }
-  })
+  return detailItem.value ? mergeQuestionScoreDetails(detailItem.value) : []
 })
 
 const selectedQuestionDetail = computed(() => {
@@ -203,17 +104,6 @@ const selectedQuestionDetail = computed(() => {
 
 const showFailureReason = (item) => {
   showToast(item.message || '暂无失败原因')
-}
-
-const hasScoreValue = (item) => {
-  return item?.score !== null && item?.score !== undefined && item?.score !== ''
-}
-
-const canShowScoreDetail = (item) => {
-  return normalizeStatus(item?.status) === 'completed'
-    && hasScoreValue(item)
-    && scoreDetailsForItem(item).length === 10
-    && questionDetailsForItem(item).length === 10
 }
 
 const scoreDetailUnavailableText = (item) => {
@@ -243,7 +133,7 @@ const showToast = (message) => {
 
 const openDetail = (item) => {
   detailItem.value = item
-  selectedQuestion.value = 1
+  selectedQuestion.value = mergeQuestionScoreDetails(item)[0]?.question || 1
 }
 
 const closeDetail = () => {
@@ -299,7 +189,7 @@ const closeDetail = () => {
               </button>
               <span v-else class="detail-unavailable">{{ scoreDetailUnavailableText(item) }}</span>
             </div>
-            <div>{{ formatNumber(item.token_usage) }}</div>
+            <div>{{ formatNumber(getTokenUsage(item)) }}</div>
             <div>
               <button
                 v-if="normalizeStatus(item.status) === 'failed'"
@@ -338,7 +228,7 @@ const closeDetail = () => {
             </div>
             <div>
               <span>Token 消耗</span>
-              <strong>{{ formatNumber(detailItem.token_usage) }}</strong>
+              <strong>{{ formatNumber(getTokenUsage(detailItem)) }}</strong>
             </div>
             <div>
               <span>当前状态</span>

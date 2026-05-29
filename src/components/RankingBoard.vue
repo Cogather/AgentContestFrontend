@@ -189,7 +189,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { rankApi } from '../api'
 import IconSymbol from './IconSymbol.vue'
 
@@ -276,8 +276,8 @@ const handleJump = () => {
   }
 }
 
-const POLL_INTERVAL = 5000 // 每 5 秒刷新一次实时排名
-let pollTimer = null
+let rankingRequestSeq = 0
+let personalRankRequestSeq = 0
 
 const emptyPersonalRank = () => ({
   rank: '-',
@@ -287,6 +287,7 @@ const emptyPersonalRank = () => ({
 })
 
 const loadPersonalRank = async () => {
+  const requestSeq = ++personalRankRequestSeq
   if (!props.currentUserId) {
     personalRank.value = null
     return
@@ -294,21 +295,31 @@ const loadPersonalRank = async () => {
 
   try {
     const userRankRes = await rankApi.getUserRank(props.currentUserId)
+    if (requestSeq !== personalRankRequestSeq) return
     personalRank.value = userRankRes?.data || emptyPersonalRank()
   } catch (e) {
+    if (requestSeq !== personalRankRequestSeq) return
     personalRank.value = emptyPersonalRank()
   }
 }
 
 const loadRanking = async (silent = false) => {
+  const requestSeq = ++rankingRequestSeq
+  const requestPage = currentPage.value
+  const requestPageSize = pageSize.value
+  const requestKeyword = searchValue.value.trim()
+  const requestSortOrder = sortOrder.value
+
   try {
     const res = await rankApi.getRankPage({
-      page: currentPage.value,
-      pageSize: pageSize.value,
+      page: requestPage,
+      pageSize: requestPageSize,
       searchField: 'nickname',
-      keyword: searchValue.value.trim(),
-      sortOrder: sortOrder.value
+      keyword: requestKeyword,
+      sortOrder: requestSortOrder
     })
+
+    if (requestSeq !== rankingRequestSeq) return
 
     if (res.code === 0 && res.data) {
       const pageData = res.data
@@ -318,8 +329,8 @@ const loadRanking = async (silent = false) => {
       totalPagesCount.value = Number(pageData.total_pages || 0)
       totalParticipantsCount.value = Number(pageData.total_participants || 0)
       maxScore.value = Number(pageData.max_score || 0)
-      currentPage.value = Number(pageData.page || currentPage.value)
-      pageSize.value = Number(pageData.page_size || pageSize.value)
+      currentPage.value = Number(pageData.page || requestPage)
+      pageSize.value = Number(pageData.page_size || requestPageSize)
     } else {
       rankingError.value = res.message || '排行榜加载失败，请稍后重试'
       rankingList.value = []
@@ -329,6 +340,7 @@ const loadRanking = async (silent = false) => {
 
     await loadPersonalRank()
   } catch (error) {
+    if (requestSeq !== rankingRequestSeq) return
     if (!silent) console.error('Failed to load ranking:', error)
     if (!silent || rankingList.value.length === 0) {
       rankingError.value = error?.response?.data?.message || '排行榜加载失败，请稍后重试'
@@ -358,7 +370,6 @@ defineExpose({
 
 onMounted(() => {
   loadRanking(false)
-  pollTimer = setInterval(() => loadRanking(true), POLL_INTERVAL)
 })
 
 watch(currentPage, () => loadRanking(true))
@@ -366,13 +377,6 @@ watch(currentPage, () => loadRanking(true))
 watch([pageSize, searchValue, sortOrder], reloadFirstPage)
 
 watch(() => props.currentUserId, () => loadPersonalRank())
-
-onUnmounted(() => {
-  if (pollTimer) {
-    clearInterval(pollTimer)
-    pollTimer = null
-  }
-})
 </script>
 
 <style scoped>

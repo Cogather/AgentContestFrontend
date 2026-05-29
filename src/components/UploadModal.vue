@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { onUnmounted, ref } from 'vue'
 import { commonApi } from '../api'
 
 const props = defineProps({
@@ -7,31 +7,36 @@ const props = defineProps({
   userId: String
 })
 
-const emit = defineEmits(['close', 'success', 'pending'])
+const emit = defineEmits(['close', 'success'])
 
 const isDragging = ref(false)
 const fileInput = ref(null)
 const uploading = ref(false)
+const uploadSucceeded = ref(false)
+const uploadError = ref('')
 const selectedFile = ref(null)
 const invalidZipMessage = '程序包的格式错误，请上传zip格式的压缩包'
+let successTimer = null
 
 const isZipFile = (file) => {
   return file?.name?.toLowerCase().endsWith('.zip')
 }
 
 const close = () => {
-  if (uploading.value) return
+  if (uploading.value || uploadSucceeded.value) return
   selectedFile.value = null
+  uploadSucceeded.value = false
+  uploadError.value = ''
   emit('close')
 }
 
 const triggerSelect = () => {
-  if (uploading.value) return
+  if (uploading.value || uploadSucceeded.value) return
   fileInput.value.click()
 }
 
 const handleDrop = (event) => {
-  if (uploading.value) return
+  if (uploading.value || uploadSucceeded.value) return
   isDragging.value = false
   const file = event.dataTransfer.files[0]
   if (file) {
@@ -48,52 +53,71 @@ const handleFileSelect = (event) => {
 
 const prepareUpload = (file, inputTarget = null) => {
   if (!isZipFile(file)) {
-    alert(invalidZipMessage)
+    selectedFile.value = null
+    uploadError.value = invalidZipMessage
     if (inputTarget) inputTarget.value = ''
     return
   }
   selectedFile.value = file
+  uploadSucceeded.value = false
+  uploadError.value = ''
   if (inputTarget) inputTarget.value = ''
 }
 
 const cancelUpload = () => {
+  if (uploading.value || uploadSucceeded.value) return
   selectedFile.value = null
+  uploadError.value = ''
+}
+
+const completeUpload = () => {
+  uploadSucceeded.value = true
+  selectedFile.value = null
+  if (successTimer) {
+    clearTimeout(successTimer)
+  }
+  successTimer = window.setTimeout(() => {
+    successTimer = null
+    uploadSucceeded.value = false
+    emit('success')
+  }, 900)
 }
 
 const confirmUpload = async () => {
   if (uploading.value || !selectedFile.value) return
   if (!isZipFile(selectedFile.value)) {
-    alert(invalidZipMessage)
     selectedFile.value = null
+    uploadError.value = invalidZipMessage
     return
   }
 
   uploading.value = true
+  uploadError.value = ''
   const formData = new FormData()
   formData.append('file', selectedFile.value)
   // user_id作为路径参数传递，也可保留在formData中，根据需要
-  
+
   try {
     const res = await commonApi.uploadCode(props.userId, formData)
     if (res.code === 0) {
-      selectedFile.value = null
-      emit('success')
+      completeUpload()
     } else {
-      alert(res.message || '上传失败')
+      uploadError.value = res.message || '上传失败'
     }
   } catch (error) {
     console.error('Upload error:', error)
     const message = error?.response?.data?.message || '上传出错，请检查网络或重试'
-    if (error?.response?.status === 409 && message.includes('程序包同步未完成')) {
-      selectedFile.value = null
-      emit('pending', message)
-      return
-    }
-    alert(message)
+    uploadError.value = message
   } finally {
     uploading.value = false
   }
 }
+
+onUnmounted(() => {
+  if (successTimer) {
+    clearTimeout(successTimer)
+  }
+})
 </script>
 
 <template>
@@ -101,58 +125,77 @@ const confirmUpload = async () => {
     <div class="modal-content">
       <div class="modal-header">
         <h3>上传代码</h3>
-        <button class="close-btn" @click="close" :disabled="uploading">×</button>
+        <button class="close-btn" @click="close" :disabled="uploading || uploadSucceeded">×</button>
       </div>
-      
+
       <div class="modal-body">
-        <div 
-          v-if="!selectedFile"
-          class="upload-area"
-          :class="{ 'is-dragging': isDragging, 'is-uploading': uploading }"
-          @dragover.prevent="isDragging = true"
-          @dragleave.prevent="isDragging = false"
-          @drop.prevent="handleDrop"
-          @click="triggerSelect"
-        >
-          <div class="idle-state">
-            <span class="upload-icon">ZIP</span>
-            <p class="primary-text">点击或拖拽文件到此处上传</p>
-            <p class="sub-text">支持 .zip 格式压缩包</p>
+        <div v-if="uploadSucceeded" class="success-state" aria-live="polite">
+          <div class="success-check" aria-hidden="true">
+            <svg viewBox="0 0 52 52">
+              <circle class="success-circle" cx="26" cy="26" r="23"></circle>
+              <path class="success-mark" d="M15 27.5 L23 35 L38 18"></path>
+            </svg>
           </div>
-          
-          <input 
-            type="file" 
-            ref="fileInput" 
-            style="display: none" 
-            accept=".zip"
-            @change="handleFileSelect"
-            :disabled="uploading"
-          >
+          <p class="success-title">上传成功</p>
+          <p class="success-subtitle">程序包已提交，正在刷新提交状态</p>
         </div>
 
-        <div v-else class="confirm-area">
-          <div v-if="uploading" class="uploading-state">
-            <div class="spinner"></div>
-            <p>正在上传...</p>
-          </div>
-          <div v-else class="file-info" @click="triggerSelect" title="点击重新选择">
-            <span class="file-icon">ZIP</span>
-            <p class="file-name">{{ selectedFile.name }}</p>
-            <p class="file-size">{{ (selectedFile.size / 1024 / 1024).toFixed(2) }} MB</p>
-            <p class="sub-text" style="margin-top: 8px;">(点击可重新选择文件)</p>
-            <input 
-              type="file" 
-              ref="fileInput" 
-              style="display: none" 
+        <div v-else class="upload-panel">
+          <div
+            v-if="!selectedFile"
+            class="upload-area"
+            :class="{ 'is-dragging': isDragging, 'is-uploading': uploading || uploadSucceeded }"
+            @dragover.prevent="isDragging = true"
+            @dragleave.prevent="isDragging = false"
+            @drop.prevent="handleDrop"
+            @click="triggerSelect"
+          >
+            <div class="idle-state">
+              <span class="upload-icon">ZIP</span>
+              <p class="primary-text">点击或拖拽文件到此处上传</p>
+              <p class="sub-text">支持 .zip 格式压缩包</p>
+            </div>
+
+            <input
+              type="file"
+              ref="fileInput"
+              style="display: none"
               accept=".zip"
               @change="handleFileSelect"
               :disabled="uploading"
             >
           </div>
+
+          <div v-else class="confirm-area">
+            <div v-if="uploading" class="uploading-state">
+              <div class="spinner"></div>
+              <p class="uploading-title">正在上传</p>
+              <p class="uploading-subtitle">请保持页面打开，系统正在校验并分发程序包</p>
+            </div>
+            <div v-else class="file-info" @click="triggerSelect" title="点击重新选择">
+              <span class="file-icon">ZIP</span>
+              <p class="file-name">{{ selectedFile.name }}</p>
+              <p class="file-size">{{ (selectedFile.size / 1024 / 1024).toFixed(2) }} MB</p>
+              <p class="sub-text" style="margin-top: 8px;">(点击可重新选择文件)</p>
+              <input
+                type="file"
+                ref="fileInput"
+                style="display: none"
+                accept=".zip"
+                @change="handleFileSelect"
+                :disabled="uploading"
+              >
+            </div>
+          </div>
+
+          <div v-if="uploadError" class="upload-error" role="alert">
+            <span class="error-mark">!</span>
+            <span>{{ uploadError }}</span>
+          </div>
         </div>
       </div>
-      
-      <div class="modal-footer">
+
+      <div v-if="!uploadSucceeded" class="modal-footer">
         <button class="btn btn-secondary" @click="close" :disabled="uploading">取消</button>
         <button class="btn btn-primary" @click="confirmUpload" :disabled="!selectedFile || uploading">
           {{ uploading ? '上传中...' : '确定' }}
@@ -259,6 +302,42 @@ const confirmUpload = async () => {
   background: #f8fafc;
 }
 
+.upload-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.upload-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(180, 35, 47, 0.24);
+  border-radius: 8px;
+  background: rgba(180, 35, 47, 0.055);
+  color: #8f1f2a;
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: left;
+  word-break: break-word;
+}
+
+.error-mark {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: #b4232f;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 850;
+}
+
 .upload-area:hover {
   border-color: #b4232f;
   background: #ecfdf5;
@@ -300,6 +379,8 @@ const confirmUpload = async () => {
   flex-direction: column;
   align-items: center;
   gap: 16px;
+  min-height: 188px;
+  justify-content: center;
 }
 
 .spinner {
@@ -314,6 +395,114 @@ const confirmUpload = async () => {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+.uploading-title {
+  margin: 0;
+  color: #111827;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.uploading-subtitle {
+  max-width: 300px;
+  margin: -6px 0 0;
+  color: #627086;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.success-state {
+  min-height: 228px;
+  border: 1px solid rgba(71, 96, 136, 0.14);
+  border-radius: 8px;
+  background:
+    linear-gradient(130deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.82)),
+    radial-gradient(circle at 50% 26%, rgba(180, 35, 47, 0.08), transparent 34%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.success-check {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(180, 35, 47, 0.06);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  animation: successPop 0.42s ease-out both;
+}
+
+.success-check svg {
+  width: 56px;
+  height: 56px;
+  overflow: visible;
+}
+
+.success-circle,
+.success-mark {
+  fill: none;
+  stroke: #b4232f;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.success-circle {
+  stroke-width: 2.5;
+  stroke-dasharray: 145;
+  stroke-dashoffset: 145;
+  animation: drawCircle 0.55s ease-out forwards;
+}
+
+.success-mark {
+  stroke-width: 4;
+  stroke-dasharray: 34;
+  stroke-dashoffset: 34;
+  animation: drawMark 0.36s ease-out 0.34s forwards;
+}
+
+.success-title {
+  margin: 2px 0 0;
+  color: #111827;
+  font-size: 18px;
+  font-weight: 850;
+}
+
+.success-subtitle {
+  margin: 0;
+  color: #627086;
+  font-size: 13px;
+}
+
+@keyframes successPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  70% {
+    transform: scale(1.06);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes drawCircle {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes drawMark {
+  to {
+    stroke-dashoffset: 0;
   }
 }
 

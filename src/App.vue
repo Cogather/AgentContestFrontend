@@ -37,7 +37,7 @@ const registerForm = ref({
 })
 const registerLoading = ref(false)
 const registerError = ref('')
-const UPLOAD_INTERVAL_MS = 10 * 60 * 1000
+const UPLOAD_INTERVAL_MS = 30 * 60 * 1000
 const COMPETITION_START_AT = import.meta.env.VITE_COMPETITION_START_AT || '2026-05-24T08:00:00-07:00'
 const COMPETITION_END_AT = import.meta.env.VITE_COMPETITION_END_AT || '2026-06-15T00:00:00-07:00'
 const COMPETITION_SCHEDULE_TEXT = import.meta.env.VITE_COMPETITION_SCHEDULE_TEXT || '2026/5/24 8:00--2026/6/14'
@@ -60,6 +60,10 @@ const uploadCooldownText = computed(() => {
 })
 
 const isUploadCoolingDown = computed(() => uploadCooldownRemainingMs.value > 0)
+
+const isCurrentUserTestAccount = computed(() => {
+  return Boolean(currentUser.value?.test_account || currentUser.value?.testAccount)
+})
 
 const formatDurationText = (remainingMs) => {
   const safeRemainingMs = Math.max(0, remainingMs)
@@ -123,10 +127,19 @@ const isCompetitionEnded = computed(() => {
 })
 
 const canUploadNow = computed(() => {
+  if (!currentUser.value) {
+    return false
+  }
+  if (isCurrentUserTestAccount.value) {
+    return true
+  }
   return !isCompetitionPending.value && !isCompetitionEnded.value && !isUploadCooldownLoading.value && !isUploadCoolingDown.value
 })
 
 const uploadButtonText = computed(() => {
+  if (isCurrentUserTestAccount.value) {
+    return '上传代码'
+  }
   if (isCompetitionPending.value) {
     return '未到参赛时间，无法提交'
   }
@@ -143,6 +156,9 @@ const uploadButtonText = computed(() => {
 })
 
 const uploadTipText = computed(() => {
+  if (isCurrentUserTestAccount.value) {
+    return ''
+  }
   if (isCompetitionPending.value) {
     return '大赛开始后开放代码提交'
   }
@@ -153,7 +169,7 @@ const uploadTipText = computed(() => {
     return '正在同步提交状态'
   }
   if (isUploadCoolingDown.value) {
-    return '每次上传间隔需满10分钟'
+    return '每次上传间隔需满30分钟'
   }
   return ''
 })
@@ -213,7 +229,7 @@ const parseSubmissionTime = (submission) => {
 }
 
 const refreshUploadCooldown = async (userId) => {
-  if (!userId) {
+  if (!userId || isCurrentUserTestAccount.value) {
     uploadCooldownEndsAt.value = 0
     isUploadCooldownLoading.value = false
     return
@@ -342,6 +358,10 @@ const openUpload = () => {
     alert('请先配置参赛信息')
     return
   }
+  if (isCurrentUserTestAccount.value) {
+    showUploadModal.value = true
+    return
+  }
   if (isCompetitionPending.value) {
     alert('未到参赛时间，无法提交')
     return
@@ -351,7 +371,7 @@ const openUpload = () => {
     return
   }
   if (isUploadCoolingDown.value) {
-    alert(`距离上次上传不足10分钟，请在 ${uploadCooldownText.value} 后再次上传`)
+    alert(`距离上次上传不足30分钟，请在 ${uploadCooldownText.value} 后再次上传`)
     return
   }
   showUploadModal.value = true
@@ -370,17 +390,6 @@ const handleUploadSuccess = () => {
   if (rankingBoardRef.value) {
     rankingBoardRef.value.refresh()
   }
-  alert('代码上传成功！')
-}
-
-const handleUploadPending = (message) => {
-  closeUpload()
-  uploadCooldownEndsAt.value = Date.now() + UPLOAD_INTERVAL_MS
-  cooldownTick.value = Date.now()
-  if (rankingBoardRef.value) {
-    rankingBoardRef.value.refresh()
-  }
-  alert(message || '程序包同步未完成，提交已保留为上传中')
 }
 
 </script>
@@ -620,7 +629,6 @@ const handleUploadPending = (message) => {
       :userId="currentUser?.user_id"
       @close="closeUpload"
       @success="handleUploadSuccess"
-      @pending="handleUploadPending"
     />
 
   </div>
