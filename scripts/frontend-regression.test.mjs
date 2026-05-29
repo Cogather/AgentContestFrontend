@@ -120,3 +120,24 @@ test('ranking score token usage and submission count headers are sortable', asyn
   }
   assert.ok(source.includes('sortField: requestSortField'), 'rank page request should include sortField')
 })
+
+test('ranking numeric sort headers align with their values', async () => {
+  const source = await readFile(new URL('../src/components/RankingBoard.vue', import.meta.url), 'utf8')
+  const numericHeaderSelectors = [
+    '.table-header .col.score .sort-header',
+    '.table-header .col.submission-count .sort-header',
+    '.table-header .col.token-usage .sort-header'
+  ]
+
+  for (const selector of numericHeaderSelectors) {
+    assert.ok(source.includes(selector), `${selector} should share the numeric header alignment rule`)
+  }
+  assert.ok(
+    /\.table-header\s+\.col\s*\{[^}]*display:\s*flex;/s.test(source),
+    'table header cells should use flex so numeric alignment rules apply'
+  )
+  assert.ok(
+    /\.table-header \.col\.score \.sort-header,[^{}]*\.table-header \.col\.submission-count \.sort-header,[^{}]*\.table-header \.col\.token-usage \.sort-header\s*\{[^}]*justify-content:\s*flex-end;/s.test(source),
+    'all numeric sort headers should align to the same edge as numeric values'
+  )
+})

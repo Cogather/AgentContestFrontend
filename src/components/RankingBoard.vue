@@ -711,6 +711,8 @@ watch(() => props.currentUserId, () => loadPersonalRank())
 }
 
 .table-header .col {
+  display: flex;
+  align-items: center;
   font-size: 12px;
   font-weight: 600;
   color: #64748b;
@@ -1799,7 +1801,9 @@ watch(() => props.currentUserId, () => loadPersonalRank())
   text-align: right;
 }
 
-.table-header .col.score .sort-header {
+.table-header .col.score .sort-header,
+.table-header .col.submission-count .sort-header,
+.table-header .col.token-usage .sort-header {
   width: 100%;
   justify-content: flex-end;
 }
