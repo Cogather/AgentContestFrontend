@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { userApi } from '../api'
 import {
   canShowScoreDetail,
@@ -23,7 +23,10 @@ const errorMessage = ref('')
 const toastMessage = ref('')
 const detailItem = ref(null)
 const selectedQuestion = ref(1)
+const HISTORY_REFRESH_INTERVAL_MS = 5000
 let toastTimer = null
+let historyRefreshTimer = null
+let historyRefreshInFlight = false
 
 const statusTextMap = {
   uploaded: '已提交',
@@ -39,38 +42,98 @@ const pageTitle = computed(() => {
 })
 
 watch(() => props.userId, () => {
+  stopHistoryAutoRefresh()
   if (props.userId) {
     loadHistory()
+    startHistoryAutoRefresh()
   }
 })
 
 onMounted(() => {
   if (props.userId) {
     loadHistory()
+    startHistoryAutoRefresh()
   }
 })
 
-const loadHistory = async () => {
-  loading.value = true
-  errorMessage.value = ''
+onUnmounted(() => {
+  stopHistoryAutoRefresh()
+  if (toastTimer) {
+    clearTimeout(toastTimer)
+  }
+})
+
+const startHistoryAutoRefresh = () => {
+  if (historyRefreshTimer || !props.userId) {
+    return
+  }
+  historyRefreshTimer = setInterval(() => {
+    loadHistory({ silent: true })
+  }, HISTORY_REFRESH_INTERVAL_MS)
+}
+
+const stopHistoryAutoRefresh = () => {
+  if (!historyRefreshTimer) {
+    return
+  }
+  clearInterval(historyRefreshTimer)
+  historyRefreshTimer = null
+}
+
+const loadHistory = async ({ silent = false } = {}) => {
+  if (!props.userId || historyRefreshInFlight) {
+    return
+  }
+  historyRefreshInFlight = true
+  if (!silent) {
+    loading.value = true
+    errorMessage.value = ''
+  }
   try {
     const res = await userApi.getSubmissions(props.userId)
     if (res.code === 0) {
       submissions.value = Array.isArray(res.data) ? res.data : []
+      errorMessage.value = ''
     } else {
-      errorMessage.value = res.message || '历史记录加载失败'
+      if (!silent || submissions.value.length === 0) {
+        errorMessage.value = res.message || '历史记录加载失败'
+      }
     }
   } catch (error) {
     console.error('Failed to load submissions:', error)
-    errorMessage.value = error?.response?.data?.message || '历史记录加载失败'
+    if (!silent || submissions.value.length === 0) {
+      errorMessage.value = error?.response?.data?.message || '历史记录加载失败'
+    }
   } finally {
-    loading.value = false
+    historyRefreshInFlight = false
+    if (!silent) {
+      loading.value = false
+    }
   }
 }
 
 const statusText = (status) => {
   const normalized = normalizeStatus(status)
   return statusTextMap[normalized] || status || '未知'
+}
+
+const failureReason = (item) => {
+  return String(item?.message || item?.error_message || item?.errorMessage || '暂无失败原因')
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/\/n/g, '\n')
+}
+
+const failedStatusText = (item) => {
+  return `${statusText(item?.status)}：${failureReason(item)}`
+}
+
+const detailStatusText = (item) => {
+  const text = statusText(item?.status)
+  if (normalizeStatus(item?.status) !== 'failed') {
+    return text
+  }
+  return failedStatusText(item)
 }
 
 const formatTime = (timeStr) => {
@@ -103,7 +166,7 @@ const selectedQuestionDetail = computed(() => {
 })
 
 const showFailureReason = (item) => {
-  showToast(item.message || '暂无失败原因')
+  showToast(failureReason(item))
 }
 
 const scoreDetailUnavailableText = (item) => {
@@ -165,6 +228,7 @@ const closeDetail = () => {
       <div v-else class="history-table-wrap">
         <div class="history-table">
           <div class="history-row history-header">
+            <div>提交编号</div>
             <div>提交时间</div>
             <div>总得分</div>
             <div>总 token 消耗</div>
@@ -176,6 +240,7 @@ const closeDetail = () => {
             :key="item.id"
             class="history-row"
           >
+            <div class="submission-id-cell">{{ item.id || '-' }}</div>
             <div class="time-cell">{{ formatTime(item.created_at || item.update_time) }}</div>
             <div class="score-cell">
               <span>{{ formatNumber(item.score) }}</span>
@@ -185,7 +250,7 @@ const closeDetail = () => {
                 type="button"
                 @click="openDetail(item)"
               >
-                得分详情
+                查看详情
               </button>
               <span v-else class="detail-unavailable">{{ scoreDetailUnavailableText(item) }}</span>
             </div>
@@ -197,7 +262,7 @@ const closeDetail = () => {
                 type="button"
                 @click="showFailureReason(item)"
               >
-                {{ statusText(item.status) }}
+                {{ failedStatusText(item) }}
               </button>
               <span v-else class="status-pill" :class="normalizeStatus(item.status)">
                 {{ statusText(item.status) }}
@@ -232,7 +297,7 @@ const closeDetail = () => {
             </div>
             <div>
               <span>当前状态</span>
-              <strong>{{ statusText(detailItem.status) }}</strong>
+              <strong>{{ detailStatusText(detailItem) }}</strong>
             </div>
           </section>
 
@@ -354,12 +419,12 @@ const closeDetail = () => {
 }
 
 .history-table {
-  min-width: 760px;
+  min-width: 900px;
 }
 
 .history-row {
   display: grid;
-  grid-template-columns: minmax(190px, 1.2fr) minmax(160px, 0.9fr) minmax(170px, 0.9fr) minmax(140px, 0.8fr);
+  grid-template-columns: minmax(96px, 0.65fr) minmax(190px, 1.2fr) minmax(160px, 0.9fr) minmax(170px, 0.9fr) minmax(150px, 0.9fr);
   gap: 16px;
   align-items: center;
   padding: 15px 18px;
@@ -378,6 +443,7 @@ const closeDetail = () => {
   font-weight: 700;
 }
 
+.submission-id-cell,
 .time-cell {
   color: #334155;
 }
@@ -459,6 +525,16 @@ const closeDetail = () => {
 
 .status-pill.clickable {
   cursor: pointer;
+}
+
+.status-pill.failed.clickable {
+  max-width: 100%;
+  height: auto;
+  min-height: 28px;
+  line-height: 1.45;
+  padding: 5px 10px;
+  text-align: left;
+  white-space: pre-line;
 }
 
 .toast {

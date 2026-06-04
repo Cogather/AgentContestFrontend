@@ -138,6 +138,7 @@
           </div>
           <div class="col name">
             <span class="name-text">{{ item.nickname }}</span>
+            <span v-if="isTestAccountRank(item)" class="official-demo-badge">官方Demo</span>
           </div>
           <div class="col score">
             <span class="score-value">{{ item.score }}</span>
@@ -304,6 +305,21 @@ const formatNumber = (value) => {
 }
 
 const getSubmissionCount = (item) => item?.submission_count ?? item?.submissionCount ?? 0
+
+const isTruthyFlag = (value) => {
+  if (value === true || value === 1) {
+    return true
+  }
+  if (typeof value === 'string') {
+    return ['true', '1', 'yes'].includes(value.trim().toLowerCase())
+  }
+  return false
+}
+
+const isTestAccountRank = (item) => {
+  return isTruthyFlag(item?.test_account)
+    || isTruthyFlag(item?.testAccount)
+}
 
 const changePage = (page) => {
   if (page >= 1 && page <= totalPages.value) {
@@ -1813,8 +1829,31 @@ watch(() => props.currentUserId, () => loadPersonalRank())
   min-width: 0;
 }
 
+.table-row .col.name {
+  gap: 6px;
+  flex-wrap: wrap;
+  align-content: center;
+}
+
 .name-text {
   max-width: min(160px, 100%);
+}
+
+.official-demo-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 2px 7px;
+  border: 1px solid rgba(17, 24, 39, 0.14);
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.86);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .personal-stats {
@@ -1991,6 +2030,12 @@ watch(() => props.currentUserId, () => loadPersonalRank())
 
   .name-text {
     max-width: 100%;
+  }
+
+  .official-demo-badge {
+    min-height: 18px;
+    padding: 2px 5px;
+    font-size: 10px;
   }
 }
 

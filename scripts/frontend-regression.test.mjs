@@ -88,6 +88,16 @@ test('history score detail trigger has a visible button affordance', async () =>
   ))
 
   assert.equal(hasButtonAffordance, true)
+  assert.ok(source.includes('查看详情'), 'history score detail trigger should say 查看详情')
+})
+
+test('history page auto refreshes every five seconds and clears the timer', async () => {
+  const source = await readFile(new URL('../src/components/HistoryPage.vue', import.meta.url), 'utf8')
+
+  assert.ok(source.includes('HISTORY_REFRESH_INTERVAL_MS = 5000'), 'history refresh interval should be five seconds')
+  assert.ok(source.includes('setInterval('), 'history page should start an interval refresh')
+  assert.ok(source.includes('clearInterval('), 'history page should clear its interval')
+  assert.ok(source.includes('onUnmounted'), 'history page should clean up on unmount')
 })
 
 test('ranking nickname column stays compact on desktop', async () => {
@@ -140,4 +150,12 @@ test('ranking numeric sort headers align with their values', async () => {
     /\.table-header \.col\.score \.sort-header,[^{}]*\.table-header \.col\.submission-count \.sort-header,[^{}]*\.table-header \.col\.token-usage \.sort-header\s*\{[^}]*justify-content:\s*flex-end;/s.test(source),
     'all numeric sort headers should align to the same edge as numeric values'
   )
+})
+
+test('ranking board marks test accounts as official demo rows', async () => {
+  const source = await readFile(new URL('../src/components/RankingBoard.vue', import.meta.url), 'utf8')
+
+  assert.ok(source.includes('isTestAccountRank'), 'ranking board should detect test account rank rows')
+  assert.ok(source.includes('官方Demo'), 'ranking board should render the official demo badge text')
+  assert.ok(/\.official-demo-badge\s*\{/.test(source), 'official demo badge should have a dedicated style')
 })

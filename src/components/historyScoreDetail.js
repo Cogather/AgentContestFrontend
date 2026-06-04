@@ -36,6 +36,14 @@ const parseJsonArray = (value) => {
   }
 }
 
+const normalizeDisplayText = (value) => {
+  return String(value ?? '')
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/\/n/g, '\n')
+    .trim()
+}
+
 export const normalizeStatus = (status) => String(status || 'uploaded').toLowerCase()
 
 export const hasScoreValue = (item) => {
@@ -98,8 +106,8 @@ export const normalizeScoreDetail = (value) => {
       return {
         id: Number(firstDefined(item?.id, question)),
         question,
-        title: String(item?.title ?? item?.name ?? '').trim(),
-        detail: String(item?.detail ?? item?.description ?? item?.content ?? '').trim(),
+        title: normalizeDisplayText(item?.title ?? item?.name ?? ''),
+        detail: normalizeDisplayText(item?.detail ?? item?.description ?? item?.content ?? ''),
         score,
         total
       }
@@ -118,8 +126,8 @@ export const normalizeQuestionDetails = (value) => {
     .map((item, index) => {
       const question = positiveQuestionNumber(item?.question ?? item?.id, index + 1)
       const id = Number(firstDefined(item?.id, question))
-      const title = String(item?.title ?? item?.name ?? '').trim()
-      const detail = String(item?.detail ?? item?.description ?? item?.content ?? '').trim()
+      const title = normalizeDisplayText(item?.title ?? item?.name ?? '')
+      const detail = normalizeDisplayText(item?.detail ?? item?.description ?? item?.content ?? '')
       return {
         id: Number.isFinite(id) ? id : question,
         question,
