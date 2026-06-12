@@ -63,6 +63,22 @@ test('ranking board does not start an interval-based auto refresh', async () => 
   assert.equal(source.includes('POLL_INTERVAL'), false)
 })
 
+test('ranking board defaults to twenty rows per page', async () => {
+  const source = await readFile(new URL('../src/components/RankingBoard.vue', import.meta.url), 'utf8')
+
+  assert.ok(source.includes('const pageSize = ref(20)'), 'ranking board should request 20 rows by default')
+  assert.ok(source.includes('<option :value="20">20</option>'), 'page size selector should keep 20 as an available size')
+})
+
+test('ranking board splits twenty rows into two ten-row columns', async () => {
+  const source = await readFile(new URL('../src/components/RankingBoard.vue', import.meta.url), 'utf8')
+
+  assert.ok(source.includes('RANKING_COLUMN_SIZE = 10'), 'ranking board should use ten rows per visual column')
+  assert.ok(source.includes('rankingColumns'), 'ranking board should derive visual ranking columns')
+  assert.ok(source.includes('class="ranking-columns"'), 'ranking board should render a two-column ranking wrapper')
+  assert.ok(source.includes('class="ranking-column"'), 'ranking board should render each ten-row column separately')
+})
+
 test('frontend does not use native alert for error messages', async () => {
   const srcRoot = new URL('../src/', import.meta.url)
   const collectSourceFiles = async (directory) => {
@@ -358,11 +374,15 @@ test('ranking nickname column stays compact on desktop', async () => {
   const desktopColumns = source.match(/--ranking-table-columns:\s*([^;]+);/)?.[1] || ''
   const nicknameColumn = desktopColumns.match(/minmax\((\d+)px,\s*([0-9.]+)fr\)/)
   const nameMaxWidth = source.match(/\.name-text\s*\{\s*max-width:\s*min\((\d+)px,\s*100%\);/s)?.[1]
+  const splitColumnGrid = source.match(/\.ranking-column \.table-header,\s*\.ranking-column \.table-row\s*\{[^}]*grid-template-columns:\s*([^;]+);/s)?.[1] || ''
+  const splitNameMaxWidth = source.match(/\.ranking-column \.name-text\s*\{\s*max-width:\s*(\d+)px;/s)?.[1]
 
   assert.ok(nicknameColumn, 'desktop ranking grid should define a nickname minmax column')
   assert.ok(Number(nicknameColumn[1]) <= 132, 'nickname column minimum should stay compact')
   assert.ok(Number(nicknameColumn[2]) <= 0.46, 'nickname column flex share should not dominate the table')
   assert.ok(Number(nameMaxWidth) <= 170, 'nickname text should truncate before it over-expands')
+  assert.ok(/minmax\(72px,\s*128px\)/.test(splitColumnGrid), 'split ranking nickname column should be capped around half its previous width')
+  assert.ok(Number(splitNameMaxWidth) <= 112, 'split ranking nickname text should truncate inside the narrower column')
 })
 
 test('ranking summary and personal metrics have emphasized right-side structure', async () => {

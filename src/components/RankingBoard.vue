@@ -77,74 +77,76 @@
 
     <!-- 排行榜表格 -->
     <div class="table-container">
-      <div class="table-header">
-        <div class="col rank">排名</div>
-        <div class="col name">昵称</div>
-        <div class="col score filterable">
-          <div
-            class="sort-header"
-            :class="{ active: sortField === 'score' }"
-            @click="toggleSort('score')"
-          >
-            得分
-            <span class="sort-icon" :class="{ active: sortField === 'score' }">{{ sortIconFor('score') }}</span>
-          </div>
-        </div>
-        <div class="col submission-count filterable">
-          <div
-            class="sort-header"
-            :class="{ active: sortField === 'submission_count' }"
-            @click="toggleSort('submission_count')"
-          >
-            提交次数
-            <span class="sort-icon" :class="{ active: sortField === 'submission_count' }">{{ sortIconFor('submission_count') }}</span>
-          </div>
-        </div>
-        <div class="col token-usage filterable">
-          <div
-            class="sort-header"
-            :class="{ active: sortField === 'token_usage' }"
-            @click="toggleSort('token_usage')"
-          >
-            Token消耗
-            <span class="sort-icon" :class="{ active: sortField === 'token_usage' }">{{ sortIconFor('token_usage') }}</span>
-          </div>
-        </div>
-      </div>
-
       <div v-if="paginatedList.length === 0" class="empty-row">
         {{ rankingError || '暂无排名数据' }}
       </div>
 
-      <div v-else class="table-body">
+      <div
+        v-else
+        class="ranking-columns"
+        :class="{ 'single-column': rankingColumns.length === 1 }"
+      >
         <div
-          v-for="(item, index) in paginatedList"
-          :key="`${item.rank}-${item.nickname}-${index}`"
-          class="table-row"
-          :class="{
-            'top-three': item.rank <= 3,
-            'rank-first-row': item.rank === 1,
-            'rank-second-row': item.rank === 2,
-            'rank-third-row': item.rank === 3,
-            'top-ten': item.rank > 3 && item.rank <= 10,
-            'top-twenty': item.rank > 10 && item.rank <= 20,
-            'top-fifty': item.rank > 20 && item.rank <= 50,
-            'top-hundred': item.rank > 50 && item.rank <= 100,
-            'top-two-hundred': item.rank > 100 && item.rank <= 200
-          }"
+          v-for="(columnItems, columnIndex) in rankingColumns"
+          :key="`ranking-column-${columnIndex}`"
+          class="ranking-column"
         >
-          <div class="col rank">
-            <span class="rank-badge" :class="'rank-' + item.rank">{{ item.rank }}</span>
+          <div class="table-header">
+            <div class="col rank">排名</div>
+            <div class="col name">昵称</div>
+            <div class="col score filterable">
+              <div
+                class="sort-header"
+                :class="{ active: sortField === 'score' }"
+                @click="toggleSort('score')"
+              >
+                得分
+                <span class="sort-icon" :class="{ active: sortField === 'score' }">{{ sortIconFor('score') }}</span>
+              </div>
+            </div>
+            <div class="col submission-count filterable">
+              <div
+                class="sort-header"
+                :class="{ active: sortField === 'submission_count' }"
+                @click="toggleSort('submission_count')"
+              >
+                提交次数
+                <span class="sort-icon" :class="{ active: sortField === 'submission_count' }">{{ sortIconFor('submission_count') }}</span>
+              </div>
+            </div>
+            <div class="col token-usage filterable">
+              <div
+                class="sort-header"
+                :class="{ active: sortField === 'token_usage' }"
+                @click="toggleSort('token_usage')"
+              >
+                Token消耗
+                <span class="sort-icon" :class="{ active: sortField === 'token_usage' }">{{ sortIconFor('token_usage') }}</span>
+              </div>
+            </div>
           </div>
-          <div class="col name">
-            <span class="name-text">{{ item.nickname }}</span>
-            <span v-if="isTestAccountRank(item)" class="official-demo-badge">官方Demo</span>
+
+          <div class="table-body">
+            <div
+              v-for="(item, index) in columnItems"
+              :key="`${item.rank}-${item.nickname}-${columnIndex}-${index}`"
+              class="table-row"
+              :class="rankRowClass(item)"
+            >
+              <div class="col rank">
+                <span class="rank-badge" :class="'rank-' + item.rank">{{ item.rank }}</span>
+              </div>
+              <div class="col name">
+                <span class="name-text">{{ item.nickname }}</span>
+                <span v-if="isTestAccountRank(item)" class="official-demo-badge">官方Demo</span>
+              </div>
+              <div class="col score">
+                <span class="score-value">{{ formatScore(item.score) }}</span>
+              </div>
+              <div class="col submission-count">{{ formatNumber(getSubmissionCount(item)) }}</div>
+              <div class="col token-usage">{{ formatNumber(item.token_usage) }}</div>
+            </div>
           </div>
-          <div class="col score">
-            <span class="score-value">{{ formatScore(item.score) }}</span>
-          </div>
-          <div class="col submission-count">{{ formatNumber(getSubmissionCount(item)) }}</div>
-          <div class="col token-usage">{{ formatNumber(item.token_usage) }}</div>
         </div>
       </div>
     </div>
@@ -233,7 +235,7 @@ const props = defineProps({
 
 const rankingList = ref([])
 const currentPage = ref(1)
-const pageSize = ref(10)
+const pageSize = ref(20)
 const totalItems = ref(0)
 const totalPagesCount = ref(0)
 const totalParticipantsCount = ref(0)
@@ -270,6 +272,28 @@ const totalScore = computed(() => maxScore.value)
 const totalPages = computed(() => totalPagesCount.value)
 
 const paginatedList = computed(() => rankingList.value)
+const RANKING_COLUMN_SIZE = 10
+
+const rankingColumns = computed(() => {
+  const items = paginatedList.value
+  const columns = []
+  for (let index = 0; index < items.length; index += RANKING_COLUMN_SIZE) {
+    columns.push(items.slice(index, index + RANKING_COLUMN_SIZE))
+  }
+  return columns
+})
+
+const rankRowClass = (item) => ({
+  'top-three': item.rank <= 3,
+  'rank-first-row': item.rank === 1,
+  'rank-second-row': item.rank === 2,
+  'rank-third-row': item.rank === 3,
+  'top-ten': item.rank > 3 && item.rank <= 10,
+  'top-twenty': item.rank > 10 && item.rank <= 20,
+  'top-fifty': item.rank > 20 && item.rank <= 50,
+  'top-hundred': item.rank > 50 && item.rank <= 100,
+  'top-two-hundred': item.rank > 100 && item.rank <= 200
+})
 
 const visiblePages = computed(() => {
   const pages = []
@@ -1840,6 +1864,65 @@ watch(() => props.currentUserId, () => loadPersonalRank())
   max-width: min(160px, 100%);
 }
 
+.ranking-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 0;
+}
+
+.ranking-columns.single-column {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ranking-column {
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.ranking-column .table-body {
+  max-height: none;
+  overflow: visible;
+}
+
+.ranking-column .table-header,
+.ranking-column .table-row {
+  grid-template-columns: 38px minmax(72px, 128px) minmax(64px, 1fr) minmax(76px, 1fr) minmax(84px, 1.1fr);
+  gap: 5px;
+  padding: 10px 8px;
+}
+
+.ranking-column .table-header .col {
+  min-width: 0;
+  font-size: 11px;
+}
+
+.ranking-column .table-row .col {
+  min-width: 0;
+  font-size: 13px;
+}
+
+.ranking-column .rank-badge {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+}
+
+.ranking-column .rank-badge.rank-1,
+.ranking-column .rank-badge.rank-2,
+.ranking-column .rank-badge.rank-3 {
+  width: 30px;
+  height: 28px;
+}
+
+.ranking-column .score-value {
+  font-size: 15px;
+}
+
+.ranking-column .name-text {
+  max-width: 112px;
+}
+
 .official-demo-badge {
   flex: 0 0 auto;
   display: inline-flex;
@@ -2008,6 +2091,11 @@ watch(() => props.currentUserId, () => loadPersonalRank())
   .ranking-board {
     --ranking-table-columns: 46px minmax(78px, 1fr) 58px 72px 84px;
     --ranking-table-gap: 8px;
+  }
+
+  .ranking-columns {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .personal-stats {
