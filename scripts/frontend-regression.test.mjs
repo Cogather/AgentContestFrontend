@@ -296,8 +296,11 @@ test('history page only allows canceling queued submissions', async () => {
   assert.equal(source.includes("toLowerCase() === 'evaluating'"), false, 'evaluating submissions must not be cancelable')
   assert.equal(source.includes("toLowerCase() === 'failed'"), false, 'failed submissions must not be cancelable')
   assert.ok(source.includes("defineEmits(['back', 'canceled'])"), 'history page should emit an event after successful cancellation')
-  assert.ok(source.includes("emit('canceled')"), 'cancel success should notify parent views')
-  assert.ok(appSource.includes('@canceled="refreshUploadCooldown"'), 'homepage should refresh upload cooldown after cancellation')
+  assert.ok(source.includes("emit('canceled', { submissionId: id })"), 'cancel success should notify parent views with the canceled submission id')
+  assert.ok(appSource.includes('@canceled="handleSubmissionCanceled"'), 'homepage should handle cancellation explicitly')
+  assert.ok(appSource.includes('uploadCooldownEndsAt.value = 0'), 'homepage should clear local cooldown immediately after cancellation')
+  assert.ok(appSource.includes('canceledCooldownSubmissionIds'), 'homepage should ignore locally canceled submissions while recalculating cooldown')
+  assert.ok(appSource.includes('rankingBoardRef.value.refresh()'), 'homepage should refresh ranking metrics after cancellation')
 })
 
 test('history page displays active queued and evaluating task counts', async () => {

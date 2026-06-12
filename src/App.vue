@@ -54,6 +54,7 @@ const competitionEndDate = new Date(COMPETITION_END_AT)
 const uploadCooldownEndsAt = ref(0)
 const cooldownTick = ref(Date.now())
 const isUploadCooldownLoading = ref(false)
+const canceledCooldownSubmissionIds = ref(new Set())
 let cooldownTimer = null
 
 const uploadCooldownRemainingMs = computed(() => {
@@ -295,6 +296,26 @@ const bootstrapRegisteredUserSession = async (userId) => {
   }
 }
 
+const submissionId = (submission) => {
+  const id = submission?.id ?? submission?.submission_id ?? submission?.submissionId
+  return id === null || id === undefined ? '' : String(id)
+}
+
+const rememberCanceledCooldownSubmission = (id) => {
+  const normalizedId = id === null || id === undefined ? '' : String(id)
+  if (!normalizedId) {
+    return
+  }
+  const nextIds = new Set(canceledCooldownSubmissionIds.value)
+  nextIds.add(normalizedId)
+  canceledCooldownSubmissionIds.value = nextIds
+}
+
+const isCanceledCooldownSubmission = (submission) => {
+  const id = submissionId(submission)
+  return Boolean(id) && canceledCooldownSubmissionIds.value.has(id)
+}
+
 const refreshUploadCooldown = async () => {
   if (!currentUser.value || isCurrentUserTestAccount.value) {
     uploadCooldownEndsAt.value = 0
@@ -305,7 +326,9 @@ const refreshUploadCooldown = async () => {
   try {
     const res = await userApi.getSubmissions()
     const submissions = res.code === 0 && Array.isArray(res.data) ? res.data : []
-    const latestSubmittedAt = getLatestCooldownSubmissionTime(submissions)
+    const latestSubmittedAt = getLatestCooldownSubmissionTime(
+      submissions.filter(submission => !isCanceledCooldownSubmission(submission))
+    )
     uploadCooldownEndsAt.value = latestSubmittedAt ? latestSubmittedAt + UPLOAD_INTERVAL_MS : 0
     cooldownTick.value = Date.now()
   } catch (error) {
@@ -313,6 +336,17 @@ const refreshUploadCooldown = async () => {
     uploadCooldownEndsAt.value = 0
   } finally {
     isUploadCooldownLoading.value = false
+  }
+}
+
+const handleSubmissionCanceled = async (event = {}) => {
+  const canceledSubmissionId = typeof event === 'object' ? event?.submissionId : event
+  rememberCanceledCooldownSubmission(canceledSubmissionId)
+  uploadCooldownEndsAt.value = 0
+  cooldownTick.value = Date.now()
+  await refreshUploadCooldown()
+  if (rankingBoardRef.value) {
+    rankingBoardRef.value.refresh()
   }
 }
 
@@ -637,7 +671,7 @@ const handleUploadSuccess = () => {
       :userId="currentUser?.user_id"
       :username="currentUser?.username"
       @back="closeHistory"
-      @canceled="refreshUploadCooldown"
+      @canceled="handleSubmissionCanceled"
     />
 
     <!-- 主要内容 -->

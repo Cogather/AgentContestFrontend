@@ -290,7 +290,7 @@ const cancelSubmission = async (item) => {
       })
       showToast('已取消提交，可重新上传')
       await loadHistory({ silent: true })
-      emit('canceled')
+      emit('canceled', { submissionId: id })
     } else {
       showToast(res.message || '取消提交失败')
     }
