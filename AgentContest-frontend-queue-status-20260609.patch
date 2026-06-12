@@ -1,0 +1,101 @@
+diff --git a/src/components/HistoryModal.vue b/src/components/HistoryModal.vue
+index 139f7ef..9a5a10f 100644
+--- a/src/components/HistoryModal.vue
++++ b/src/components/HistoryModal.vue
+@@ -59,7 +59,7 @@ const history = ref([])
+ const loading = ref(false)
+ 
+ const statusTextMap = {
+-  uploaded: '已提交',
++  uploaded: '排队中...',
+   uploading: '上传中',
+   validating: '校验中',
+   evaluating: '评测中',
+diff --git a/src/components/HistoryPage.vue b/src/components/HistoryPage.vue
+index fe38741..28dbcab 100644
+--- a/src/components/HistoryPage.vue
++++ b/src/components/HistoryPage.vue
+@@ -29,7 +29,7 @@ let historyRefreshTimer = null
+ let historyRefreshInFlight = false
+ 
+ const statusTextMap = {
+-  uploaded: '已提交',
++  uploaded: '排队中...',
+   uploading: '上传中',
+   validating: '校验中',
+   evaluating: '评测中',
+@@ -112,8 +112,50 @@ const loadHistory = async ({ silent = false } = {}) => {
+   }
+ }
+ 
+-const statusText = (status) => {
++const firstDefined = (...values) => {
++  return values.find(value => value !== null && value !== undefined && value !== '')
++}
++
++const queueAheadCount = (item) => {
++  const directCount = firstDefined(
++    item?.queue_ahead,
++    item?.queueAhead,
++    item?.queue_ahead_count,
++    item?.queueAheadCount,
++    item?.pending_before,
++    item?.pendingBefore
++  )
++  const directNumber = Number(directCount)
++  if (Number.isFinite(directNumber) && directNumber >= 0) {
++    return Math.floor(directNumber)
++  }
++
++  const queuePosition = Number(firstDefined(
++    item?.queue_position,
++    item?.queuePosition,
++    item?.queue_rank,
++    item?.queueRank
++  ))
++  if (Number.isFinite(queuePosition) && queuePosition > 0) {
++    return Math.floor(queuePosition - 1)
++  }
++
++  return null
++}
++
++const uploadedStatusText = (item) => {
++  const count = queueAheadCount(item)
++  if (count === null) {
++    return statusTextMap.uploaded
++  }
++  return `${statusTextMap.uploaded} 前边还有 ${count} 笔提交在排队`
++}
++
++const statusText = (status, item = null) => {
+   const normalized = normalizeStatus(status)
++  if (normalized === 'uploaded') {
++    return uploadedStatusText(item)
++  }
+   return statusTextMap[normalized] || status || '未知'
+ }
+ 
+@@ -125,11 +167,11 @@ const failureReason = (item) => {
+ }
+ 
+ const failedStatusText = (item) => {
+-  return `${statusText(item?.status)}：${failureReason(item)}`
++  return `${statusText(item?.status, item)}：${failureReason(item)}`
+ }
+ 
+ const detailStatusText = (item) => {
+-  const text = statusText(item?.status)
++  const text = statusText(item?.status, item)
+   if (normalizeStatus(item?.status) !== 'failed') {
+     return text
+   }
+@@ -265,7 +307,7 @@ const closeDetail = () => {
+                 {{ failedStatusText(item) }}
+               </button>
+               <span v-else class="status-pill" :class="normalizeStatus(item.status)">
+-                {{ statusText(item.status) }}
++                {{ statusText(item.status, item) }}
+               </span>
+             </div>
+           </div>

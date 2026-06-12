@@ -1,0 +1,66 @@
+diff --git a/src/components/HistoryPage.vue b/src/components/HistoryPage.vue
+--- a/src/components/HistoryPage.vue
++++ b/src/components/HistoryPage.vue
+@@ -442,44 +442,61 @@
+ .history-row {
+   display: grid;
+-  grid-template-columns: minmax(120px, 0.7fr) minmax(190px, 1.2fr) minmax(160px, 0.9fr) minmax(170px, 0.9fr) minmax(150px, 0.9fr);
++  grid-template-columns: 72px minmax(190px, 1.18fr) minmax(132px, 0.72fr) minmax(154px, 0.78fr) minmax(190px, 1fr);
+   gap: 16px;
+   align-items: center;
+   padding: 15px 18px;
+   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+   color: #0f172a;
+ }
+ 
++.history-row > div {
++  min-width: 0;
++}
++
+ .history-row:last-child {
+   border-bottom: 0;
+ }
+ 
+ .history-header {
+   background: #f8fbff;
+   color: #475569;
+   font-size: 13px;
+   font-weight: 700;
+ }
+ 
++.history-header > div {
++  white-space: nowrap;
++}
++
+ .submission-id-cell,
+ .time-cell {
+   color: #334155;
+ }
+ 
++.submission-id-cell {
++  min-width: 0;
++}
++
+ .submission-id-badge {
++  box-sizing: border-box;
++  width: 100%;
++  max-width: 72px;
+   min-height: 28px;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   border: 1px solid rgba(71, 96, 136, 0.2);
+   border-radius: 8px;
+   background: #ffffff;
+   color: #111827;
+   padding: 0 10px;
+   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+   font-size: 13px;
+   font-weight: 800;
+   letter-spacing: 0;
+   white-space: nowrap;
++  overflow: hidden;
++  text-overflow: ellipsis;
+ }
+ 
+ .score-cell {

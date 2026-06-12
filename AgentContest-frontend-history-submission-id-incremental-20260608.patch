@@ -1,0 +1,43 @@
+diff --git a/src/components/HistoryPage.vue b/src/components/HistoryPage.vue
+index c0e5943..709a30d 100644
+--- a/src/components/HistoryPage.vue
++++ b/src/components/HistoryPage.vue
+@@ -91,7 +91,7 @@ const loadHistory = async ({ silent = false } = {}) => {
+     errorMessage.value = ''
+   }
+   try {
+-    const res = await userApi.getSubmissions(props.userId)
++    const res = await userApi.getSubmissions()
+     if (res.code === 0) {
+       submissions.value = Array.isArray(res.data) ? res.data : []
+       errorMessage.value = ''
+@@ -163,6 +163,13 @@ const submissionCreatedTime = (item) => {
+     || item?.updatedAt
+ }
+ 
++const submissionId = (item) => {
++  return item?.id
++    || item?.submission_id
++    || item?.submissionId
++    || ''
++}
++
+ const mergedQuestionDetails = computed(() => {
+   return detailItem.value ? mergeQuestionScoreDetails(detailItem.value) : []
+ })
+@@ -244,12 +251,12 @@ const closeDetail = () => {
+           </div>
+ 
+           <div
+-            v-for="item in submissions"
+-            :key="item.id"
++            v-for="(item, index) in submissions"
++            :key="submissionId(item) || index"
+             class="history-row"
+           >
+             <div class="submission-id-cell">
+-              <span class="submission-id-badge">{{ item.id ? '#' + item.id : '-' }}</span>
++              <span class="submission-id-badge">{{ submissionId(item) ? '#' + submissionId(item) : '-' }}</span>
+             </div>
+             <div class="time-cell">{{ formatTime(submissionCreatedTime(item)) }}</div>
+             <div class="score-cell">

@@ -3,6 +3,9 @@ import axios from 'axios'
 const DEFAULT_API_BASE_URL = ''
 const DEFAULT_UPLOAD_TIMEOUT_MS = 5 * 60 * 1000
 const WRITE_KEY_HEADER = 'X-Agent-Contest-Write-Key'
+const CURRENT_USER_ID_HEADER = 'X-Agent-Contest-User-Id'
+const USER_STORAGE_KEY = 'agent_game_user'
+const THIRD_PARTY_USER_ID_STORAGE_KEY = 'agent_game_third_party_user_id'
 
 const normalizeBaseUrl = (url) => {
   return String(url || '').replace(/\/+$/, '')
@@ -16,6 +19,33 @@ const getWriteApiKey = () => {
   return String(import.meta.env.VITE_WRITE_API_KEY || '').trim()
 }
 
+const normalizeUserId = (value) => {
+  return String(value || '').replace(/\D/g, '').slice(0, 8)
+}
+
+const readStoredUser = () => {
+  if (typeof localStorage === 'undefined') {
+    return null
+  }
+  try {
+    return JSON.parse(localStorage.getItem(USER_STORAGE_KEY) || 'null')
+  } catch {
+    return null
+  }
+}
+
+const getCurrentUserId = () => {
+  if (typeof localStorage === 'undefined') {
+    return ''
+  }
+  const thirdPartyUserId = normalizeUserId(localStorage.getItem(THIRD_PARTY_USER_ID_STORAGE_KEY))
+  if (thirdPartyUserId) {
+    return thirdPartyUserId
+  }
+  const storedUser = readStoredUser()
+  return normalizeUserId(storedUser?.user_id || storedUser?.userId)
+}
+
 const getUploadTimeout = () => {
   const timeout = Number(import.meta.env.VITE_UPLOAD_TIMEOUT_MS)
   return Number.isFinite(timeout) && timeout > 0 ? timeout : DEFAULT_UPLOAD_TIMEOUT_MS
@@ -25,9 +55,18 @@ const isWriteMethod = (method) => {
   return ['post', 'put', 'patch', 'delete'].includes(String(method || '').toLowerCase())
 }
 
+const isExpectedSessionProbeError = (error) => {
+  const config = error?.config
+  const status = error?.response?.status
+  return config?.url === '/api/users/me'
+    && String(config?.method || '').toLowerCase() === 'get'
+    && [401, 403, 404].includes(status)
+}
+
 const api = axios.create({
   baseURL: getBaseUrl(),
   timeout: 10000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -41,6 +80,11 @@ api.interceptors.request.use(
       config.headers = config.headers || {}
       config.headers[WRITE_KEY_HEADER] = writeApiKey
     }
+    const currentUserId = getCurrentUserId()
+    if (currentUserId) {
+      config.headers = config.headers || {}
+      config.headers[CURRENT_USER_ID_HEADER] = currentUserId
+    }
     return config
   },
   error => Promise.reject(error)
@@ -49,18 +93,24 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   response => response.data,
   error => {
-    console.error('API Error:', error)
+    if (!isExpectedSessionProbeError(error)) {
+      console.error('API Error:', error)
+    }
     return Promise.reject(error)
   }
 )
 
 export const userApi = {
   getUsers: () => api.get('/api/users'),
-  getUser: (userId) => api.get(`/api/users/${userId}`),
-  getSubmissions: (userId) => api.get(`/api/users/${userId}/submissions`),
+  getMe: () => api.get('/api/users/me'),
+  getUser: () => api.get('/api/users/me'),
+  getSubmissions: () => api.get('/api/users/me/submissions'),
+  getSubmissionQueueSummary: () => api.get('/api/users/me/submissions/summary'),
   addUser: (data) => api.post('/api/users', data),
-  updateUser: (userId, data) => api.put(`/api/users/${userId}`, data),
-  deleteUser: (userId) => api.delete(`/api/users/${userId}`)
+  emergencyLogin: (data) => api.post('/api/users/emergency-login', data),
+  updateUser: (data) => api.put('/api/users/me', data),
+  cancelSubmission: (submissionId) => api.post(`/api/users/me/submissions/${submissionId}/cancel`),
+  deleteUser: () => api.delete('/api/users/me')
 }
 
 export const rankApi = {
@@ -70,11 +120,11 @@ export const rankApi = {
   getRankPage: (params) => api.get('/api/rank/page', {
     params
   }),
-  getUserRank: (userId) => api.get(`/api/rank/${userId}`)
+  getUserRank: () => api.get('/api/rank/me')
 }
 
 export const commonApi = {
-  uploadCode: (userId, formData) => api.post(`/api/upload/${userId}`, formData, {
+  uploadCode: (formData) => api.post('/api/upload/me', formData, {
     timeout: getUploadTimeout(),
     headers: {
       'Content-Type': 'multipart/form-data'

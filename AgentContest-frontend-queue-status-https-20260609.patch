@@ -1,0 +1,143 @@
+diff --git a/src/components/HistoryModal.vue b/src/components/HistoryModal.vue
+index 139f7ef..9a5a10f 100644
+--- a/src/components/HistoryModal.vue
++++ b/src/components/HistoryModal.vue
+@@ -59,7 +59,7 @@ const history = ref([])
+ const loading = ref(false)
+ 
+ const statusTextMap = {
+-  uploaded: '已提交',
++  uploaded: '排队中...',
+   uploading: '上传中',
+   validating: '校验中',
+   evaluating: '评测中',
+diff --git a/src/components/HistoryPage.vue b/src/components/HistoryPage.vue
+index fe38741..28dbcab 100644
+--- a/src/components/HistoryPage.vue
++++ b/src/components/HistoryPage.vue
+@@ -29,7 +29,7 @@ let historyRefreshTimer = null
+ let historyRefreshInFlight = false
+ 
+ const statusTextMap = {
+-  uploaded: '已提交',
++  uploaded: '排队中...',
+   uploading: '上传中',
+   validating: '校验中',
+   evaluating: '评测中',
+@@ -112,8 +112,50 @@ const loadHistory = async ({ silent = false } = {}) => {
+   }
+ }
+ 
+-const statusText = (status) => {
++const firstDefined = (...values) => {
++  return values.find(value => value !== null && value !== undefined && value !== '')
++}
++
++const queueAheadCount = (item) => {
++  const directCount = firstDefined(
++    item?.queue_ahead,
++    item?.queueAhead,
++    item?.queue_ahead_count,
++    item?.queueAheadCount,
++    item?.pending_before,
++    item?.pendingBefore
++  )
++  const directNumber = Number(directCount)
++  if (Number.isFinite(directNumber) && directNumber >= 0) {
++    return Math.floor(directNumber)
++  }
++
++  const queuePosition = Number(firstDefined(
++    item?.queue_position,
++    item?.queuePosition,
++    item?.queue_rank,
++    item?.queueRank
++  ))
++  if (Number.isFinite(queuePosition) && queuePosition > 0) {
++    return Math.floor(queuePosition - 1)
++  }
++
++  return null
++}
++
++const uploadedStatusText = (item) => {
++  const count = queueAheadCount(item)
++  if (count === null) {
++    return statusTextMap.uploaded
++  }
++  return `${statusTextMap.uploaded} 前边还有 ${count} 笔提交在排队`
++}
++
++const statusText = (status, item = null) => {
+   const normalized = normalizeStatus(status)
++  if (normalized === 'uploaded') {
++    return uploadedStatusText(item)
++  }
+   return statusTextMap[normalized] || status || '未知'
+ }
+ 
+@@ -125,11 +167,11 @@ const failureReason = (item) => {
+ }
+ 
+ const failedStatusText = (item) => {
+-  return `${statusText(item?.status)}：${failureReason(item)}`
++  return `${statusText(item?.status, item)}：${failureReason(item)}`
+ }
+ 
+ const detailStatusText = (item) => {
+-  const text = statusText(item?.status)
++  const text = statusText(item?.status, item)
+   if (normalizeStatus(item?.status) !== 'failed') {
+     return text
+   }
+@@ -265,7 +307,7 @@ const closeDetail = () => {
+                 {{ failedStatusText(item) }}
+               </button>
+               <span v-else class="status-pill" :class="normalizeStatus(item.status)">
+-                {{ statusText(item.status) }}
++                {{ statusText(item.status, item) }}
+               </span>
+             </div>
+           </div>
+diff --git a/src/main.js b/src/main.js
+index e3fa6b6..87c7c9b 100644
+--- a/src/main.js
++++ b/src/main.js
+@@ -7,6 +7,17 @@ const THIRD_PARTY_USER_ID_STORAGE_KEY = 'agent_game_third_party_user_id'
+ const LOGIN_STATUS_PATH = import.meta.env.VITE_LOGIN_STATUS_PATH || '/auth/login'
+ const LOGIN_PAGE_URL = import.meta.env.VITE_LOGIN_PAGE_URL || '/auth/login'
+ const ENABLE_LOGIN_GUARD = import.meta.env.VITE_ENABLE_LOGIN_GUARD === 'true'
++const LOCAL_HTTP_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]'])
++
++const redirectHttpToHttps = () => {
++  if (window.location.protocol !== 'http:' || LOCAL_HTTP_HOSTS.has(window.location.hostname)) {
++    return false
++  }
++  const httpsUrl = new URL(window.location.href)
++  httpsUrl.protocol = 'https:'
++  window.location.replace(httpsUrl.toString())
++  return true
++}
+ 
+ const normalizeUserId = (value) => {
+   const normalized = String(value || '').replace(/\D/g, '').slice(0, 8)
+@@ -28,7 +39,7 @@ const extractUserId = (data) => {
+ }
+ 
+ const redirectToLogin = () => {
+-  const redirectUrl = new URL(LOGIN_PAGE_URL)
++  const redirectUrl = new URL(LOGIN_PAGE_URL, window.location.origin)
+   redirectUrl.searchParams.set('redirect', window.location.href)
+   window.location.replace(redirectUrl.toString())
+ }
+@@ -38,6 +49,10 @@ const mountApp = () => {
+ }
+ 
+ const initializeApp = async () => {
++  if (redirectHttpToHttps()) {
++    return
++  }
++
+   if (!ENABLE_LOGIN_GUARD) {
+     mountApp()
+     return

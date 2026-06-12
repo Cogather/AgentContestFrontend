@@ -1,0 +1,144 @@
+diff --git a/src/components/HistoryPage.vue b/src/components/HistoryPage.vue
+index fe38741..709a30d 100644
+--- a/src/components/HistoryPage.vue
++++ b/src/components/HistoryPage.vue
+@@ -8,6 +8,7 @@ import {
+   mergeQuestionScoreDetails,
+   normalizeStatus
+ } from './historyScoreDetail'
++import { formatScore } from '../utils/scoreFormat'
+ import IconSymbol from './IconSymbol.vue'
+ 
+ const props = defineProps({
+@@ -90,7 +91,7 @@ const loadHistory = async ({ silent = false } = {}) => {
+     errorMessage.value = ''
+   }
+   try {
+-    const res = await userApi.getSubmissions(props.userId)
++    const res = await userApi.getSubmissions()
+     if (res.code === 0) {
+       submissions.value = Array.isArray(res.data) ? res.data : []
+       errorMessage.value = ''
+@@ -155,6 +156,20 @@ const formatNumber = (value) => {
+   return Number.isFinite(numeric) ? numeric.toLocaleString('zh-CN') : value
+ }
+ 
++const submissionCreatedTime = (item) => {
++  return item?.created_at
++    || item?.createdAt
++    || item?.update_time
++    || item?.updatedAt
++}
++
++const submissionId = (item) => {
++  return item?.id
++    || item?.submission_id
++    || item?.submissionId
++    || ''
++}
++
+ const mergedQuestionDetails = computed(() => {
+   return detailItem.value ? mergeQuestionScoreDetails(detailItem.value) : []
+ })
+@@ -228,7 +243,7 @@ const closeDetail = () => {
+       <div v-else class="history-table-wrap">
+         <div class="history-table">
+           <div class="history-row history-header">
+-            <div>提交编号</div>
++            <div>提交 ID</div>
+             <div>提交时间</div>
+             <div>总得分</div>
+             <div>总 token 消耗</div>
+@@ -236,14 +251,16 @@ const closeDetail = () => {
+           </div>
+ 
+           <div
+-            v-for="item in submissions"
+-            :key="item.id"
++            v-for="(item, index) in submissions"
++            :key="submissionId(item) || index"
+             class="history-row"
+           >
+-            <div class="submission-id-cell">{{ item.id || '-' }}</div>
+-            <div class="time-cell">{{ formatTime(item.created_at || item.update_time) }}</div>
++            <div class="submission-id-cell">
++              <span class="submission-id-badge">{{ submissionId(item) ? '#' + submissionId(item) : '-' }}</span>
++            </div>
++            <div class="time-cell">{{ formatTime(submissionCreatedTime(item)) }}</div>
+             <div class="score-cell">
+-              <span>{{ formatNumber(item.score) }}</span>
++              <span>{{ formatScore(item.score) }}</span>
+               <button
+                 v-if="canShowScoreDetail(item)"
+                 class="detail-link"
+@@ -285,11 +302,11 @@ const closeDetail = () => {
+           <section class="detail-meta-bar">
+             <div>
+               <span>总得分</span>
+-              <strong>{{ formatNumber(detailItem.score) }}</strong>
++              <strong>{{ formatScore(detailItem.score) }}</strong>
+             </div>
+             <div>
+               <span>提交时间</span>
+-              <strong>{{ formatTime(detailItem.created_at || detailItem.update_time) }}</strong>
++              <strong>{{ formatTime(submissionCreatedTime(detailItem)) }}</strong>
+             </div>
+             <div>
+               <span>Token 消耗</span>
+@@ -315,9 +332,9 @@ const closeDetail = () => {
+                 <span>题目 {{ questionItem.question }}</span>
+                 <strong>{{ questionItem.title }}</strong>
+                 <em class="question-score-line">
+-                  <span class="score-value">{{ formatNumber(questionItem.score) }}</span>
++                  <span class="score-value">{{ formatScore(questionItem.score) }}</span>
+                   <span class="score-divider">/</span>
+-                  <span class="score-total">{{ formatNumber(questionItem.total) }}</span>
++                  <span class="score-total">{{ formatScore(questionItem.total) }}</span>
+                 </em>
+               </button>
+             </aside>
+@@ -329,9 +346,9 @@ const closeDetail = () => {
+                   <h3>{{ selectedQuestionDetail.title }}</h3>
+                 </div>
+                 <strong class="question-score-line">
+-                  <span class="score-value">{{ formatNumber(selectedQuestionDetail.score) }}</span>
++                  <span class="score-value">{{ formatScore(selectedQuestionDetail.score) }}</span>
+                   <span class="score-divider">/</span>
+-                  <span class="score-total">{{ formatNumber(selectedQuestionDetail.total) }}</span>
++                  <span class="score-total">{{ formatScore(selectedQuestionDetail.total) }}</span>
+                 </strong>
+               </div>
+               <div class="question-detail-text">{{ selectedQuestionDetail.detail }}</div>
+@@ -424,7 +441,7 @@ const closeDetail = () => {
+ 
+ .history-row {
+   display: grid;
+-  grid-template-columns: minmax(96px, 0.65fr) minmax(190px, 1.2fr) minmax(160px, 0.9fr) minmax(170px, 0.9fr) minmax(150px, 0.9fr);
++  grid-template-columns: minmax(120px, 0.7fr) minmax(190px, 1.2fr) minmax(160px, 0.9fr) minmax(170px, 0.9fr) minmax(150px, 0.9fr);
+   gap: 16px;
+   align-items: center;
+   padding: 15px 18px;
+@@ -448,6 +465,23 @@ const closeDetail = () => {
+   color: #334155;
+ }
+ 
++.submission-id-badge {
++  min-height: 28px;
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  border: 1px solid rgba(71, 96, 136, 0.2);
++  border-radius: 8px;
++  background: #ffffff;
++  color: #111827;
++  padding: 0 10px;
++  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
++  font-size: 13px;
++  font-weight: 800;
++  letter-spacing: 0;
++  white-space: nowrap;
++}
++
+ .score-cell {
+   display: flex;
+   align-items: center;

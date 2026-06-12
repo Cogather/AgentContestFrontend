@@ -1,0 +1,177 @@
+diff --git a/src/main.js b/src/main.js
+--- a/src/main.js
++++ b/src/main.js
+@@ -6,6 +6,7 @@ const THIRD_PARTY_USER_ID_STORAGE_KEY = 'agent_game_third_party_user_id'
+ const LOGIN_STATUS_PATH = import.meta.env.VITE_LOGIN_STATUS_PATH || '/auth/login'
+ const LOGIN_PAGE_URL = import.meta.env.VITE_LOGIN_PAGE_URL || '/auth/login'
+ const ENABLE_LOGIN_GUARD = import.meta.env.VITE_ENABLE_LOGIN_GUARD === 'true'
++const EMERGENCY_LOGIN_PATH = '/emergency-login'
+ const LOCAL_HTTP_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]'])
+ 
+ const redirectHttpToHttps = () => {
+@@ -45,6 +46,10 @@ const redirectToLogin = () => {
+   window.location.replace(redirectUrl.toString())
+ }
+ 
++const isEmergencyLoginPath = () => {
++  return window.location.pathname.replace(/\/+$/, '') === EMERGENCY_LOGIN_PATH
++}
++
+ const mountApp = () => {
+   createApp(App).mount('#app')
+ }
+@@ -55,6 +60,11 @@ const initializeApp = async () => {
+     return
+   }
+ 
++  if (isEmergencyLoginPath()) {
++    mountApp()
++    return
++  }
++
+   if (!ENABLE_LOGIN_GUARD) {
+     mountApp()
+     return
+diff --git a/src/api/index.js b/src/api/index.js
+--- a/src/api/index.js
++++ b/src/api/index.js
+@@ -105,6 +105,7 @@ export const userApi = {
+   getUser: () => api.get('/api/users/me'),
+   getSubmissions: () => api.get('/api/users/me/submissions'),
+   addUser: (data) => api.post('/api/users', data),
++  emergencyLogin: (data) => api.post('/api/users/emergency-login', data),
+   updateUser: (data) => api.put('/api/users/me', data),
+   deleteUser: () => api.delete('/api/users/me')
+ }
+diff --git a/src/App.vue b/src/App.vue
+--- a/src/App.vue
++++ b/src/App.vue
+@@ -26,6 +26,7 @@ const challengeContent = ref(`欢迎参加 Agent 大赛！
+ const USER_STORAGE_KEY = 'agent_game_user'
+ const THIRD_PARTY_USER_ID_STORAGE_KEY = 'agent_game_third_party_user_id'
+ const THIRD_PARTY_USER_ID_QUERY_KEYS = ['user_id', 'userId', 'employee_id', 'employeeId', 'work_id', 'workId']
++const EMERGENCY_LOGIN_PATH = '/emergency-login'
+ 
+ // 用户配置
+ const currentUser = ref(null)
+@@ -44,6 +45,7 @@ const registerForm = ref({
+ })
+ const registerLoading = ref(false)
+ const registerError = ref('')
++const isEmergencyLoginPage = ref(window.location.pathname.replace(/\/+$/, '') === EMERGENCY_LOGIN_PATH)
+ const UPLOAD_INTERVAL_MS = 30 * 60 * 1000
+ const COMPETITION_START_AT = import.meta.env.VITE_COMPETITION_START_AT || '2026-05-24T08:00:00-07:00'
+ const COMPETITION_END_AT = import.meta.env.VITE_COMPETITION_END_AT || '2026-06-15T00:00:00-07:00'
+@@ -319,6 +321,10 @@ onMounted(async () => {
+   cooldownTimer = setInterval(() => {
+     cooldownTick.value = Date.now()
+   }, 1000)
++  if (isEmergencyLoginPage.value) {
++    sessionReady.value = true
++    return
++  }
+   try {
+     const resolvedUserId = resolveThirdPartyUserId()
+     registerForm.value.user_id = resolvedUserId
+@@ -424,6 +430,39 @@ const loginUser = async () => {
+   }
+ }
+ 
++const loginEmergencyUser = async () => {
++  registerError.value = ''
++  const userId = normalizeUserId(registerForm.value.user_id)
++
++  if (!userId || userId.length !== 8) {
++    registerError.value = '请输入有效的 8 位工号'
++    return
++  }
++
++  registerLoading.value = true
++  try {
++    const res = await userApi.emergencyLogin({
++      user_id: userId,
++      username: ''
++    })
++
++    if (res.code === 0 && res.data) {
++      saveCurrentUser(res.data)
++      localStorage.setItem(THIRD_PARTY_USER_ID_STORAGE_KEY, userId)
++      isEmergencyLoginPage.value = false
++      window.history.replaceState({}, '', '/')
++      await refreshUploadCooldown()
++    } else {
++      registerError.value = res.message || '应急登录失败'
++    }
++  } catch (error) {
++    console.error('Emergency login error:', error)
++    registerError.value = getRequestErrorMessage(error, '应急登录失败')
++  } finally {
++    registerLoading.value = false
++  }
++}
++
+ // 打开历史上传记录
+ const openHistory = () => {
+   if (!currentUser.value) {
+@@ -565,7 +604,36 @@ const handleUploadSuccess = () => {
+           </div>
+         </div>
+ 
+-        <form class="register-panel" @submit.prevent="loginUser">
++        <form v-if="isEmergencyLoginPage" class="register-panel emergency-login-panel" @submit.prevent="loginEmergencyUser">
++          <div class="register-panel-header">
++            <span class="card-icon">
++              <IconSymbol name="user" />
++            </span>
++            <h2>应急登录</h2>
++          </div>
++
++          <div class="register-fields">
++            <label class="register-field">
++              <span>工号</span>
++              <input
++                v-model="registerForm.user_id"
++                type="text"
++                inputmode="numeric"
++                maxlength="20"
++                placeholder="请输入已开通应急登录的工号"
++              />
++              <p class="register-helper">仅限内部登录异常时使用，登录后仍由后端 Cookie 校验身份</p>
++            </label>
++          </div>
++
++          <p v-if="registerError" class="register-error">{{ registerError }}</p>
++
++          <button class="btn btn-primary register-submit" type="submit" :disabled="registerLoading">
++            {{ registerLoading ? '登录中...' : '应急登录' }}
++          </button>
++        </form>
++
++        <form v-else class="register-panel" @submit.prevent="loginUser">
+           <div class="register-panel-header">
+             <span class="card-icon">
+               <IconSymbol name="user" />
+diff --git a/scripts/frontend-regression.test.mjs b/scripts/frontend-regression.test.mjs
+--- a/scripts/frontend-regression.test.mjs
++++ b/scripts/frontend-regression.test.mjs
+@@ -199,6 +199,20 @@ test('registered users bootstrap silently without identity confirmation UI', async
+   assert.ok(source.includes('昵称设置后不可修改，请谨慎填写'), 'new-user nickname copy should stay simple')
+ })
+ 
++test('emergency login route bypasses third-party login and calls backend allow-list endpoint', async () => {
++  const mainSource = await readFile(new URL('../src/main.js', import.meta.url), 'utf8')
++  const appSource = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
++  const apiSource = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
++
++  assert.ok(mainSource.includes("EMERGENCY_LOGIN_PATH = '/emergency-login'"), 'entrypoint should define the emergency login path')
++  assert.ok(mainSource.includes('isEmergencyLoginPath()'), 'entrypoint should detect the emergency login path')
++  assert.ok(mainSource.includes('if (isEmergencyLoginPath())'), 'emergency login path should bypass third-party guard')
++  assert.ok(apiSource.includes('/api/users/emergency-login'), 'API client should expose the backend emergency login endpoint')
++  assert.ok(appSource.includes('isEmergencyLoginPage'), 'App should render a dedicated emergency login mode')
++  assert.ok(appSource.includes('loginEmergencyUser'), 'emergency login form should call a dedicated submit handler')
++  assert.ok(appSource.includes('应急登录'), 'emergency login UI should be visibly distinct from normal login')
++})
++
+ test('registration payload normalizes prefixed work ids before posting to backend', async () => {
+   const source = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+ 

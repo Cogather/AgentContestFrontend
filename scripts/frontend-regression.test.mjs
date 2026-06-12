@@ -6,6 +6,10 @@ import {
   canShowScoreDetail,
   mergeQuestionScoreDetails
 } from '../src/components/historyScoreDetail.js'
+import {
+  getLatestCooldownSubmissionTime,
+  isCooldownEligibleSubmission
+} from '../src/utils/submissionCooldown.js'
 
 test('score detail uses however many scored questions the backend returns', () => {
   const submission = {
@@ -43,6 +47,15 @@ test('score detail uses however many scored questions the backend returns', () =
   ])
 })
 
+test('score formatting preserves decimal scores without noisy trailing zeroes', async () => {
+  const { formatScore } = await import('../src/utils/scoreFormat.js')
+
+  assert.equal(formatScore(900), '900')
+  assert.equal(formatScore(900.5), '900.5')
+  assert.equal(formatScore('899.9999'), '899.9999')
+  assert.equal(formatScore(null), '-')
+})
+
 test('ranking board does not start an interval-based auto refresh', async () => {
   const source = await readFile(new URL('../src/components/RankingBoard.vue', import.meta.url), 'utf8')
 
@@ -77,6 +90,154 @@ test('frontend does not use native alert for error messages', async () => {
   assert.deepEqual(alertUsages, [])
 })
 
+test('upload dialog displays the zip package size limit', async () => {
+  const source = await readFile(new URL('../src/components/UploadModal.vue', import.meta.url), 'utf8')
+
+  assert.ok(source.includes('100MB'), 'upload dialog should show the 100MB package limit')
+  assert.ok(source.includes('.zip'), 'upload dialog should show that only zip packages are supported')
+})
+
+test('upload cooldown only uses backend cooldown eligible submission statuses', () => {
+  assert.equal(isCooldownEligibleSubmission({ status: 'UPLOADED' }), true)
+  assert.equal(isCooldownEligibleSubmission({ status: 'evaluating' }), true)
+  assert.equal(isCooldownEligibleSubmission({ status: 'completed' }), true)
+  assert.equal(isCooldownEligibleSubmission({ status: 'failed' }), false)
+  assert.equal(isCooldownEligibleSubmission({ status: 'uploading' }), false)
+  assert.equal(isCooldownEligibleSubmission({ status: 'validating' }), false)
+})
+
+test('failed or uploading submissions do not make the frontend cooldown timer block uploads', () => {
+  const latestFailed = {
+    status: 'FAILED',
+    created_at: '2026-06-08T10:00:00+08:00'
+  }
+  const olderUploaded = {
+    status: 'UPLOADED',
+    created_at: '2026-06-08T09:40:00+08:00'
+  }
+  const currentUploading = {
+    status: 'UPLOADING',
+    created_at: '2026-06-08T10:10:00+08:00'
+  }
+
+  assert.equal(
+    getLatestCooldownSubmissionTime([latestFailed, currentUploading, olderUploaded]),
+    new Date(olderUploaded.created_at).getTime()
+  )
+})
+
+test('api requests include cookies for backend user identity checks', async () => {
+  const source = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
+
+  assert.ok(source.includes('withCredentials: true'), 'axios API client should send backend identity cookies')
+})
+
+test('api requests send current work id header for login session bootstrap', async () => {
+  const source = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
+
+  assert.ok(source.includes('X-Agent-Contest-User-Id'), 'API client should send current work id header')
+  assert.ok(source.includes('getMe'), 'API client should expose current session lookup')
+})
+
+test('expected unauthenticated session checks do not log noisy API errors', async () => {
+  const source = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
+  const appSource = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+
+  assert.ok(source.includes('isExpectedSessionProbeError'), 'API client should classify expected session probe errors')
+  assert.ok(source.includes("config?.url === '/api/users/me'"), 'API client should only suppress expected me endpoint probes')
+  assert.ok(appSource.includes('[401, 403, 404].includes(error?.response?.status)'), 'startup should not console-error expected missing sessions')
+})
+
+test('login redirect supports relative and absolute login URLs', async () => {
+  const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8')
+
+  assert.ok(source.includes('new URL(LOGIN_PAGE_URL, window.location.origin)'), 'login redirect should not throw when login page URL is relative')
+})
+
+test('frontend redirects non-local http traffic to https before app startup', async () => {
+  const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8')
+
+  assert.ok(source.includes('redirectHttpToHttps'), 'entrypoint should define an http-to-https redirect guard')
+  assert.ok(source.includes("window.location.protocol !== 'http:'"), 'redirect guard should only act on http pages')
+  assert.ok(source.includes('LOCAL_HTTP_HOSTS'), 'redirect guard should keep local development on http')
+  assert.ok(source.includes("httpsUrl.protocol = 'https:'"), 'redirect guard should preserve the current URL and switch only the protocol')
+  assert.ok(source.includes('window.location.replace(httpsUrl.toString())'), 'redirect guard should replace the current http URL')
+  assert.ok(
+    source.indexOf('redirectHttpToHttps()') < source.indexOf('initializeApp()'),
+    'http-to-https redirect should run before app initialization'
+  )
+})
+
+test('post-login user scoped frontend calls use signed session me endpoints', async () => {
+  const source = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+  const apiSource = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
+
+  assert.ok(source.includes('getMe'), 'startup should load registered profile through me endpoint')
+  assert.ok(apiSource.includes('/api/users/me/submissions'), 'history should use me submissions endpoint')
+  assert.ok(apiSource.includes('/api/upload/me'), 'upload should use me upload endpoint')
+  assert.ok(apiSource.includes('/api/rank/me'), 'personal rank should use me rank endpoint')
+  assert.equal(source.includes('currentUser?.uuid'), false, 'main page should not pass uuid to child components')
+})
+
+test('registered users bootstrap silently without identity confirmation UI', async () => {
+  const source = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+
+  assert.ok(source.includes('bootstrapRegisteredUserSession'), 'startup should silently bootstrap backend session for registered users')
+  assert.ok(source.includes("username: ''"), 'registered-user bootstrap should not require a nickname')
+  assert.equal(source.includes('applyRegisteredUserProfile'), false, 'bootstrap should not call removed profile helpers')
+  assert.ok(source.includes('newUserRequired'), 'startup should distinguish the backend nickname-required state')
+  assert.equal(source.includes('auth-state'), false, 'frontend should not render a separate identity confirmation page')
+  assert.equal(source.includes('身份确认'), false, 'frontend should not show identity confirmation copy')
+  assert.equal(source.includes('重新确认'), false, 'frontend should not show a manual reconfirm button')
+  assert.equal(source.includes('老用户'), false, 'login UI should not show old-user wording')
+  assert.equal(source.includes('可留空'), false, 'login UI should not tell users to leave nickname blank')
+  assert.equal(source.includes('直接进入'), false, 'login flow should not expose direct-enter copy')
+  assert.ok(source.includes('<h2>参赛登录</h2>'), 'login panel title should remain 参赛登录')
+  assert.ok(source.includes("registerLoading ? '登录中...' : '登录'"), 'login button copy should remain 登录')
+  assert.equal(source.includes('完成登记'), false, 'login UI should not show registration completion copy')
+  assert.ok(source.includes('昵称设置后不可修改，请谨慎填写'), 'new-user nickname copy should stay simple')
+})
+
+test('emergency login route bypasses third-party login and calls backend allow-list endpoint', async () => {
+  const mainSource = await readFile(new URL('../src/main.js', import.meta.url), 'utf8')
+  const appSource = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+  const apiSource = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
+
+  assert.ok(mainSource.includes("EMERGENCY_LOGIN_PATH = '/emergency-login'"), 'entrypoint should define the emergency login path')
+  assert.ok(mainSource.includes('isEmergencyLoginPath()'), 'entrypoint should detect the emergency login path')
+  assert.ok(mainSource.includes('if (isEmergencyLoginPath())'), 'emergency login path should bypass third-party guard')
+  assert.ok(apiSource.includes('/api/users/emergency-login'), 'API client should expose the backend emergency login endpoint')
+  assert.ok(appSource.includes('isEmergencyLoginPage'), 'App should render a dedicated emergency login mode')
+  assert.ok(appSource.includes('loginEmergencyUser'), 'emergency login form should call a dedicated submit handler')
+  assert.ok(appSource.includes('应急登录'), 'emergency login UI should be visibly distinct from normal login')
+})
+
+test('registration payload normalizes prefixed work ids before posting to backend', async () => {
+  const source = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+
+  assert.ok(
+    source.includes('const userId = normalizeUserId(registerForm.value.user_id)'),
+    'registration validation should normalize prefixed work ids before length checks'
+  )
+  assert.ok(
+    source.includes('user_id: normalizeUserId(registerForm.value.user_id)'),
+    'registration payload should send the same normalized 8-digit work id as the request header'
+  )
+  assert.ok(
+    source.includes('const userId = normalizeUserId(user.user_id || user.userId)'),
+    'stored user profile should keep the frontend user id in the same normalized format'
+  )
+})
+
+test('login page stacks title and schedule before tablet width gets cramped', async () => {
+  const source = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+
+  assert.ok(
+    source.includes('@media (max-width: 1180px)'),
+    'login page should stack title and schedule before those columns collapse at 1024px'
+  )
+})
+
 test('history score detail trigger has a visible button affordance', async () => {
   const source = await readFile(new URL('../src/components/HistoryPage.vue', import.meta.url), 'utf8')
   const detailLinkBlocks = [...source.matchAll(/\.detail-link\s*\{([^}]*)\}/g)].map(match => match[1])
@@ -89,6 +250,95 @@ test('history score detail trigger has a visible button affordance', async () =>
 
   assert.equal(hasButtonAffordance, true)
   assert.ok(source.includes('查看详情'), 'history score detail trigger should say 查看详情')
+})
+
+test('history page displays submission id for every record', async () => {
+  const source = await readFile(new URL('../src/components/HistoryPage.vue', import.meta.url), 'utf8')
+
+  assert.ok(source.includes('提交 ID'), 'history table should include a submission id header')
+  assert.ok(source.includes('submissionId(item)'), 'history rows should read backend submission id through a field-compatible helper')
+  assert.ok(source.includes(':key="submissionId(item) || index"'), 'history rows should use backend submission id as their key when available')
+  assert.ok(source.includes('submissionCreatedTime(item)'), 'history rows should read backend createdAt as the submitted time')
+  assert.ok(source.includes('submission-id-badge'), 'history rows should make submission id visually distinct')
+  assert.ok(source.includes("{{ submissionId(item) ? '#' + submissionId(item) : '-' }}"), 'history rows should render backend submission id')
+  assert.ok(source.includes('item?.submission_id'), 'history rows should tolerate snake_case submission id fields')
+  assert.ok(source.includes('item?.submissionId'), 'history rows should tolerate camelCase submission id fields')
+})
+
+test('history page shows uploaded submissions as queued with queue-ahead count', async () => {
+  const source = await readFile(new URL('../src/components/HistoryPage.vue', import.meta.url), 'utf8')
+  const modalSource = await readFile(new URL('../src/components/HistoryModal.vue', import.meta.url), 'utf8')
+
+  assert.ok(source.includes("uploaded: '排队中...'"), 'history page should display uploaded status as 排队中...')
+  assert.ok(modalSource.includes("uploaded: '排队中...'"), 'legacy history modal should display uploaded status as 排队中...')
+  assert.ok(source.includes("`${statusTextMap.uploaded} 前边还有 ${count} 笔提交在排队`"), 'history page should show queue-ahead copy with readable spacing')
+  assert.ok(source.includes('queueAheadCount'), 'history page should derive the queue-ahead count for queued submissions')
+  assert.ok(source.includes('item?.queue_ahead'), 'history page should tolerate snake_case queue-ahead fields')
+  assert.ok(source.includes('item?.queueAhead'), 'history page should tolerate camelCase queue-ahead fields')
+  assert.ok(source.includes('前边还有 ${count} 笔提交在排队'), 'history page should render the queue-ahead count in Chinese')
+})
+
+test('history page only allows canceling queued submissions', async () => {
+  const source = await readFile(new URL('../src/components/HistoryPage.vue', import.meta.url), 'utf8')
+  const apiSource = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
+  const appSource = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+
+  assert.ok(
+    apiSource.includes('/api/users/me/submissions/${submissionId}/cancel'),
+    'frontend API should call the signed-session cancel endpoint'
+  )
+  assert.ok(
+    source.includes("String(item?.status || '').toLowerCase() === 'uploaded'"),
+    'cancel button should only be available while the submission is queued'
+  )
+  assert.ok(source.includes('cancel-submission-btn'), 'history page should render a visible cancel action')
+  assert.ok(source.includes('取消中...'), 'cancel action should show a pending state')
+  assert.equal(source.includes("toLowerCase() === 'evaluating'"), false, 'evaluating submissions must not be cancelable')
+  assert.equal(source.includes("toLowerCase() === 'failed'"), false, 'failed submissions must not be cancelable')
+  assert.ok(source.includes("defineEmits(['back', 'canceled'])"), 'history page should emit an event after successful cancellation')
+  assert.ok(source.includes("emit('canceled')"), 'cancel success should notify parent views')
+  assert.ok(appSource.includes('@canceled="refreshUploadCooldown"'), 'homepage should refresh upload cooldown after cancellation')
+})
+
+test('history page displays active queued and evaluating task counts', async () => {
+  const source = await readFile(new URL('../src/components/HistoryPage.vue', import.meta.url), 'utf8')
+  const apiSource = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
+
+  assert.ok(
+    apiSource.includes('/api/users/me/submissions/summary'),
+    'frontend API should call the signed-session submission summary endpoint'
+  )
+  assert.ok(source.includes('activeTaskSummary'), 'history page should derive active task summary counts')
+  assert.ok(source.includes('当前排队'), 'history page should show queued task count copy')
+  assert.ok(source.includes('正在评测'), 'history page should show evaluating task count copy')
+  assert.ok(source.includes('queuedCount'), 'history page should read queued count from backend summary')
+  assert.ok(source.includes('evaluatingCount'), 'history page should read evaluating count from backend summary')
+  assert.ok(source.includes('await loadSubmissionQueueSummary()'), 'manual history refresh should also refresh active task counts')
+})
+
+test('history submission id column stays compact and truncates long ids', async () => {
+  const source = await readFile(new URL('../src/components/HistoryPage.vue', import.meta.url), 'utf8')
+
+  assert.ok(
+    /grid-template-columns:\s*72px\s+minmax\(178px,\s*0\.94fr\)\s+minmax\(126px,\s*0\.58fr\)\s+minmax\(142px,\s*0\.64fr\)\s+minmax\(360px,\s*1\.45fr\)/.test(source),
+    'history table should keep the submission id column compact and reserve enough width for status'
+  )
+  assert.ok(
+    /\.submission-id-cell\s*\{[^}]*min-width:\s*0;/s.test(source),
+    'submission id cell should be allowed to shrink inside the grid'
+  )
+  assert.ok(
+    /\.submission-id-badge\s*\{[^}]*width:\s*100%;[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;/s.test(source),
+    'long submission ids should truncate instead of expanding the table column'
+  )
+  assert.ok(
+    /\.status-pill\.uploaded\s*\{[^}]*overflow:\s*visible;[^}]*text-overflow:\s*clip;[^}]*white-space:\s*normal;/s.test(source),
+    'queued status text should wrap instead of being truncated'
+  )
+  assert.ok(
+    /\.status-pill\.uploaded\s*\{[^}]*display:\s*block;[^}]*width:\s*100%;[^}]*overflow-wrap:\s*anywhere;[^}]*word-break:\s*break-word;/s.test(source),
+    'queued status should stay inside the status column and wrap long queue copy'
+  )
 })
 
 test('history page auto refreshes every five seconds and clears the timer', async () => {

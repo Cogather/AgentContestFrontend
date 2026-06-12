@@ -1,0 +1,894 @@
+diff --git a/scripts/frontend-regression.test.mjs b/scripts/frontend-regression.test.mjs
+index 8d76cf2..48e8624 100644
+--- a/scripts/frontend-regression.test.mjs
++++ b/scripts/frontend-regression.test.mjs
+@@ -6,6 +6,10 @@ import {
+   canShowScoreDetail,
+   mergeQuestionScoreDetails
+ } from '../src/components/historyScoreDetail.js'
++import {
++  getLatestCooldownSubmissionTime,
++  isCooldownEligibleSubmission
++} from '../src/utils/submissionCooldown.js'
+ 
+ test('score detail uses however many scored questions the backend returns', () => {
+   const submission = {
+@@ -43,6 +47,15 @@ test('score detail uses however many scored questions the backend returns', () =
+   ])
+ })
+ 
++test('score formatting preserves decimal scores without noisy trailing zeroes', async () => {
++  const { formatScore } = await import('../src/utils/scoreFormat.js')
++
++  assert.equal(formatScore(900), '900')
++  assert.equal(formatScore(900.5), '900.5')
++  assert.equal(formatScore('899.9999'), '899.9999')
++  assert.equal(formatScore(null), '-')
++})
++
+ test('ranking board does not start an interval-based auto refresh', async () => {
+   const source = await readFile(new URL('../src/components/RankingBoard.vue', import.meta.url), 'utf8')
+ 
+@@ -77,6 +90,126 @@ test('frontend does not use native alert for error messages', async () => {
+   assert.deepEqual(alertUsages, [])
+ })
+ 
++test('upload dialog displays the zip package size limit', async () => {
++  const source = await readFile(new URL('../src/components/UploadModal.vue', import.meta.url), 'utf8')
++
++  assert.ok(source.includes('100MB'), 'upload dialog should show the 100MB package limit')
++  assert.ok(source.includes('.zip'), 'upload dialog should show that only zip packages are supported')
++})
++
++test('upload cooldown only uses backend cooldown eligible submission statuses', () => {
++  assert.equal(isCooldownEligibleSubmission({ status: 'UPLOADED' }), true)
++  assert.equal(isCooldownEligibleSubmission({ status: 'evaluating' }), true)
++  assert.equal(isCooldownEligibleSubmission({ status: 'completed' }), true)
++  assert.equal(isCooldownEligibleSubmission({ status: 'failed' }), false)
++  assert.equal(isCooldownEligibleSubmission({ status: 'uploading' }), false)
++  assert.equal(isCooldownEligibleSubmission({ status: 'validating' }), false)
++})
++
++test('failed or uploading submissions do not make the frontend cooldown timer block uploads', () => {
++  const latestFailed = {
++    status: 'FAILED',
++    created_at: '2026-06-08T10:00:00+08:00'
++  }
++  const olderUploaded = {
++    status: 'UPLOADED',
++    created_at: '2026-06-08T09:40:00+08:00'
++  }
++  const currentUploading = {
++    status: 'UPLOADING',
++    created_at: '2026-06-08T10:10:00+08:00'
++  }
++
++  assert.equal(
++    getLatestCooldownSubmissionTime([latestFailed, currentUploading, olderUploaded]),
++    new Date(olderUploaded.created_at).getTime()
++  )
++})
++
++test('api requests include cookies for backend user identity checks', async () => {
++  const source = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
++
++  assert.ok(source.includes('withCredentials: true'), 'axios API client should send backend identity cookies')
++})
++
++test('api requests send current work id header for login session bootstrap', async () => {
++  const source = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
++
++  assert.ok(source.includes('X-Agent-Contest-User-Id'), 'API client should send current work id header')
++  assert.ok(source.includes('getMe'), 'API client should expose current session lookup')
++})
++
++test('expected unauthenticated session checks do not log noisy API errors', async () => {
++  const source = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
++  const appSource = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
++
++  assert.ok(source.includes('isExpectedSessionProbeError'), 'API client should classify expected session probe errors')
++  assert.ok(source.includes("config?.url === '/api/users/me'"), 'API client should only suppress expected me endpoint probes')
++  assert.ok(appSource.includes('[401, 403, 404].includes(error?.response?.status)'), 'startup should not console-error expected missing sessions')
++})
++
++test('login redirect supports relative and absolute login URLs', async () => {
++  const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8')
++
++  assert.ok(source.includes('new URL(LOGIN_PAGE_URL, window.location.origin)'), 'login redirect should not throw when login page URL is relative')
++})
++
++test('post-login user scoped frontend calls use signed session me endpoints', async () => {
++  const source = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
++  const apiSource = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
++
++  assert.ok(source.includes('getMe'), 'startup should load registered profile through me endpoint')
++  assert.ok(apiSource.includes('/api/users/me/submissions'), 'history should use me submissions endpoint')
++  assert.ok(apiSource.includes('/api/upload/me'), 'upload should use me upload endpoint')
++  assert.ok(apiSource.includes('/api/rank/me'), 'personal rank should use me rank endpoint')
++  assert.equal(source.includes('currentUser?.uuid'), false, 'main page should not pass uuid to child components')
++})
++
++test('registered users bootstrap silently without identity confirmation UI', async () => {
++  const source = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
++
++  assert.ok(source.includes('bootstrapRegisteredUserSession'), 'startup should silently bootstrap backend session for registered users')
++  assert.ok(source.includes("username: ''"), 'registered-user bootstrap should not require a nickname')
++  assert.equal(source.includes('applyRegisteredUserProfile'), false, 'bootstrap should not call removed profile helpers')
++  assert.ok(source.includes('newUserRequired'), 'startup should distinguish the backend nickname-required state')
++  assert.equal(source.includes('auth-state'), false, 'frontend should not render a separate identity confirmation page')
++  assert.equal(source.includes('身份确认'), false, 'frontend should not show identity confirmation copy')
++  assert.equal(source.includes('重新确认'), false, 'frontend should not show a manual reconfirm button')
++  assert.equal(source.includes('老用户'), false, 'login UI should not show old-user wording')
++  assert.equal(source.includes('可留空'), false, 'login UI should not tell users to leave nickname blank')
++  assert.equal(source.includes('直接进入'), false, 'login flow should not expose direct-enter copy')
++  assert.ok(source.includes('<h2>参赛登录</h2>'), 'login panel title should remain 参赛登录')
++  assert.ok(source.includes("registerLoading ? '登录中...' : '登录'"), 'login button copy should remain 登录')
++  assert.equal(source.includes('完成登记'), false, 'login UI should not show registration completion copy')
++  assert.ok(source.includes('昵称设置后不可修改，请谨慎填写'), 'new-user nickname copy should stay simple')
++})
++
++test('registration payload normalizes prefixed work ids before posting to backend', async () => {
++  const source = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
++
++  assert.ok(
++    source.includes('const userId = normalizeUserId(registerForm.value.user_id)'),
++    'registration validation should normalize prefixed work ids before length checks'
++  )
++  assert.ok(
++    source.includes('user_id: normalizeUserId(registerForm.value.user_id)'),
++    'registration payload should send the same normalized 8-digit work id as the request header'
++  )
++  assert.ok(
++    source.includes('const userId = normalizeUserId(user.user_id || user.userId)'),
++    'stored user profile should keep the frontend user id in the same normalized format'
++  )
++})
++
++test('login page stacks title and schedule before tablet width gets cramped', async () => {
++  const source = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
++
++  assert.ok(
++    source.includes('@media (max-width: 1180px)'),
++    'login page should stack title and schedule before those columns collapse at 1024px'
++  )
++})
++
+ test('history score detail trigger has a visible button affordance', async () => {
+   const source = await readFile(new URL('../src/components/HistoryPage.vue', import.meta.url), 'utf8')
+   const detailLinkBlocks = [...source.matchAll(/\.detail-link\s*\{([^}]*)\}/g)].map(match => match[1])
+@@ -91,6 +224,19 @@ test('history score detail trigger has a visible button affordance', async () =>
+   assert.ok(source.includes('查看详情'), 'history score detail trigger should say 查看详情')
+ })
+ 
++test('history page displays submission id for every record', async () => {
++  const source = await readFile(new URL('../src/components/HistoryPage.vue', import.meta.url), 'utf8')
++
++  assert.ok(source.includes('提交 ID'), 'history table should include a submission id header')
++  assert.ok(source.includes('submissionId(item)'), 'history rows should read backend submission id through a field-compatible helper')
++  assert.ok(source.includes(':key="submissionId(item) || index"'), 'history rows should use backend submission id as their key when available')
++  assert.ok(source.includes('submissionCreatedTime(item)'), 'history rows should read backend createdAt as the submitted time')
++  assert.ok(source.includes('submission-id-badge'), 'history rows should make submission id visually distinct')
++  assert.ok(source.includes("{{ submissionId(item) ? '#' + submissionId(item) : '-' }}"), 'history rows should render backend submission id')
++  assert.ok(source.includes('item?.submission_id'), 'history rows should tolerate snake_case submission id fields')
++  assert.ok(source.includes('item?.submissionId'), 'history rows should tolerate camelCase submission id fields')
++})
++
+ test('history page auto refreshes every five seconds and clears the timer', async () => {
+   const source = await readFile(new URL('../src/components/HistoryPage.vue', import.meta.url), 'utf8')
+ 
+diff --git a/src/App.vue b/src/App.vue
+index c65eb26..65ed86e 100644
+--- a/src/App.vue
++++ b/src/App.vue
+@@ -6,6 +6,7 @@ import HistoryPage from './components/HistoryPage.vue'
+ import RankingBoard from './components/RankingBoard.vue'
+ import IconSymbol from './components/IconSymbol.vue'
+ import ErrorModal from './components/ErrorModal.vue'
++import { getLatestCooldownSubmissionTime } from './utils/submissionCooldown'
+ 
+ // 参赛题目
+ const challengeContent = ref(`欢迎参加 Agent 大赛！
+@@ -179,9 +180,26 @@ const uploadTipText = computed(() => {
+   return ''
+ })
+ 
++const normalizeUserProfile = (user) => {
++  if (!user) {
++    return null
++  }
++  const uuid = String(user.uuid || user.client_uuid || user.clientUuid || '').trim()
++  const userId = normalizeUserId(user.user_id || user.userId)
++  const username = String(user.username || '').trim()
++  return {
++    ...user,
++    uuid: uuid,
++    user_id: userId,
++    username
++  }
++}
++
+ const saveCurrentUser = (user) => {
+-  currentUser.value = user
+-  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user))
++  const normalizedUser = normalizeUserProfile(user) || user
++  currentUser.value = normalizedUser
++  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(normalizedUser))
++  return normalizedUser
+ }
+ 
+ const normalizeUserId = (value) => {
+@@ -211,41 +229,81 @@ const loadExistingUser = async (userId) => {
+     return false
+   }
+   try {
+-    const res = await userApi.getUser(userId)
++    const res = await userApi.getMe()
+     if (res.code === 0 && res.data) {
+-      saveCurrentUser(res.data)
++      const existingUser = normalizeUserProfile(res.data)
++      if (existingUser?.user_id && existingUser.user_id !== userId) {
++        return false
++      }
++      saveCurrentUser(existingUser || res.data)
+       return true
+     }
+   } catch (error) {
+-    if (error?.response?.status !== 404) {
++    if (![401, 403, 404].includes(error?.response?.status)) {
+       console.error('Failed to load current user:', error)
+     }
+   }
+   return false
+ }
+ 
+-const parseSubmissionTime = (submission) => {
+-  const rawTime = submission?.created_at || submission?.createdAt
+-  if (!rawTime) {
+-    return 0
++const bootstrapRegisteredUserSession = async (userId) => {
++  if (!userId) {
++    return {
++      success: false,
++      newUserRequired: true,
++      message: ''
++    }
++  }
++  try {
++    const res = await userApi.addUser({
++      user_id: userId,
++      username: ''
++    })
++    if (res.code === 0 && res.data) {
++      saveCurrentUser(res.data)
++      return {
++        success: true,
++        newUserRequired: false,
++        message: ''
++      }
++    }
++    return {
++      success: false,
++      newUserRequired: false,
++      message: res.message || '参赛信息加载失败'
++    }
++  } catch (error) {
++    const status = error?.response?.status
++    const responseMessage = error?.response?.data?.message || ''
++    if (status === 400 && responseMessage.includes('请输入昵称')) {
++      return {
++        success: false,
++        newUserRequired: true,
++        message: ''
++      }
++    }
++    if (status !== 400 || !responseMessage.includes('请输入昵称')) {
++      console.error('Failed to bootstrap registered user session:', error)
++    }
++    return {
++      success: false,
++      newUserRequired: false,
++      message: getRequestErrorMessage(error, '参赛信息加载失败')
++    }
+   }
+-  const timestamp = new Date(rawTime).getTime()
+-  return Number.isFinite(timestamp) ? timestamp : 0
+ }
+ 
+-const refreshUploadCooldown = async (userId) => {
+-  if (!userId || isCurrentUserTestAccount.value) {
++const refreshUploadCooldown = async () => {
++  if (!currentUser.value || isCurrentUserTestAccount.value) {
+     uploadCooldownEndsAt.value = 0
+     isUploadCooldownLoading.value = false
+     return
+   }
+   isUploadCooldownLoading.value = true
+   try {
+-    const res = await userApi.getSubmissions(userId)
++    const res = await userApi.getSubmissions()
+     const submissions = res.code === 0 && Array.isArray(res.data) ? res.data : []
+-    const latestSubmittedAt = submissions.reduce((latest, item) => {
+-      return Math.max(latest, parseSubmissionTime(item))
+-    }, 0)
++    const latestSubmittedAt = getLatestCooldownSubmissionTime(submissions)
+     uploadCooldownEndsAt.value = latestSubmittedAt ? latestSubmittedAt + UPLOAD_INTERVAL_MS : 0
+     cooldownTick.value = Date.now()
+   } catch (error) {
+@@ -256,7 +314,6 @@ const refreshUploadCooldown = async (userId) => {
+   }
+ }
+ 
+-// 页面加载时按第三方工号校验用户是否已起昵称；已存在则直接进入主页面
+ onMounted(async () => {
+   cooldownTimer = setInterval(() => {
+     cooldownTick.value = Date.now()
+@@ -264,14 +321,19 @@ onMounted(async () => {
+   try {
+     const resolvedUserId = resolveThirdPartyUserId()
+     registerForm.value.user_id = resolvedUserId
+-
+-    const userExists = await loadExistingUser(resolvedUserId)
+-    if (userExists) {
+-      refreshUploadCooldown(resolvedUserId)
++    registerError.value = resolvedUserId ? '' : '未获取到有效工号，请从大赛入口进入'
++
++    const hasSession = await loadExistingUser(resolvedUserId)
++    const bootstrapResult = hasSession
++      ? { success: true, newUserRequired: false, message: '' }
++      : await bootstrapRegisteredUserSession(resolvedUserId)
++    if (bootstrapResult.success) {
++      refreshUploadCooldown()
+     }
+-    if (!userExists) {
++    if (!bootstrapResult.success) {
+       currentUser.value = null
+       localStorage.removeItem(USER_STORAGE_KEY)
++      registerError.value = bootstrapResult.newUserRequired ? '' : bootstrapResult.message || registerError.value
+     }
+   } finally {
+     sessionReady.value = true
+@@ -288,7 +350,7 @@ onUnmounted(() => {
+ const buildDefaultProfile = () => {
+   const username = registerForm.value.username.trim()
+   return {
+-    user_id: registerForm.value.user_id.trim(),
++    user_id: normalizeUserId(registerForm.value.user_id),
+     username
+   }
+ }
+@@ -326,14 +388,13 @@ const closeErrorDialog = () => {
+ 
+ const loginUser = async () => {
+   registerError.value = ''
+-  const userId = registerForm.value.user_id.trim()
+-  const username = registerForm.value.username.trim()
++  const userId = normalizeUserId(registerForm.value.user_id)
+ 
+   if (!userId || userId.length !== 8) {
+     registerError.value = '未获取到有效工号，请先完成第三方登录'
+     return
+   }
+-  if (!username) {
++  if (!registerForm.value.username.trim()) {
+     registerError.value = '请输入昵称'
+     return
+   }
+@@ -345,7 +406,7 @@ const loginUser = async () => {
+ 
+     if (res.code === 0 || res.code === 409) {
+       saveCurrentUser(res.data || payload)
+-      await refreshUploadCooldown((res.data || payload).user_id)
++      await refreshUploadCooldown()
+     } else {
+       registerError.value = res.message || '登录失败'
+     }
+@@ -490,6 +551,7 @@ const handleUploadSuccess = () => {
+                 maxlength="20"
+                 placeholder="请输入昵称"
+               />
++              <p class="register-helper">昵称设置后不可修改，请谨慎填写</p>
+             </label>
+           </div>
+ 
+@@ -645,7 +707,6 @@ const handleUploadSuccess = () => {
+     <!-- 弹窗组件 -->
+     <UploadModal
+       :visible="showUploadModal"
+-      :userId="currentUser?.user_id"
+       @close="closeUpload"
+       @success="handleUploadSuccess"
+     />
+@@ -3107,6 +3168,18 @@ body {
+   box-shadow: 0 0 0 3px rgba(180, 35, 47, 0.08);
+ }
+ 
++@media (max-width: 1180px) {
++  .register-brand-layout {
++    grid-template-columns: 1fr;
++    gap: 24px;
++    width: min(620px, 100%);
++  }
++
++  .register-schedule-panel {
++    width: min(620px, 100%);
++  }
++}
++
+ @media (max-width: 980px) {
+   .register-shell {
+     grid-template-columns: 1fr;
+@@ -3121,16 +3194,6 @@ body {
+   .register-copy {
+     font-size: 16px;
+   }
+-
+-  .register-brand-layout {
+-    grid-template-columns: 1fr;
+-    gap: 24px;
+-    width: min(620px, 100%);
+-  }
+-
+-  .register-schedule-panel {
+-    width: min(620px, 100%);
+-  }
+ }
+ 
+ @media (max-width: 640px) {
+diff --git a/src/api/index.js b/src/api/index.js
+index 6a057c2..1825168 100644
+--- a/src/api/index.js
++++ b/src/api/index.js
+@@ -3,6 +3,9 @@ import axios from 'axios'
+ const DEFAULT_API_BASE_URL = ''
+ const DEFAULT_UPLOAD_TIMEOUT_MS = 5 * 60 * 1000
+ const WRITE_KEY_HEADER = 'X-Agent-Contest-Write-Key'
++const CURRENT_USER_ID_HEADER = 'X-Agent-Contest-User-Id'
++const USER_STORAGE_KEY = 'agent_game_user'
++const THIRD_PARTY_USER_ID_STORAGE_KEY = 'agent_game_third_party_user_id'
+ 
+ const normalizeBaseUrl = (url) => {
+   return String(url || '').replace(/\/+$/, '')
+@@ -16,6 +19,33 @@ const getWriteApiKey = () => {
+   return String(import.meta.env.VITE_WRITE_API_KEY || '').trim()
+ }
+ 
++const normalizeUserId = (value) => {
++  return String(value || '').replace(/\D/g, '').slice(0, 8)
++}
++
++const readStoredUser = () => {
++  if (typeof localStorage === 'undefined') {
++    return null
++  }
++  try {
++    return JSON.parse(localStorage.getItem(USER_STORAGE_KEY) || 'null')
++  } catch {
++    return null
++  }
++}
++
++const getCurrentUserId = () => {
++  if (typeof localStorage === 'undefined') {
++    return ''
++  }
++  const thirdPartyUserId = normalizeUserId(localStorage.getItem(THIRD_PARTY_USER_ID_STORAGE_KEY))
++  if (thirdPartyUserId) {
++    return thirdPartyUserId
++  }
++  const storedUser = readStoredUser()
++  return normalizeUserId(storedUser?.user_id || storedUser?.userId)
++}
++
+ const getUploadTimeout = () => {
+   const timeout = Number(import.meta.env.VITE_UPLOAD_TIMEOUT_MS)
+   return Number.isFinite(timeout) && timeout > 0 ? timeout : DEFAULT_UPLOAD_TIMEOUT_MS
+@@ -25,9 +55,18 @@ const isWriteMethod = (method) => {
+   return ['post', 'put', 'patch', 'delete'].includes(String(method || '').toLowerCase())
+ }
+ 
++const isExpectedSessionProbeError = (error) => {
++  const config = error?.config
++  const status = error?.response?.status
++  return config?.url === '/api/users/me'
++    && String(config?.method || '').toLowerCase() === 'get'
++    && [401, 403, 404].includes(status)
++}
++
+ const api = axios.create({
+   baseURL: getBaseUrl(),
+   timeout: 10000,
++  withCredentials: true,
+   headers: {
+     'Content-Type': 'application/json'
+   }
+@@ -41,6 +80,11 @@ api.interceptors.request.use(
+       config.headers = config.headers || {}
+       config.headers[WRITE_KEY_HEADER] = writeApiKey
+     }
++    const currentUserId = getCurrentUserId()
++    if (currentUserId) {
++      config.headers = config.headers || {}
++      config.headers[CURRENT_USER_ID_HEADER] = currentUserId
++    }
+     return config
+   },
+   error => Promise.reject(error)
+@@ -49,18 +93,21 @@ api.interceptors.request.use(
+ api.interceptors.response.use(
+   response => response.data,
+   error => {
+-    console.error('API Error:', error)
++    if (!isExpectedSessionProbeError(error)) {
++      console.error('API Error:', error)
++    }
+     return Promise.reject(error)
+   }
+ )
+ 
+ export const userApi = {
+   getUsers: () => api.get('/api/users'),
+-  getUser: (userId) => api.get(`/api/users/${userId}`),
+-  getSubmissions: (userId) => api.get(`/api/users/${userId}/submissions`),
++  getMe: () => api.get('/api/users/me'),
++  getUser: () => api.get('/api/users/me'),
++  getSubmissions: () => api.get('/api/users/me/submissions'),
+   addUser: (data) => api.post('/api/users', data),
+-  updateUser: (userId, data) => api.put(`/api/users/${userId}`, data),
+-  deleteUser: (userId) => api.delete(`/api/users/${userId}`)
++  updateUser: (data) => api.put('/api/users/me', data),
++  deleteUser: () => api.delete('/api/users/me')
+ }
+ 
+ export const rankApi = {
+@@ -70,11 +117,11 @@ export const rankApi = {
+   getRankPage: (params) => api.get('/api/rank/page', {
+     params
+   }),
+-  getUserRank: (userId) => api.get(`/api/rank/${userId}`)
++  getUserRank: () => api.get('/api/rank/me')
+ }
+ 
+ export const commonApi = {
+-  uploadCode: (userId, formData) => api.post(`/api/upload/${userId}`, formData, {
++  uploadCode: (formData) => api.post('/api/upload/me', formData, {
+     timeout: getUploadTimeout(),
+     headers: {
+       'Content-Type': 'multipart/form-data'
+diff --git a/src/components/HistoryModal.vue b/src/components/HistoryModal.vue
+index 139f7ef..5f5ce0e 100644
+--- a/src/components/HistoryModal.vue
++++ b/src/components/HistoryModal.vue
+@@ -47,6 +47,7 @@
+ <script setup>
+ import { ref, watch } from 'vue'
+ import { userApi } from '../api'
++import { formatScore } from '../utils/scoreFormat'
+ 
+ const props = defineProps({
+   visible: Boolean,
+@@ -112,11 +113,6 @@ const formatTime = (timeStr) => {
+   })
+ }
+ 
+-const formatScore = (value) => {
+-  if (value === null || value === undefined || value === '') return '-'
+-  return value
+-}
+-
+ const close = () => {
+   emit('close')
+ }
+diff --git a/src/components/HistoryPage.vue b/src/components/HistoryPage.vue
+index fe38741..709a30d 100644
+--- a/src/components/HistoryPage.vue
++++ b/src/components/HistoryPage.vue
+@@ -8,6 +8,7 @@ import {
+   mergeQuestionScoreDetails,
+   normalizeStatus
+ } from './historyScoreDetail'
++import { formatScore } from '../utils/scoreFormat'
+ import IconSymbol from './IconSymbol.vue'
+ 
+ const props = defineProps({
+@@ -90,7 +91,7 @@ const loadHistory = async ({ silent = false } = {}) => {
+     errorMessage.value = ''
+   }
+   try {
+-    const res = await userApi.getSubmissions(props.userId)
++    const res = await userApi.getSubmissions()
+     if (res.code === 0) {
+       submissions.value = Array.isArray(res.data) ? res.data : []
+       errorMessage.value = ''
+@@ -155,6 +156,20 @@ const formatNumber = (value) => {
+   return Number.isFinite(numeric) ? numeric.toLocaleString('zh-CN') : value
+ }
+ 
++const submissionCreatedTime = (item) => {
++  return item?.created_at
++    || item?.createdAt
++    || item?.update_time
++    || item?.updatedAt
++}
++
++const submissionId = (item) => {
++  return item?.id
++    || item?.submission_id
++    || item?.submissionId
++    || ''
++}
++
+ const mergedQuestionDetails = computed(() => {
+   return detailItem.value ? mergeQuestionScoreDetails(detailItem.value) : []
+ })
+@@ -228,7 +243,7 @@ const closeDetail = () => {
+       <div v-else class="history-table-wrap">
+         <div class="history-table">
+           <div class="history-row history-header">
+-            <div>提交编号</div>
++            <div>提交 ID</div>
+             <div>提交时间</div>
+             <div>总得分</div>
+             <div>总 token 消耗</div>
+@@ -236,14 +251,16 @@ const closeDetail = () => {
+           </div>
+ 
+           <div
+-            v-for="item in submissions"
+-            :key="item.id"
++            v-for="(item, index) in submissions"
++            :key="submissionId(item) || index"
+             class="history-row"
+           >
+-            <div class="submission-id-cell">{{ item.id || '-' }}</div>
+-            <div class="time-cell">{{ formatTime(item.created_at || item.update_time) }}</div>
++            <div class="submission-id-cell">
++              <span class="submission-id-badge">{{ submissionId(item) ? '#' + submissionId(item) : '-' }}</span>
++            </div>
++            <div class="time-cell">{{ formatTime(submissionCreatedTime(item)) }}</div>
+             <div class="score-cell">
+-              <span>{{ formatNumber(item.score) }}</span>
++              <span>{{ formatScore(item.score) }}</span>
+               <button
+                 v-if="canShowScoreDetail(item)"
+                 class="detail-link"
+@@ -285,11 +302,11 @@ const closeDetail = () => {
+           <section class="detail-meta-bar">
+             <div>
+               <span>总得分</span>
+-              <strong>{{ formatNumber(detailItem.score) }}</strong>
++              <strong>{{ formatScore(detailItem.score) }}</strong>
+             </div>
+             <div>
+               <span>提交时间</span>
+-              <strong>{{ formatTime(detailItem.created_at || detailItem.update_time) }}</strong>
++              <strong>{{ formatTime(submissionCreatedTime(detailItem)) }}</strong>
+             </div>
+             <div>
+               <span>Token 消耗</span>
+@@ -315,9 +332,9 @@ const closeDetail = () => {
+                 <span>题目 {{ questionItem.question }}</span>
+                 <strong>{{ questionItem.title }}</strong>
+                 <em class="question-score-line">
+-                  <span class="score-value">{{ formatNumber(questionItem.score) }}</span>
++                  <span class="score-value">{{ formatScore(questionItem.score) }}</span>
+                   <span class="score-divider">/</span>
+-                  <span class="score-total">{{ formatNumber(questionItem.total) }}</span>
++                  <span class="score-total">{{ formatScore(questionItem.total) }}</span>
+                 </em>
+               </button>
+             </aside>
+@@ -329,9 +346,9 @@ const closeDetail = () => {
+                   <h3>{{ selectedQuestionDetail.title }}</h3>
+                 </div>
+                 <strong class="question-score-line">
+-                  <span class="score-value">{{ formatNumber(selectedQuestionDetail.score) }}</span>
++                  <span class="score-value">{{ formatScore(selectedQuestionDetail.score) }}</span>
+                   <span class="score-divider">/</span>
+-                  <span class="score-total">{{ formatNumber(selectedQuestionDetail.total) }}</span>
++                  <span class="score-total">{{ formatScore(selectedQuestionDetail.total) }}</span>
+                 </strong>
+               </div>
+               <div class="question-detail-text">{{ selectedQuestionDetail.detail }}</div>
+@@ -424,7 +441,7 @@ const closeDetail = () => {
+ 
+ .history-row {
+   display: grid;
+-  grid-template-columns: minmax(96px, 0.65fr) minmax(190px, 1.2fr) minmax(160px, 0.9fr) minmax(170px, 0.9fr) minmax(150px, 0.9fr);
++  grid-template-columns: minmax(120px, 0.7fr) minmax(190px, 1.2fr) minmax(160px, 0.9fr) minmax(170px, 0.9fr) minmax(150px, 0.9fr);
+   gap: 16px;
+   align-items: center;
+   padding: 15px 18px;
+@@ -448,6 +465,23 @@ const closeDetail = () => {
+   color: #334155;
+ }
+ 
++.submission-id-badge {
++  min-height: 28px;
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  border: 1px solid rgba(71, 96, 136, 0.2);
++  border-radius: 8px;
++  background: #ffffff;
++  color: #111827;
++  padding: 0 10px;
++  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
++  font-size: 13px;
++  font-weight: 800;
++  letter-spacing: 0;
++  white-space: nowrap;
++}
++
+ .score-cell {
+   display: flex;
+   align-items: center;
+diff --git a/src/components/RankingBoard.vue b/src/components/RankingBoard.vue
+index 342b380..2f728e8 100644
+--- a/src/components/RankingBoard.vue
++++ b/src/components/RankingBoard.vue
+@@ -21,7 +21,7 @@
+           <IconSymbol name="score" :size="18" />
+         </div>
+         <div class="stat-content">
+-          <div class="stat-value">{{ totalScore }}</div>
++          <div class="stat-value">{{ formatScore(totalScore) }}</div>
+           <div class="stat-label">最高得分</div>
+         </div>
+         <span class="stat-signal" aria-hidden="true">
+@@ -42,7 +42,7 @@
+         <div class="personal-stats">
+           <div class="personal-stat personal-stat-score">
+             <span class="label">我的得分</span>
+-            <span class="value">{{ personalRank.score }}</span>
++            <span class="value">{{ formatScore(personalRank.score) }}</span>
+           </div>
+           <div class="personal-stat personal-stat-token">
+             <span class="label">Token消耗</span>
+@@ -141,7 +141,7 @@
+             <span v-if="isTestAccountRank(item)" class="official-demo-badge">官方Demo</span>
+           </div>
+           <div class="col score">
+-            <span class="score-value">{{ item.score }}</span>
++            <span class="score-value">{{ formatScore(item.score) }}</span>
+           </div>
+           <div class="col submission-count">{{ formatNumber(getSubmissionCount(item)) }}</div>
+           <div class="col token-usage">{{ formatNumber(item.token_usage) }}</div>
+@@ -224,6 +224,7 @@
+ <script setup>
+ import { ref, computed, watch, onMounted } from 'vue'
+ import { rankApi } from '../api'
++import { formatScore } from '../utils/scoreFormat'
+ import IconSymbol from './IconSymbol.vue'
+ 
+ const props = defineProps({
+@@ -353,7 +354,7 @@ const loadPersonalRank = async () => {
+   }
+ 
+   try {
+-    const userRankRes = await rankApi.getUserRank(props.currentUserId)
++    const userRankRes = await rankApi.getUserRank()
+     if (requestSeq !== personalRankRequestSeq) return
+     personalRank.value = userRankRes?.data || emptyPersonalRank()
+   } catch (e) {
+diff --git a/src/components/UploadModal.vue b/src/components/UploadModal.vue
+index e72444b..30e2e90 100644
+--- a/src/components/UploadModal.vue
++++ b/src/components/UploadModal.vue
+@@ -3,8 +3,7 @@ import { onUnmounted, ref } from 'vue'
+ import { commonApi } from '../api'
+ 
+ const props = defineProps({
+-  visible: Boolean,
+-  userId: String
++  visible: Boolean
+ })
+ 
+ const emit = defineEmits(['close', 'success'])
+@@ -16,6 +15,7 @@ const uploadSucceeded = ref(false)
+ const uploadError = ref('')
+ const selectedFile = ref(null)
+ const invalidZipMessage = '程序包的格式错误，请上传zip格式的压缩包'
++const uploadLimitText = '仅支持 100MB 以内 .zip 压缩包'
+ let successTimer = null
+ 
+ const isZipFile = (file) => {
+@@ -95,10 +95,9 @@ const confirmUpload = async () => {
+   uploadError.value = ''
+   const formData = new FormData()
+   formData.append('file', selectedFile.value)
+-  // user_id作为路径参数传递，也可保留在formData中，根据需要
+ 
+   try {
+-    const res = await commonApi.uploadCode(props.userId, formData)
++    const res = await commonApi.uploadCode(formData)
+     if (res.code === 0) {
+       completeUpload()
+     } else {
+@@ -153,7 +152,7 @@ onUnmounted(() => {
+             <div class="idle-state">
+               <span class="upload-icon">ZIP</span>
+               <p class="primary-text">点击或拖拽文件到此处上传</p>
+-              <p class="sub-text">支持 .zip 格式压缩包</p>
++              <p class="sub-text">{{ uploadLimitText }}</p>
+             </div>
+ 
+             <input
+@@ -176,6 +175,7 @@ onUnmounted(() => {
+               <span class="file-icon">ZIP</span>
+               <p class="file-name">{{ selectedFile.name }}</p>
+               <p class="file-size">{{ (selectedFile.size / 1024 / 1024).toFixed(2) }} MB</p>
++              <p class="sub-text">{{ uploadLimitText }}</p>
+               <p class="sub-text" style="margin-top: 8px;">(点击可重新选择文件)</p>
+               <input
+                 type="file"
+diff --git a/src/main.js b/src/main.js
+index e3fa6b6..55750c7 100644
+--- a/src/main.js
++++ b/src/main.js
+@@ -28,7 +28,7 @@ const extractUserId = (data) => {
+ }
+ 
+ const redirectToLogin = () => {
+-  const redirectUrl = new URL(LOGIN_PAGE_URL)
++  const redirectUrl = new URL(LOGIN_PAGE_URL, window.location.origin)
+   redirectUrl.searchParams.set('redirect', window.location.href)
+   window.location.replace(redirectUrl.toString())
+ }
+
+diff --git a/src/utils/scoreFormat.js b/src/utils/scoreFormat.js
+new file mode 100644
+index 0000000..3ed564c
+--- /dev/null
++++ b/src/utils/scoreFormat.js
+@@ -0,0 +1,15 @@
++export const formatScore = (value) => {
++  if (value === null || value === undefined || value === '') {
++    return '-'
++  }
++
++  const numeric = Number(value)
++  if (!Number.isFinite(numeric)) {
++    return String(value)
++  }
++
++  return numeric.toLocaleString('zh-CN', {
++    minimumFractionDigits: 0,
++    maximumFractionDigits: 4
++  })
++}
+
+diff --git a/src/utils/submissionCooldown.js b/src/utils/submissionCooldown.js
+new file mode 100644
+index 0000000..5e5891b
+--- /dev/null
++++ b/src/utils/submissionCooldown.js
+@@ -0,0 +1,29 @@
++const COOLDOWN_ELIGIBLE_STATUSES = new Set([
++  'uploaded',
++  'evaluating',
++  'completed'
++])
++
++const submissionCreatedTime = (submission) => {
++  return submission?.created_at
++    || submission?.createdAt
++    || submission?.update_time
++    || submission?.updatedAt
++}
++
++export const isCooldownEligibleSubmission = (submission) => {
++  return COOLDOWN_ELIGIBLE_STATUSES.has(String(submission?.status || '').toLowerCase())
++}
++
++export const getLatestCooldownSubmissionTime = (submissions) => {
++  if (!Array.isArray(submissions)) {
++    return 0
++  }
++
++  return submissions
++    .filter(isCooldownEligibleSubmission)
++    .reduce((latest, submission) => {
++      const timestamp = new Date(submissionCreatedTime(submission)).getTime()
++      return Number.isFinite(timestamp) ? Math.max(latest, timestamp) : latest
++    }, 0)
++}

@@ -8,6 +8,7 @@ import {
   mergeQuestionScoreDetails,
   normalizeStatus
 } from './historyScoreDetail'
+import { formatScore } from '../utils/scoreFormat'
 import IconSymbol from './IconSymbol.vue'
 
 const props = defineProps({
@@ -15,7 +16,7 @@ const props = defineProps({
   username: String
 })
 
-const emit = defineEmits(['back'])
+const emit = defineEmits(['back', 'canceled'])
 
 const submissions = ref([])
 const loading = ref(false)
@@ -23,17 +24,23 @@ const errorMessage = ref('')
 const toastMessage = ref('')
 const detailItem = ref(null)
 const selectedQuestion = ref(1)
+const cancelingSubmissionId = ref('')
+const submissionQueueSummary = ref({
+  queuedCount: null,
+  evaluatingCount: null
+})
 const HISTORY_REFRESH_INTERVAL_MS = 5000
 let toastTimer = null
 let historyRefreshTimer = null
 let historyRefreshInFlight = false
 
 const statusTextMap = {
-  uploaded: '已提交',
+  uploaded: '排队中...',
   uploading: '上传中',
   validating: '校验中',
   evaluating: '评测中',
   completed: '已完成',
+  canceled: '已取消',
   failed: '失败'
 }
 
@@ -90,10 +97,11 @@ const loadHistory = async ({ silent = false } = {}) => {
     errorMessage.value = ''
   }
   try {
-    const res = await userApi.getSubmissions(props.userId)
+    const res = await userApi.getSubmissions()
     if (res.code === 0) {
       submissions.value = Array.isArray(res.data) ? res.data : []
       errorMessage.value = ''
+      await loadSubmissionQueueSummary()
     } else {
       if (!silent || submissions.value.length === 0) {
         errorMessage.value = res.message || '历史记录加载失败'
@@ -112,8 +120,89 @@ const loadHistory = async ({ silent = false } = {}) => {
   }
 }
 
-const statusText = (status) => {
+const firstDefined = (...values) => {
+  return values.find(value => value !== null && value !== undefined && value !== '')
+}
+
+const numericCount = (...values) => {
+  const value = firstDefined(...values)
+  const numberValue = Number(value)
+  return Number.isFinite(numberValue) && numberValue >= 0 ? Math.floor(numberValue) : null
+}
+
+const countLocalSubmissionsByStatus = (status) => {
+  return submissions.value.filter(item => normalizeStatus(item?.status) === status).length
+}
+
+const activeTaskSummary = computed(() => {
+  return {
+    queuedCount: numericCount(
+      submissionQueueSummary.value?.queuedCount,
+      submissionQueueSummary.value?.queued_count,
+      countLocalSubmissionsByStatus('uploaded')
+    ),
+    evaluatingCount: numericCount(
+      submissionQueueSummary.value?.evaluatingCount,
+      submissionQueueSummary.value?.evaluating_count,
+      countLocalSubmissionsByStatus('evaluating')
+    )
+  }
+})
+
+const loadSubmissionQueueSummary = async () => {
+  try {
+    const res = await userApi.getSubmissionQueueSummary()
+    if (res.code === 0 && res.data) {
+      submissionQueueSummary.value = res.data
+    }
+  } catch {
+    submissionQueueSummary.value = {
+      queuedCount: null,
+      evaluatingCount: null
+    }
+  }
+}
+
+const queueAheadCount = (item) => {
+  const directCount = firstDefined(
+    item?.queue_ahead,
+    item?.queueAhead,
+    item?.queue_ahead_count,
+    item?.queueAheadCount,
+    item?.pending_before,
+    item?.pendingBefore
+  )
+  const directNumber = Number(directCount)
+  if (Number.isFinite(directNumber) && directNumber >= 0) {
+    return Math.floor(directNumber)
+  }
+
+  const queuePosition = Number(firstDefined(
+    item?.queue_position,
+    item?.queuePosition,
+    item?.queue_rank,
+    item?.queueRank
+  ))
+  if (Number.isFinite(queuePosition) && queuePosition > 0) {
+    return Math.floor(queuePosition - 1)
+  }
+
+  return null
+}
+
+const uploadedStatusText = (item) => {
+  const count = queueAheadCount(item)
+  if (count === null) {
+    return statusTextMap.uploaded
+  }
+  return `${statusTextMap.uploaded} 前边还有 ${count} 笔提交在排队`
+}
+
+const statusText = (status, item = null) => {
   const normalized = normalizeStatus(status)
+  if (normalized === 'uploaded') {
+    return uploadedStatusText(item)
+  }
   return statusTextMap[normalized] || status || '未知'
 }
 
@@ -125,11 +214,11 @@ const failureReason = (item) => {
 }
 
 const failedStatusText = (item) => {
-  return `${statusText(item?.status)}：${failureReason(item)}`
+  return `${statusText(item?.status, item)}：${failureReason(item)}`
 }
 
 const detailStatusText = (item) => {
-  const text = statusText(item?.status)
+  const text = statusText(item?.status, item)
   if (normalizeStatus(item?.status) !== 'failed') {
     return text
   }
@@ -153,6 +242,64 @@ const formatNumber = (value) => {
   if (value === null || value === undefined || value === '') return '-'
   const numeric = Number(value)
   return Number.isFinite(numeric) ? numeric.toLocaleString('zh-CN') : value
+}
+
+const submissionCreatedTime = (item) => {
+  return item?.created_at
+    || item?.createdAt
+    || item?.update_time
+    || item?.updatedAt
+}
+
+const submissionId = (item) => {
+  return item?.id
+    || item?.submission_id
+    || item?.submissionId
+    || ''
+}
+
+const canCancelSubmission = (item) => {
+  return Boolean(submissionId(item)) && String(item?.status || '').toLowerCase() === 'uploaded'
+}
+
+const isCancelingSubmission = (item) => {
+  return String(cancelingSubmissionId.value) === String(submissionId(item))
+}
+
+const cancelSubmission = async (item) => {
+  const id = submissionId(item)
+  if (!id || !canCancelSubmission(item) || cancelingSubmissionId.value) {
+    return
+  }
+
+  cancelingSubmissionId.value = String(id)
+  try {
+    const res = await userApi.cancelSubmission(id)
+    if (res.code === 0) {
+      const canceledSubmission = res.data || {}
+      submissions.value = submissions.value.map(current => {
+        if (String(submissionId(current)) !== String(id)) {
+          return current
+        }
+        return {
+          ...current,
+          ...canceledSubmission,
+          status: canceledSubmission.status || 'CANCELED',
+          message: canceledSubmission.message || '用户已取消提交'
+        }
+      })
+      showToast('已取消提交，可重新上传')
+      await loadHistory({ silent: true })
+      emit('canceled')
+    } else {
+      showToast(res.message || '取消提交失败')
+    }
+  } catch (error) {
+    console.error('Failed to cancel submission:', error)
+    showToast(error?.response?.data?.message || '取消提交失败')
+  } finally {
+    cancelingSubmissionId.value = ''
+  }
 }
 
 const mergedQuestionDetails = computed(() => {
@@ -221,6 +368,17 @@ const closeDetail = () => {
         </button>
       </div>
 
+      <div class="active-task-summary" aria-label="当前任务状态">
+        <div class="active-task-item">
+          <span>当前排队</span>
+          <strong>{{ formatNumber(activeTaskSummary.queuedCount) }}</strong>
+        </div>
+        <div class="active-task-item">
+          <span>正在评测</span>
+          <strong>{{ formatNumber(activeTaskSummary.evaluatingCount) }}</strong>
+        </div>
+      </div>
+
       <div v-if="loading" class="state-panel">加载中...</div>
       <div v-else-if="errorMessage" class="state-panel error-state">{{ errorMessage }}</div>
       <div v-else-if="submissions.length === 0" class="state-panel">暂无历史提交记录</div>
@@ -228,7 +386,7 @@ const closeDetail = () => {
       <div v-else class="history-table-wrap">
         <div class="history-table">
           <div class="history-row history-header">
-            <div>提交编号</div>
+            <div>提交 ID</div>
             <div>提交时间</div>
             <div>总得分</div>
             <div>总 token 消耗</div>
@@ -236,14 +394,16 @@ const closeDetail = () => {
           </div>
 
           <div
-            v-for="item in submissions"
-            :key="item.id"
+            v-for="(item, index) in submissions"
+            :key="submissionId(item) || index"
             class="history-row"
           >
-            <div class="submission-id-cell">{{ item.id || '-' }}</div>
-            <div class="time-cell">{{ formatTime(item.created_at || item.update_time) }}</div>
+            <div class="submission-id-cell">
+              <span class="submission-id-badge">{{ submissionId(item) ? '#' + submissionId(item) : '-' }}</span>
+            </div>
+            <div class="time-cell">{{ formatTime(submissionCreatedTime(item)) }}</div>
             <div class="score-cell">
-              <span>{{ formatNumber(item.score) }}</span>
+              <span>{{ formatScore(item.score) }}</span>
               <button
                 v-if="canShowScoreDetail(item)"
                 class="detail-link"
@@ -255,18 +415,33 @@ const closeDetail = () => {
               <span v-else class="detail-unavailable">{{ scoreDetailUnavailableText(item) }}</span>
             </div>
             <div>{{ formatNumber(getTokenUsage(item)) }}</div>
-            <div>
+            <div class="status-cell">
               <button
                 v-if="normalizeStatus(item.status) === 'failed'"
                 class="status-pill failed clickable"
                 type="button"
+                :title="failedStatusText(item)"
                 @click="showFailureReason(item)"
               >
                 {{ failedStatusText(item) }}
               </button>
-              <span v-else class="status-pill" :class="normalizeStatus(item.status)">
-                {{ statusText(item.status) }}
+              <span
+                v-else
+                class="status-pill"
+                :class="normalizeStatus(item.status)"
+                :title="statusText(item.status, item)"
+              >
+                {{ statusText(item.status, item) }}
               </span>
+              <button
+                v-if="canCancelSubmission(item)"
+                class="cancel-submission-btn"
+                type="button"
+                :disabled="isCancelingSubmission(item)"
+                @click="cancelSubmission(item)"
+              >
+                {{ isCancelingSubmission(item) ? '取消中...' : '取消' }}
+              </button>
             </div>
           </div>
         </div>
@@ -285,11 +460,11 @@ const closeDetail = () => {
           <section class="detail-meta-bar">
             <div>
               <span>总得分</span>
-              <strong>{{ formatNumber(detailItem.score) }}</strong>
+              <strong>{{ formatScore(detailItem.score) }}</strong>
             </div>
             <div>
               <span>提交时间</span>
-              <strong>{{ formatTime(detailItem.created_at || detailItem.update_time) }}</strong>
+              <strong>{{ formatTime(submissionCreatedTime(detailItem)) }}</strong>
             </div>
             <div>
               <span>Token 消耗</span>
@@ -315,9 +490,9 @@ const closeDetail = () => {
                 <span>题目 {{ questionItem.question }}</span>
                 <strong>{{ questionItem.title }}</strong>
                 <em class="question-score-line">
-                  <span class="score-value">{{ formatNumber(questionItem.score) }}</span>
+                  <span class="score-value">{{ formatScore(questionItem.score) }}</span>
                   <span class="score-divider">/</span>
-                  <span class="score-total">{{ formatNumber(questionItem.total) }}</span>
+                  <span class="score-total">{{ formatScore(questionItem.total) }}</span>
                 </em>
               </button>
             </aside>
@@ -329,9 +504,9 @@ const closeDetail = () => {
                   <h3>{{ selectedQuestionDetail.title }}</h3>
                 </div>
                 <strong class="question-score-line">
-                  <span class="score-value">{{ formatNumber(selectedQuestionDetail.score) }}</span>
+                  <span class="score-value">{{ formatScore(selectedQuestionDetail.score) }}</span>
                   <span class="score-divider">/</span>
-                  <span class="score-total">{{ formatNumber(selectedQuestionDetail.total) }}</span>
+                  <span class="score-total">{{ formatScore(selectedQuestionDetail.total) }}</span>
                 </strong>
               </div>
               <div class="question-detail-text">{{ selectedQuestionDetail.detail }}</div>
@@ -373,6 +548,45 @@ const closeDetail = () => {
   color: #0f172a;
   font-size: 28px;
   line-height: 1.2;
+}
+
+.active-task-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 18px;
+}
+
+.active-task-item {
+  min-width: 136px;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border: 1px solid rgba(71, 96, 136, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  padding: 0 16px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.active-task-item span {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.active-task-item strong {
+  color: #111827;
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.active-task-item:first-child strong {
+  color: #b4232f;
 }
 
 .back-btn,
@@ -419,17 +633,21 @@ const closeDetail = () => {
 }
 
 .history-table {
-  min-width: 900px;
+  min-width: 1080px;
 }
 
 .history-row {
   display: grid;
-  grid-template-columns: minmax(96px, 0.65fr) minmax(190px, 1.2fr) minmax(160px, 0.9fr) minmax(170px, 0.9fr) minmax(150px, 0.9fr);
+  grid-template-columns: 72px minmax(178px, 0.94fr) minmax(126px, 0.58fr) minmax(142px, 0.64fr) minmax(360px, 1.45fr);
   gap: 16px;
   align-items: center;
   padding: 15px 18px;
   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
   color: #0f172a;
+}
+
+.history-row > div {
+  min-width: 0;
 }
 
 .history-row:last-child {
@@ -443,9 +661,39 @@ const closeDetail = () => {
   font-weight: 700;
 }
 
+.history-header > div {
+  white-space: nowrap;
+}
+
 .submission-id-cell,
 .time-cell {
   color: #334155;
+}
+
+.submission-id-cell {
+  min-width: 0;
+}
+
+.submission-id-badge {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 72px;
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(71, 96, 136, 0.2);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  padding: 0 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .score-cell {
@@ -492,10 +740,23 @@ const closeDetail = () => {
   font-weight: 600;
 }
 
+.status-cell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  justify-self: start;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   min-height: 28px;
   padding: 0 10px;
   border-radius: 999px;
@@ -516,6 +777,12 @@ const closeDetail = () => {
   color: #dc2626;
 }
 
+.status-pill.canceled {
+  background: rgba(100, 116, 139, 0.1);
+  color: #475569;
+}
+
+.status-pill.uploaded,
 .status-pill.uploading,
 .status-pill.validating,
 .status-pill.evaluating {
@@ -535,6 +802,33 @@ const closeDetail = () => {
   padding: 5px 10px;
   text-align: left;
   white-space: pre-line;
+}
+
+.cancel-submission-btn {
+  min-height: 28px;
+  border: 1px solid rgba(180, 35, 47, 0.24);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #991b1b;
+  cursor: pointer;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  transition: background 0.18s, border-color 0.18s, color 0.18s, transform 0.18s;
+}
+
+.cancel-submission-btn:hover:not(:disabled) {
+  border-color: rgba(180, 35, 47, 0.4);
+  background: rgba(180, 35, 47, 0.08);
+  color: #7f1d1d;
+  transform: translateY(-1px);
+}
+
+.cancel-submission-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
 }
 
 .toast {
@@ -1000,6 +1294,7 @@ const closeDetail = () => {
   color: #b4232f;
 }
 
+.status-pill.uploaded,
 .status-pill.uploading,
 .status-pill.validating,
 .status-pill.evaluating {
@@ -1068,6 +1363,7 @@ const closeDetail = () => {
   color: #374151;
 }
 
+.status-pill.uploaded,
 .status-pill.uploading,
 .status-pill.validating,
 .status-pill.evaluating {
@@ -1230,12 +1526,31 @@ const closeDetail = () => {
   color: #b4232f;
 }
 
+.status-pill.uploaded,
 .status-pill.uploading,
 .status-pill.validating,
 .status-pill.evaluating {
   border-color: rgba(75, 85, 99, 0.14);
   background: rgba(75, 85, 99, 0.065);
   color: #374151;
+}
+
+.status-pill.uploaded {
+  display: block;
+  justify-self: stretch;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-height: 32px;
+  height: auto;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-align: left;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.35;
+  padding: 5px 10px;
 }
 
 @media (max-width: 720px) {
@@ -1250,6 +1565,21 @@ const closeDetail = () => {
 
   .history-heading h1 {
     font-size: 24px;
+  }
+
+  .active-task-summary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .active-task-item {
+    min-width: 0;
+    padding: 0 12px;
+  }
+
+  .active-task-item strong {
+    font-size: 22px;
   }
 
   .detail-overlay {

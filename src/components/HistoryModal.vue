@@ -47,6 +47,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { userApi } from '../api'
+import { formatScore } from '../utils/scoreFormat'
 
 const props = defineProps({
   visible: Boolean,
@@ -59,11 +60,12 @@ const history = ref([])
 const loading = ref(false)
 
 const statusTextMap = {
-  uploaded: '已提交',
+  uploaded: '排队中...',
   uploading: '上传中',
   validating: '校验中',
   evaluating: '评测中',
   completed: '已完成',
+  canceled: '已取消',
   failed: '失败'
 }
 
@@ -110,11 +112,6 @@ const formatTime = (timeStr) => {
     hour: '2-digit',
     minute: '2-digit'
   })
-}
-
-const formatScore = (value) => {
-  if (value === null || value === undefined || value === '') return '-'
-  return value
 }
 
 const close = () => {

@@ -3,8 +3,7 @@ import { onUnmounted, ref } from 'vue'
 import { commonApi } from '../api'
 
 const props = defineProps({
-  visible: Boolean,
-  userId: String
+  visible: Boolean
 })
 
 const emit = defineEmits(['close', 'success'])
@@ -16,6 +15,7 @@ const uploadSucceeded = ref(false)
 const uploadError = ref('')
 const selectedFile = ref(null)
 const invalidZipMessage = '程序包的格式错误，请上传zip格式的压缩包'
+const uploadLimitText = '仅支持 100MB 以内 .zip 压缩包'
 let successTimer = null
 
 const isZipFile = (file) => {
@@ -95,10 +95,9 @@ const confirmUpload = async () => {
   uploadError.value = ''
   const formData = new FormData()
   formData.append('file', selectedFile.value)
-  // user_id作为路径参数传递，也可保留在formData中，根据需要
 
   try {
-    const res = await commonApi.uploadCode(props.userId, formData)
+    const res = await commonApi.uploadCode(formData)
     if (res.code === 0) {
       completeUpload()
     } else {
@@ -153,7 +152,7 @@ onUnmounted(() => {
             <div class="idle-state">
               <span class="upload-icon">ZIP</span>
               <p class="primary-text">点击或拖拽文件到此处上传</p>
-              <p class="sub-text">支持 .zip 格式压缩包</p>
+              <p class="sub-text">{{ uploadLimitText }}</p>
             </div>
 
             <input
@@ -176,6 +175,7 @@ onUnmounted(() => {
               <span class="file-icon">ZIP</span>
               <p class="file-name">{{ selectedFile.name }}</p>
               <p class="file-size">{{ (selectedFile.size / 1024 / 1024).toFixed(2) }} MB</p>
+              <p class="sub-text">{{ uploadLimitText }}</p>
               <p class="sub-text" style="margin-top: 8px;">(点击可重新选择文件)</p>
               <input
                 type="file"

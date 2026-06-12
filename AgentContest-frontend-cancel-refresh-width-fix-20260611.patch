@@ -1,0 +1,83 @@
+diff --git a/src/App.vue b/src/App.vue
+--- a/src/App.vue
++++ b/src/App.vue
+@@ -636,6 +636,7 @@
+       :userId="currentUser?.user_id"
+       :username="currentUser?.username"
+       @back="closeHistory"
++      @canceled="refreshUploadCooldown"
+     />
+ 
+     <!-- 主要内容 -->
+diff --git a/src/components/HistoryPage.vue b/src/components/HistoryPage.vue
+--- a/src/components/HistoryPage.vue
++++ b/src/components/HistoryPage.vue
+@@ -16,7 +16,7 @@ const props = defineProps({
+   username: String
+ })
+ 
+-const emit = defineEmits(['back'])
++const emit = defineEmits(['back', 'canceled'])
+ 
+ const submissions = ref([])
+ const loading = ref(false)
+@@ -289,6 +289,7 @@ const cancelSubmission = async (item) => {
+       })
+       showToast('已取消提交，可重新上传')
+       await loadHistory({ silent: true })
++      emit('canceled')
+     } else {
+       showToast(res.message || '取消提交失败')
+     }
+@@ -633,12 +634,12 @@ const closeDetail = () => {
+ }
+ 
+ .history-table {
+-  min-width: 900px;
++  min-width: 1080px;
+ }
+ 
+ .history-row {
+   display: grid;
+-  grid-template-columns: 72px minmax(190px, 1.18fr) minmax(132px, 0.72fr) minmax(154px, 0.78fr) minmax(190px, 1fr);
++  grid-template-columns: 72px minmax(178px, 0.94fr) minmax(126px, 0.58fr) minmax(142px, 0.64fr) minmax(360px, 1.45fr);
+   gap: 16px;
+   align-items: center;
+   padding: 15px 18px;
+diff --git a/scripts/frontend-regression.test.mjs b/scripts/frontend-regression.test.mjs
+--- a/scripts/frontend-regression.test.mjs
++++ b/scripts/frontend-regression.test.mjs
+@@ -281,5 +281,6 @@ test('history page only allows canceling queued submissions', async () => {
+   const source = await readFile(new URL('../src/components/HistoryPage.vue', import.meta.url), 'utf8')
+   const apiSource = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
++  const appSource = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+ 
+   assert.ok(
+     apiSource.includes('/api/users/me/submissions/${submissionId}/cancel'),
+@@ -295,6 +296,9 @@ test('history page only allows canceling queued submissions', async () => {
+   assert.ok(source.includes('取消中...'), 'cancel action should show a pending state')
+   assert.equal(source.includes("toLowerCase() === 'evaluating'"), false, 'evaluating submissions must not be cancelable')
+   assert.equal(source.includes("toLowerCase() === 'failed'"), false, 'failed submissions must not be cancelable')
++  assert.ok(source.includes("defineEmits(['back', 'canceled'])"), 'history page should emit an event after successful cancellation')
++  assert.ok(source.includes("emit('canceled')"), 'cancel success should notify parent views')
++  assert.ok(appSource.includes('@canceled="refreshUploadCooldown"'), 'homepage should refresh upload cooldown after cancellation')
+ })
+ 
+ test('history page displays active queued and evaluating task counts', async () => {
+@@ -313,6 +317,7 @@ test('history page displays active queued and evaluating task counts', async () =
+   assert.ok(source.includes('正在评测'), 'history page should show evaluating task count copy')
+   assert.ok(source.includes('queuedCount'), 'history page should read queued count from backend summary')
+   assert.ok(source.includes('evaluatingCount'), 'history page should read evaluating count from backend summary')
++  assert.ok(source.includes('await loadSubmissionQueueSummary()'), 'manual history refresh should also refresh active task counts')
+ })
+ 
+ test('history submission id column stays compact and truncates long ids', async () => {
+@@ -320,7 +325,7 @@ test('history submission id column stays compact and truncates long ids', async
+   const source = await readFile(new URL('../src/components/HistoryPage.vue', import.meta.url), 'utf8')
+ 
+   assert.ok(
+-    /grid-template-columns:\s*72px\s+minmax\(190px,\s*1\.18fr\)\s+minmax\(132px,\s*0\.72fr\)\s+minmax\(154px,\s*0\.78fr\)\s+minmax\(190px,\s*1fr\)/.test(source),
++    /grid-template-columns:\s*72px\s+minmax\(178px,\s*0\.94fr\)\s+minmax\(126px,\s*0\.58fr\)\s+minmax\(142px,\s*0\.64fr\)\s+minmax\(360px,\s*1\.45fr\)/.test(source),
+     'history table should keep the submission id column compact and reserve enough width for status'
+   )
+   assert.ok(

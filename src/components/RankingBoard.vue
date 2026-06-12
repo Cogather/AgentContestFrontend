@@ -21,7 +21,7 @@
           <IconSymbol name="score" :size="18" />
         </div>
         <div class="stat-content">
-          <div class="stat-value">{{ totalScore }}</div>
+          <div class="stat-value">{{ formatScore(totalScore) }}</div>
           <div class="stat-label">最高得分</div>
         </div>
         <span class="stat-signal" aria-hidden="true">
@@ -42,7 +42,7 @@
         <div class="personal-stats">
           <div class="personal-stat personal-stat-score">
             <span class="label">我的得分</span>
-            <span class="value">{{ personalRank.score }}</span>
+            <span class="value">{{ formatScore(personalRank.score) }}</span>
           </div>
           <div class="personal-stat personal-stat-token">
             <span class="label">Token消耗</span>
@@ -141,7 +141,7 @@
             <span v-if="isTestAccountRank(item)" class="official-demo-badge">官方Demo</span>
           </div>
           <div class="col score">
-            <span class="score-value">{{ item.score }}</span>
+            <span class="score-value">{{ formatScore(item.score) }}</span>
           </div>
           <div class="col submission-count">{{ formatNumber(getSubmissionCount(item)) }}</div>
           <div class="col token-usage">{{ formatNumber(item.token_usage) }}</div>
@@ -224,6 +224,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { rankApi } from '../api'
+import { formatScore } from '../utils/scoreFormat'
 import IconSymbol from './IconSymbol.vue'
 
 const props = defineProps({
@@ -353,7 +354,7 @@ const loadPersonalRank = async () => {
   }
 
   try {
-    const userRankRes = await rankApi.getUserRank(props.currentUserId)
+    const userRankRes = await rankApi.getUserRank()
     if (requestSeq !== personalRankRequestSeq) return
     personalRank.value = userRankRes?.data || emptyPersonalRank()
   } catch (e) {

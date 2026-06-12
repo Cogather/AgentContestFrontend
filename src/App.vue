@@ -6,6 +6,7 @@ import HistoryPage from './components/HistoryPage.vue'
 import RankingBoard from './components/RankingBoard.vue'
 import IconSymbol from './components/IconSymbol.vue'
 import ErrorModal from './components/ErrorModal.vue'
+import { getLatestCooldownSubmissionTime } from './utils/submissionCooldown'
 
 // 参赛题目
 const challengeContent = ref(`欢迎参加 Agent 大赛！
@@ -25,6 +26,7 @@ const challengeContent = ref(`欢迎参加 Agent 大赛！
 const USER_STORAGE_KEY = 'agent_game_user'
 const THIRD_PARTY_USER_ID_STORAGE_KEY = 'agent_game_third_party_user_id'
 const THIRD_PARTY_USER_ID_QUERY_KEYS = ['user_id', 'userId', 'employee_id', 'employeeId', 'work_id', 'workId']
+const EMERGENCY_LOGIN_PATH = '/emergency-login'
 
 // 用户配置
 const currentUser = ref(null)
@@ -42,6 +44,7 @@ const registerForm = ref({
 })
 const registerLoading = ref(false)
 const registerError = ref('')
+const isEmergencyLoginPage = ref(window.location.pathname.replace(/\/+$/, '') === EMERGENCY_LOGIN_PATH)
 const UPLOAD_INTERVAL_MS = 30 * 60 * 1000
 const COMPETITION_START_AT = import.meta.env.VITE_COMPETITION_START_AT || '2026-05-24T08:00:00-07:00'
 const COMPETITION_END_AT = import.meta.env.VITE_COMPETITION_END_AT || '2026-06-15T00:00:00-07:00'
@@ -179,9 +182,26 @@ const uploadTipText = computed(() => {
   return ''
 })
 
+const normalizeUserProfile = (user) => {
+  if (!user) {
+    return null
+  }
+  const uuid = String(user.uuid || user.client_uuid || user.clientUuid || '').trim()
+  const userId = normalizeUserId(user.user_id || user.userId)
+  const username = String(user.username || '').trim()
+  return {
+    ...user,
+    uuid: uuid,
+    user_id: userId,
+    username
+  }
+}
+
 const saveCurrentUser = (user) => {
-  currentUser.value = user
-  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user))
+  const normalizedUser = normalizeUserProfile(user) || user
+  currentUser.value = normalizedUser
+  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(normalizedUser))
+  return normalizedUser
 }
 
 const normalizeUserId = (value) => {
@@ -211,41 +231,81 @@ const loadExistingUser = async (userId) => {
     return false
   }
   try {
-    const res = await userApi.getUser(userId)
+    const res = await userApi.getMe()
     if (res.code === 0 && res.data) {
-      saveCurrentUser(res.data)
+      const existingUser = normalizeUserProfile(res.data)
+      if (existingUser?.user_id && existingUser.user_id !== userId) {
+        return false
+      }
+      saveCurrentUser(existingUser || res.data)
       return true
     }
   } catch (error) {
-    if (error?.response?.status !== 404) {
+    if (![401, 403, 404].includes(error?.response?.status)) {
       console.error('Failed to load current user:', error)
     }
   }
   return false
 }
 
-const parseSubmissionTime = (submission) => {
-  const rawTime = submission?.created_at || submission?.createdAt
-  if (!rawTime) {
-    return 0
+const bootstrapRegisteredUserSession = async (userId) => {
+  if (!userId) {
+    return {
+      success: false,
+      newUserRequired: true,
+      message: ''
+    }
   }
-  const timestamp = new Date(rawTime).getTime()
-  return Number.isFinite(timestamp) ? timestamp : 0
+  try {
+    const res = await userApi.addUser({
+      user_id: userId,
+      username: ''
+    })
+    if (res.code === 0 && res.data) {
+      saveCurrentUser(res.data)
+      return {
+        success: true,
+        newUserRequired: false,
+        message: ''
+      }
+    }
+    return {
+      success: false,
+      newUserRequired: false,
+      message: res.message || '参赛信息加载失败'
+    }
+  } catch (error) {
+    const status = error?.response?.status
+    const responseMessage = error?.response?.data?.message || ''
+    if (status === 400 && responseMessage.includes('请输入昵称')) {
+      return {
+        success: false,
+        newUserRequired: true,
+        message: ''
+      }
+    }
+    if (status !== 400 || !responseMessage.includes('请输入昵称')) {
+      console.error('Failed to bootstrap registered user session:', error)
+    }
+    return {
+      success: false,
+      newUserRequired: false,
+      message: getRequestErrorMessage(error, '参赛信息加载失败')
+    }
+  }
 }
 
-const refreshUploadCooldown = async (userId) => {
-  if (!userId || isCurrentUserTestAccount.value) {
+const refreshUploadCooldown = async () => {
+  if (!currentUser.value || isCurrentUserTestAccount.value) {
     uploadCooldownEndsAt.value = 0
     isUploadCooldownLoading.value = false
     return
   }
   isUploadCooldownLoading.value = true
   try {
-    const res = await userApi.getSubmissions(userId)
+    const res = await userApi.getSubmissions()
     const submissions = res.code === 0 && Array.isArray(res.data) ? res.data : []
-    const latestSubmittedAt = submissions.reduce((latest, item) => {
-      return Math.max(latest, parseSubmissionTime(item))
-    }, 0)
+    const latestSubmittedAt = getLatestCooldownSubmissionTime(submissions)
     uploadCooldownEndsAt.value = latestSubmittedAt ? latestSubmittedAt + UPLOAD_INTERVAL_MS : 0
     cooldownTick.value = Date.now()
   } catch (error) {
@@ -256,22 +316,30 @@ const refreshUploadCooldown = async (userId) => {
   }
 }
 
-// 页面加载时按第三方工号校验用户是否已起昵称；已存在则直接进入主页面
 onMounted(async () => {
   cooldownTimer = setInterval(() => {
     cooldownTick.value = Date.now()
   }, 1000)
+  if (isEmergencyLoginPage.value) {
+    sessionReady.value = true
+    return
+  }
   try {
     const resolvedUserId = resolveThirdPartyUserId()
     registerForm.value.user_id = resolvedUserId
+    registerError.value = resolvedUserId ? '' : '未获取到有效工号，请从大赛入口进入'
 
-    const userExists = await loadExistingUser(resolvedUserId)
-    if (userExists) {
-      refreshUploadCooldown(resolvedUserId)
+    const hasSession = await loadExistingUser(resolvedUserId)
+    const bootstrapResult = hasSession
+      ? { success: true, newUserRequired: false, message: '' }
+      : await bootstrapRegisteredUserSession(resolvedUserId)
+    if (bootstrapResult.success) {
+      refreshUploadCooldown()
     }
-    if (!userExists) {
+    if (!bootstrapResult.success) {
       currentUser.value = null
       localStorage.removeItem(USER_STORAGE_KEY)
+      registerError.value = bootstrapResult.newUserRequired ? '' : bootstrapResult.message || registerError.value
     }
   } finally {
     sessionReady.value = true
@@ -288,7 +356,7 @@ onUnmounted(() => {
 const buildDefaultProfile = () => {
   const username = registerForm.value.username.trim()
   return {
-    user_id: registerForm.value.user_id.trim(),
+    user_id: normalizeUserId(registerForm.value.user_id),
     username
   }
 }
@@ -326,14 +394,13 @@ const closeErrorDialog = () => {
 
 const loginUser = async () => {
   registerError.value = ''
-  const userId = registerForm.value.user_id.trim()
-  const username = registerForm.value.username.trim()
+  const userId = normalizeUserId(registerForm.value.user_id)
 
   if (!userId || userId.length !== 8) {
     registerError.value = '未获取到有效工号，请先完成第三方登录'
     return
   }
-  if (!username) {
+  if (!registerForm.value.username.trim()) {
     registerError.value = '请输入昵称'
     return
   }
@@ -345,13 +412,46 @@ const loginUser = async () => {
 
     if (res.code === 0 || res.code === 409) {
       saveCurrentUser(res.data || payload)
-      await refreshUploadCooldown((res.data || payload).user_id)
+      await refreshUploadCooldown()
     } else {
       registerError.value = res.message || '登录失败'
     }
   } catch (error) {
     console.error('Login error:', error)
     registerError.value = getRequestErrorMessage(error, '登录失败，请检查网络连接')
+  } finally {
+    registerLoading.value = false
+  }
+}
+
+const loginEmergencyUser = async () => {
+  registerError.value = ''
+  const userId = normalizeUserId(registerForm.value.user_id)
+
+  if (!userId || userId.length !== 8) {
+    registerError.value = '请输入有效的 8 位工号'
+    return
+  }
+
+  registerLoading.value = true
+  try {
+    const res = await userApi.emergencyLogin({
+      user_id: userId,
+      username: ''
+    })
+
+    if (res.code === 0 && res.data) {
+      saveCurrentUser(res.data)
+      localStorage.setItem(THIRD_PARTY_USER_ID_STORAGE_KEY, userId)
+      isEmergencyLoginPage.value = false
+      window.history.replaceState({}, '', '/')
+      await refreshUploadCooldown()
+    } else {
+      registerError.value = res.message || '应急登录失败'
+    }
+  } catch (error) {
+    console.error('Emergency login error:', error)
+    registerError.value = getRequestErrorMessage(error, '应急登录失败')
   } finally {
     registerLoading.value = false
   }
@@ -465,7 +565,36 @@ const handleUploadSuccess = () => {
           </div>
         </div>
 
-        <form class="register-panel" @submit.prevent="loginUser">
+        <form v-if="isEmergencyLoginPage" class="register-panel emergency-login-panel" @submit.prevent="loginEmergencyUser">
+          <div class="register-panel-header">
+            <span class="card-icon">
+              <IconSymbol name="user" />
+            </span>
+            <h2>应急登录</h2>
+          </div>
+
+          <div class="register-fields">
+            <label class="register-field">
+              <span>工号</span>
+              <input
+                v-model="registerForm.user_id"
+                type="text"
+                inputmode="numeric"
+                maxlength="20"
+                placeholder="请输入已开通应急登录的工号"
+              />
+              <p class="register-helper">仅限内部登录异常时使用，登录后仍由后端 Cookie 校验身份</p>
+            </label>
+          </div>
+
+          <p v-if="registerError" class="register-error">{{ registerError }}</p>
+
+          <button class="btn btn-primary register-submit" type="submit" :disabled="registerLoading">
+            {{ registerLoading ? '登录中...' : '应急登录' }}
+          </button>
+        </form>
+
+        <form v-else class="register-panel" @submit.prevent="loginUser">
           <div class="register-panel-header">
             <span class="card-icon">
               <IconSymbol name="user" />
@@ -490,6 +619,7 @@ const handleUploadSuccess = () => {
                 maxlength="20"
                 placeholder="请输入昵称"
               />
+              <p class="register-helper">昵称设置后不可修改，请谨慎填写</p>
             </label>
           </div>
 
@@ -507,6 +637,7 @@ const handleUploadSuccess = () => {
       :userId="currentUser?.user_id"
       :username="currentUser?.username"
       @back="closeHistory"
+      @canceled="refreshUploadCooldown"
     />
 
     <!-- 主要内容 -->
@@ -645,7 +776,6 @@ const handleUploadSuccess = () => {
     <!-- 弹窗组件 -->
     <UploadModal
       :visible="showUploadModal"
-      :userId="currentUser?.user_id"
       @close="closeUpload"
       @success="handleUploadSuccess"
     />
@@ -3107,6 +3237,18 @@ body {
   box-shadow: 0 0 0 3px rgba(180, 35, 47, 0.08);
 }
 
+@media (max-width: 1180px) {
+  .register-brand-layout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    width: min(620px, 100%);
+  }
+
+  .register-schedule-panel {
+    width: min(620px, 100%);
+  }
+}
+
 @media (max-width: 980px) {
   .register-shell {
     grid-template-columns: 1fr;
@@ -3120,16 +3262,6 @@ body {
 
   .register-copy {
     font-size: 16px;
-  }
-
-  .register-brand-layout {
-    grid-template-columns: 1fr;
-    gap: 24px;
-    width: min(620px, 100%);
-  }
-
-  .register-schedule-panel {
-    width: min(620px, 100%);
   }
 }
 

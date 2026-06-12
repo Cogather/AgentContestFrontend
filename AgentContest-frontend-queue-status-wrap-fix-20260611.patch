@@ -1,0 +1,51 @@
+diff --git a/src/components/HistoryPage.vue b/src/components/HistoryPage.vue
+--- a/src/components/HistoryPage.vue
++++ b/src/components/HistoryPage.vue
+@@ -1529,10 +1529,28 @@
+ .status-pill.uploaded,
+ .status-pill.uploading,
+ .status-pill.validating,
+ .status-pill.evaluating {
+   border-color: rgba(75, 85, 99, 0.14);
+   background: rgba(75, 85, 99, 0.065);
+   color: #374151;
+ }
+ 
++.status-pill.uploaded {
++  display: block;
++  justify-self: stretch;
++  box-sizing: border-box;
++  width: 100%;
++  max-width: 100%;
++  min-height: 32px;
++  height: auto;
++  overflow: visible;
++  overflow-wrap: anywhere;
++  text-align: left;
++  text-overflow: clip;
++  white-space: normal;
++  word-break: break-word;
++  line-height: 1.35;
++  padding: 5px 10px;
++}
++
+ @media (max-width: 720px) {
+   .history-page {
+     padding: 88px 14px 36px;
+diff --git a/scripts/frontend-regression.test.mjs b/scripts/frontend-regression.test.mjs
+--- a/scripts/frontend-regression.test.mjs
++++ b/scripts/frontend-regression.test.mjs
+@@ -330,5 +330,13 @@ test('history submission id column stays compact and truncates long ids', async
+   assert.ok(
+     /\.submission-id-badge\s*\{[^}]*width:\s*100%;[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;/s.test(source),
+     'long submission ids should truncate instead of expanding the table column'
+   )
++  assert.ok(
++    /\.status-pill\.uploaded\s*\{[^}]*overflow:\s*visible;[^}]*text-overflow:\s*clip;[^}]*white-space:\s*normal;/s.test(source),
++    'queued status text should wrap instead of being truncated'
++  )
++  assert.ok(
++    /\.status-pill\.uploaded\s*\{[^}]*display:\s*block;[^}]*width:\s*100%;[^}]*overflow-wrap:\s*anywhere;[^}]*word-break:\s*break-word;/s.test(source),
++    'queued status should stay inside the status column and wrap long queue copy'
++  )
+ })
