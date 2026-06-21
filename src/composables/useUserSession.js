@@ -221,9 +221,3 @@ export const useUserSession = () => {
     loginEmergencyUser
   }
 }
-
-export const userSessionInternals = {
-  normalizeUserId,
-  normalizeUserProfile,
-  requestErrorMessage
-}
