@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import { userApi } from '../api'
+import { requestErrorMessage } from '../utils/requestErrors'
 import {
   isEmergencyLoginPath,
   normalizeUserId,
@@ -21,23 +22,6 @@ const normalizeUserProfile = (user) => {
     user_id: userId,
     username
   }
-}
-
-const requestErrorMessage = (error, fallback) => {
-  const responseMessage = error?.response?.data?.message
-  if (responseMessage) {
-    return `${fallback}：${responseMessage}`
-  }
-  if (error?.response?.status) {
-    return `${fallback}：HTTP ${error.response.status}`
-  }
-  if (error?.code === 'ECONNABORTED') {
-    return `${fallback}：请求超时`
-  }
-  if (error?.message) {
-    return `${fallback}：${error.message}`
-  }
-  return fallback
 }
 
 export const useUserSession = () => {
@@ -142,7 +126,7 @@ export const useUserSession = () => {
       return {
         success: false,
         newUserRequired: false,
-        message: requestErrorMessage(error, '参赛信息加载失败')
+        message: requestErrorMessage(error, '参赛信息加载失败', { prefixFallback: true })
       }
     }
   }
@@ -198,7 +182,7 @@ export const useUserSession = () => {
       }
     } catch (error) {
       console.error('Login error:', error)
-      registerError.value = requestErrorMessage(error, '登录失败，请检查网络连接')
+      registerError.value = requestErrorMessage(error, '登录失败，请检查网络连接', { prefixFallback: true })
     } finally {
       registerLoading.value = false
     }
@@ -230,7 +214,7 @@ export const useUserSession = () => {
       }
     } catch (error) {
       console.error('Emergency login error:', error)
-      registerError.value = requestErrorMessage(error, '应急登录失败')
+      registerError.value = requestErrorMessage(error, '应急登录失败', { prefixFallback: true })
     } finally {
       registerLoading.value = false
     }

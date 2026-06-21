@@ -1,5 +1,6 @@
 import { onUnmounted, ref } from 'vue'
 import { commonApi } from '../api'
+import { requestErrorMessage } from '../utils/requestErrors'
 
 const invalidZipMessage = '程序包的格式错误，请上传zip格式的压缩包'
 const uploadLimitText = '仅支持 100MB 以内 .zip 压缩包'
@@ -100,7 +101,7 @@ export const usePackageUpload = ({ onClose, onSuccess } = {}) => {
       }
     } catch (error) {
       console.error('Upload error:', error)
-      uploadError.value = error?.response?.data?.message || '上传出错，请检查网络或重试'
+      uploadError.value = requestErrorMessage(error, '上传出错，请检查网络或重试')
     } finally {
       uploading.value = false
     }

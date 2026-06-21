@@ -7,6 +7,7 @@ import {
   mergeQuestionScoreDetails,
   normalizeStatus
 } from '../utils/submissionScoreDetails'
+import { requestErrorMessage } from '../utils/requestErrors'
 import { firstDefined, formatNumber } from '../utils/valueHelpers'
 
 const HISTORY_REFRESH_INTERVAL_MS = 5000
@@ -200,7 +201,7 @@ export const useSubmissionHistory = ({ userId, username, onCanceled } = {}) => {
     } catch (error) {
       console.error('Failed to load submissions:', error)
       if (!silent || submissions.value.length === 0) {
-        errorMessage.value = error?.response?.data?.message || '历史记录加载失败'
+        errorMessage.value = requestErrorMessage(error, '历史记录加载失败')
       }
     } finally {
       historyRefreshInFlight = false
@@ -272,7 +273,7 @@ export const useSubmissionHistory = ({ userId, username, onCanceled } = {}) => {
       }
     } catch (error) {
       console.error('Failed to cancel submission:', error)
-      showToast(error?.response?.data?.message || '取消提交失败')
+      showToast(requestErrorMessage(error, '取消提交失败'))
     } finally {
       cancelingSubmissionId.value = ''
     }

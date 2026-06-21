@@ -1,5 +1,6 @@
 import { computed, onMounted, ref, unref, watch } from 'vue'
 import { rankApi } from '../api'
+import { requestErrorMessage } from '../utils/requestErrors'
 
 const RANKING_COLUMN_SIZE = 10
 
@@ -182,7 +183,7 @@ export const useRankingBoard = (currentUserId) => {
       if (requestSeq !== rankingRequestSeq) return
       if (!silent) console.error('Failed to load ranking:', error)
       if (!silent || rankingList.value.length === 0) {
-        rankingError.value = error?.response?.data?.message || '排行榜加载失败，请稍后重试'
+        rankingError.value = requestErrorMessage(error, '排行榜加载失败，请稍后重试')
       }
       if (rankingList.value.length === 0) {
         totalItems.value = 0
