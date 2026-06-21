@@ -39,6 +39,12 @@ import {
   countSubmissionsByStatus
 } from '../src/utils/submissionSummary.js'
 import {
+  formatFileSizeMb,
+  INVALID_ZIP_MESSAGE,
+  isZipPackage,
+  UPLOAD_LIMIT_TEXT
+} from '../src/utils/uploadFileRules.js'
+import {
   contestPhaseAt,
   formatDurationText,
   timestampOf
@@ -278,8 +284,10 @@ test('upload dialog displays the zip package size limit', async () => {
   const uploadSource = await readFile(new URL('../src/composables/usePackageUpload.js', import.meta.url), 'utf8')
 
   assert.ok(source.includes('uploadLimitText'), 'upload dialog should render the shared upload limit text')
-  assert.ok(uploadSource.includes('100MB'), 'upload dialog should show the 100MB package limit')
-  assert.ok(uploadSource.includes('.zip'), 'upload dialog should show that only zip packages are supported')
+  assert.equal(UPLOAD_LIMIT_TEXT, '仅支持 100MB 以内 .zip 压缩包')
+  assert.equal(INVALID_ZIP_MESSAGE, '程序包的格式错误，请上传zip格式的压缩包')
+  assert.ok(uploadSource.includes('UPLOAD_LIMIT_TEXT'), 'upload composable should expose the shared upload limit text')
+  assert.ok(uploadSource.includes('INVALID_ZIP_MESSAGE'), 'upload composable should expose the shared invalid zip text')
 })
 
 test('upload modal delegates package upload state to a composable', async () => {
@@ -290,6 +298,23 @@ test('upload modal delegates package upload state to a composable', async () => 
   assert.equal(source.includes('commonApi.uploadCode'), false, 'upload modal should not own API upload calls')
   assert.ok(uploadSource.includes('commonApi.uploadCode'), 'upload composable should own API upload calls')
   assert.ok(uploadSource.includes('fileInput.value?.click()'), 'file selection should tolerate an unmounted input ref')
+})
+
+test('upload file rules keep zip validation and size formatting reusable', async () => {
+  const source = await readFile(new URL('../src/components/UploadModal.vue', import.meta.url), 'utf8')
+  const uploadSource = await readFile(new URL('../src/composables/usePackageUpload.js', import.meta.url), 'utf8')
+
+  assert.equal(isZipPackage({ name: 'agent.ZIP' }), true)
+  assert.equal(isZipPackage({ name: 'agent.tar.gz' }), false)
+  assert.equal(isZipPackage(null), false)
+  assert.equal(formatFileSizeMb(1048576), '1.00 MB')
+  assert.equal(formatFileSizeMb('524288'), '0.50 MB')
+  assert.equal(formatFileSizeMb('bad'), '-')
+  assert.ok(uploadSource.includes("from '../utils/uploadFileRules'"), 'upload composable should import upload file rules')
+  assert.ok(uploadSource.includes('selectedFileSizeText'), 'upload composable should expose formatted selected file size')
+  assert.ok(source.includes('selectedFileSizeText'), 'upload modal should render the composable-provided file size text')
+  assert.equal(source.includes('selectedFile.size / 1024 / 1024'), false, 'upload modal should not inline file size formatting')
+  assert.equal(uploadSource.includes('const isZipFile ='), false, 'upload composable should not duplicate zip validation')
 })
 
 test('app delegates session contest clock and error dialog state to composables', async () => {
