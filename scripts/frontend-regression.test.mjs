@@ -14,6 +14,7 @@ import {
   THIRD_PARTY_USER_ID_STORAGE_KEY,
   USER_STORAGE_KEY
 } from '../src/utils/userIdentity.js'
+import { firstDefined, formatNumber } from '../src/utils/valueHelpers.js'
 
 test('score detail uses however many scored questions the backend returns', () => {
   const submission = {
@@ -58,6 +59,14 @@ test('score formatting preserves decimal scores without noisy trailing zeroes', 
   assert.equal(formatScore(900.5), '900.5')
   assert.equal(formatScore('899.9999'), '899.9999')
   assert.equal(formatScore(null), '-')
+})
+
+test('shared value helpers normalize fallback and number display behavior', () => {
+  assert.equal(firstDefined(null, undefined, '', 'ready'), 'ready')
+  assert.equal(formatNumber(1234567), '1,234,567')
+  assert.equal(formatNumber(null), '-')
+  assert.equal(formatNumber('not-a-number'), '-')
+  assert.equal(formatNumber('not-a-number', { invalidFallback: '原值不可用' }), '原值不可用')
 })
 
 test('ranking board does not start an interval-based auto refresh', async () => {

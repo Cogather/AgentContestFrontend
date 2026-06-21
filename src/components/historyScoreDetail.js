@@ -1,6 +1,4 @@
-const firstDefined = (...values) => {
-  return values.find(value => value !== null && value !== undefined && value !== '')
-}
+import { firstDefined } from '../utils/valueHelpers.js'
 
 const positiveQuestionNumber = (value, fallback) => {
   const question = Number(firstDefined(value, fallback))
