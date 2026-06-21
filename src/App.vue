@@ -5,6 +5,7 @@ import HistoryPage from './components/HistoryPage.vue'
 import RankingBoard from './components/RankingBoard.vue'
 import ContestSchedulePanel from './components/ContestSchedulePanel.vue'
 import AppHeader from './components/AppHeader.vue'
+import RegisterPanel from './components/RegisterPanel.vue'
 import IconSymbol from './components/IconSymbol.vue'
 import ErrorModal from './components/ErrorModal.vue'
 import { useContestConfig } from './composables/useContestConfig'
@@ -144,70 +145,16 @@ const handleUploadSuccess = () => {
           </div>
         </div>
 
-        <form v-if="isEmergencyLoginPage" class="register-panel emergency-login-panel" @submit.prevent="loginEmergencyUser">
-          <div class="register-panel-header">
-            <span class="card-icon">
-              <IconSymbol name="user" />
-            </span>
-            <h2>应急登录</h2>
-          </div>
-
-          <div class="register-fields">
-            <label class="register-field">
-              <span>工号</span>
-              <input
-                v-model="registerForm.user_id"
-                type="text"
-                inputmode="numeric"
-                maxlength="20"
-                placeholder="请输入已开通应急登录的工号"
-              />
-              <p class="register-helper">仅限内部登录异常时使用，登录后仍由后端 Cookie 校验身份</p>
-            </label>
-          </div>
-
-          <p v-if="registerError" class="register-error">{{ registerError }}</p>
-
-          <button class="btn btn-primary register-submit" type="submit" :disabled="registerLoading">
-            {{ registerLoading ? '登录中...' : '应急登录' }}
-          </button>
-        </form>
-
-        <form v-else class="register-panel" @submit.prevent="loginUser">
-          <div class="register-panel-header">
-            <span class="card-icon">
-              <IconSymbol name="user" />
-            </span>
-            <h2>参赛登录</h2>
-          </div>
-
-          <div class="register-fields">
-            <div class="register-field">
-              <span>工号</span>
-              <div class="register-readonly-value" :class="{ empty: !registerForm.user_id }">
-                {{ registerForm.user_id || '等待第三方登录返回工号' }}
-              </div>
-              <p class="register-helper">工号仅供提交使用，不会出现在排行榜中</p>
-            </div>
-
-            <label class="register-field">
-              <span>昵称</span>
-              <input
-                v-model="registerForm.username"
-                type="text"
-                maxlength="20"
-                placeholder="请输入昵称"
-              />
-              <p class="register-helper">昵称设置后不可修改，请谨慎填写</p>
-            </label>
-          </div>
-
-          <p v-if="registerError" class="register-error">{{ registerError }}</p>
-
-          <button class="btn btn-primary register-submit" type="submit" :disabled="registerLoading || !registerForm.user_id">
-            {{ registerLoading ? '登录中...' : '登录' }}
-          </button>
-        </form>
+        <RegisterPanel
+          :form="registerForm"
+          :emergency="isEmergencyLoginPage"
+          :loading="registerLoading"
+          :error="registerError"
+          @login-user="loginUser"
+          @login-emergency-user="loginEmergencyUser"
+          @update:user-id="registerForm.user_id = $event"
+          @update:username="registerForm.username = $event"
+        />
       </section>
     </main>
 
@@ -461,105 +408,6 @@ body {
   margin: 16px auto 0;
   background: linear-gradient(90deg, transparent 0%, #4b5563 18%, #b4232f 50%, #64748b 82%, transparent 100%);
   clip-path: polygon(0 0, 94% 0, 100% 100%, 6% 100%);
-}
-
-.register-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  padding: 20px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(12px);
-}
-
-.register-panel-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.register-panel-header h2 {
-  margin: 0;
-  font-size: 18px;
-  color: var(--text);
-}
-
-.register-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.register-field {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-
-.register-field span {
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.register-field input {
-  width: 100%;
-  min-height: 42px;
-  padding: 10px 12px;
-  border: 1px solid rgba(15, 42, 77, 0.14);
-  border-radius: 6px;
-  background: rgba(248, 251, 255, 0.84);
-  color: var(--text);
-  font: inherit;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.register-field input:focus {
-  border-color: rgba(15, 124, 255, 0.5);
-  box-shadow: 0 0 0 3px rgba(15, 124, 255, 0.1);
-}
-
-.register-readonly-value {
-  min-height: 42px;
-  display: flex;
-  align-items: center;
-  padding: 10px 12px;
-  border: 1px solid rgba(15, 42, 77, 0.12);
-  border-radius: 6px;
-  background: rgba(226, 232, 240, 0.62);
-  color: var(--text);
-  font-family: 'SF Mono', 'Roboto Mono', monospace;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.register-readonly-value.empty {
-  color: var(--muted);
-  font-family: inherit;
-  font-weight: 500;
-}
-
-.register-helper {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.register-error {
-  min-height: 20px;
-  margin: -4px 0 0;
-  color: #b91c1c;
-  font-size: 13px;
-}
-
-.register-submit {
-  width: 100%;
-  min-height: 42px;
 }
 
 .btn:disabled {
@@ -1094,10 +942,6 @@ body {
     font-size: 40px;
   }
 
-  .register-panel {
-    padding: 18px;
-  }
-
   .container {
     margin: 0 auto;
     padding: 18px 14px 32px;
@@ -1167,12 +1011,6 @@ body {
   height: 3px;
   background: linear-gradient(90deg, transparent, var(--accent-red), #1b6fd8, transparent);
   clip-path: none;
-}
-
-.register-panel {
-  border-color: rgba(71, 96, 136, 0.16);
-  background: rgba(255, 255, 255, 0.86);
-  box-shadow: var(--shadow);
 }
 
 .hero-section {
@@ -1481,8 +1319,7 @@ button::before {
 }
 
 .hero-section,
-.card,
-.register-panel {
+.card {
   backdrop-filter: blur(14px);
 }
 
@@ -1657,26 +1494,6 @@ body {
   background: linear-gradient(90deg, transparent, #b4232f 20%, #1b6fd8 72%, transparent);
   clip-path: none;
   box-shadow: none;
-}
-
-.register-panel {
-  padding: 24px;
-  border: 1px solid rgba(71, 96, 136, 0.14);
-  background:
-    linear-gradient(130deg, rgba(255, 255, 255, 0.94), rgba(246, 250, 255, 0.82)),
-    linear-gradient(90deg, rgba(180, 35, 47, 0.04), transparent 64%);
-  box-shadow: 0 18px 42px rgba(23, 44, 76, 0.09);
-}
-
-.register-field input,
-.register-readonly-value {
-  border-color: rgba(71, 96, 136, 0.14);
-  background: rgba(255, 255, 255, 0.72);
-}
-
-.register-field input:focus {
-  border-color: rgba(180, 35, 47, 0.42);
-  box-shadow: 0 0 0 3px rgba(180, 35, 47, 0.09);
 }
 
 .hero-section {
@@ -2326,8 +2143,7 @@ body {
 
 /* Scroll performance pass: avoid large repaint-heavy glass layers */
 .hero-section,
-.card,
-.register-panel {
+.card {
   backdrop-filter: none;
 }
 
@@ -2450,31 +2266,6 @@ body {
   box-shadow: none;
 }
 
-.register-panel {
-  padding: 24px;
-  border: 1px solid rgba(71, 96, 136, 0.14);
-  background:
-    linear-gradient(130deg, rgba(255, 255, 255, 0.96), rgba(246, 250, 255, 0.84)),
-    linear-gradient(90deg, rgba(180, 35, 47, 0.04), transparent 64%);
-  box-shadow: 0 18px 42px rgba(23, 44, 76, 0.09);
-}
-
-.register-panel-header h2 {
-  font-size: 18px;
-  font-weight: 750;
-}
-
-.register-field input,
-.register-readonly-value {
-  border-color: rgba(71, 96, 136, 0.14);
-  background: rgba(255, 255, 255, 0.72);
-}
-
-.register-field input:focus {
-  border-color: rgba(180, 35, 47, 0.34);
-  box-shadow: 0 0 0 3px rgba(180, 35, 47, 0.08);
-}
-
 @media (max-width: 1180px) {
   .register-brand-layout {
     grid-template-columns: 1fr;
@@ -2510,10 +2301,6 @@ body {
 
   .register-title {
     font-size: 42px;
-  }
-
-  .register-panel {
-    padding: 20px;
   }
 
   .register-copy {
