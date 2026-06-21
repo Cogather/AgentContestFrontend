@@ -32,10 +32,12 @@ const {
   formatNumber,
   formatTime,
   getTokenUsage,
+  isFailedSubmission,
   isCancelingSubmission,
   openDetail,
   scoreDetailUnavailableText,
   showFailureReason,
+  statusClassName,
   statusText,
   submissionCreatedTime,
   submissionId
@@ -112,7 +114,7 @@ const {
             <div>{{ formatNumber(getTokenUsage(item)) }}</div>
             <div class="status-cell">
               <button
-                v-if="normalizeStatus(item.status) === 'failed'"
+                v-if="isFailedSubmission(item)"
                 class="status-pill failed clickable"
                 type="button"
                 :title="failedStatusText(item)"
@@ -123,7 +125,7 @@ const {
               <span
                 v-else
                 class="status-pill"
-                :class="normalizeStatus(item.status)"
+                :class="statusClassName(item)"
                 :title="statusText(item.status, item)"
               >
                 {{ statusText(item.status, item) }}

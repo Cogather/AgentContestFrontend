@@ -60,12 +60,16 @@ export const failureReason = (item) => {
     .replace(/\/n/g, '\n')
 }
 
+export const statusClassName = (item) => normalizeStatus(item?.status)
+
+export const isFailedSubmission = (item) => statusClassName(item) === 'failed'
+
+export const failedStatusText = (item) => `${statusText(item?.status, item)}：${failureReason(item)}`
+
 export const detailStatusText = (item) => {
-  const text = statusText(item?.status, item)
-  if (normalizeStatus(item?.status) !== 'failed') {
-    return text
-  }
-  return `${text}：${failureReason(item)}`
+  return isFailedSubmission(item)
+    ? failedStatusText(item)
+    : statusText(item?.status, item)
 }
 
 export const formatTime = (timeStr) => {
