@@ -7,6 +7,7 @@ import {
   splitIntoRankingColumns,
   visiblePageNumbers
 } from '../utils/rankingDisplay'
+import { normalizeRankingPageData } from '../utils/rankingPageData'
 import { requestErrorMessage } from '../utils/requestErrors'
 
 const emptyPersonalRank = () => ({
@@ -109,15 +110,15 @@ export const useRankingBoard = (currentUserId) => {
       if (requestSeq !== rankingRequestSeq) return
 
       if (res.code === 0 && res.data) {
-        const pageData = res.data
+        const pageData = normalizeRankingPageData(res.data, requestPage, requestPageSize)
         rankingError.value = ''
-        rankingList.value = pageData.items || []
-        totalItems.value = Number(pageData.total || 0)
-        totalPagesCount.value = Number(pageData.total_pages || 0)
-        totalParticipantsCount.value = Number(pageData.total_participants || 0)
-        maxScore.value = Number(pageData.max_score || 0)
-        currentPage.value = Number(pageData.page || requestPage)
-        pageSize.value = Number(pageData.page_size || requestPageSize)
+        rankingList.value = pageData.items
+        totalItems.value = pageData.total
+        totalPagesCount.value = pageData.totalPages
+        totalParticipantsCount.value = pageData.totalParticipants
+        maxScore.value = pageData.maxScore
+        currentPage.value = pageData.page
+        pageSize.value = pageData.pageSize
       } else {
         rankingError.value = res.message || '排行榜加载失败，请稍后重试'
         rankingList.value = []
