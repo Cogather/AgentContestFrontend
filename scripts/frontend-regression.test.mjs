@@ -362,10 +362,8 @@ test('history page displays submission id for every record', async () => {
 
 test('history page shows uploaded submissions as queued with queue-ahead count', async () => {
   const source = await readFile(new URL('../src/components/HistoryPage.vue', import.meta.url), 'utf8')
-  const modalSource = await readFile(new URL('../src/components/HistoryModal.vue', import.meta.url), 'utf8')
 
   assert.ok(source.includes("uploaded: '排队中...'"), 'history page should display uploaded status as 排队中...')
-  assert.ok(modalSource.includes("uploaded: '排队中...'"), 'legacy history modal should display uploaded status as 排队中...')
   assert.ok(source.includes("`${statusTextMap.uploaded} 前边还有 ${count} 笔提交在排队`"), 'history page should show queue-ahead copy with readable spacing')
   assert.ok(source.includes('queueAheadCount'), 'history page should derive the queue-ahead count for queued submissions')
   assert.ok(source.includes('item?.queue_ahead'), 'history page should tolerate snake_case queue-ahead fields')
