@@ -130,9 +130,21 @@ test('frontend does not use native alert for error messages', async () => {
 
 test('upload dialog displays the zip package size limit', async () => {
   const source = await readFile(new URL('../src/components/UploadModal.vue', import.meta.url), 'utf8')
+  const uploadSource = await readFile(new URL('../src/composables/usePackageUpload.js', import.meta.url), 'utf8')
 
-  assert.ok(source.includes('100MB'), 'upload dialog should show the 100MB package limit')
-  assert.ok(source.includes('.zip'), 'upload dialog should show that only zip packages are supported')
+  assert.ok(source.includes('uploadLimitText'), 'upload dialog should render the shared upload limit text')
+  assert.ok(uploadSource.includes('100MB'), 'upload dialog should show the 100MB package limit')
+  assert.ok(uploadSource.includes('.zip'), 'upload dialog should show that only zip packages are supported')
+})
+
+test('upload modal delegates package upload state to a composable', async () => {
+  const source = await readFile(new URL('../src/components/UploadModal.vue', import.meta.url), 'utf8')
+  const uploadSource = await readFile(new URL('../src/composables/usePackageUpload.js', import.meta.url), 'utf8')
+
+  assert.ok(source.includes('usePackageUpload'), 'upload modal should delegate upload behavior')
+  assert.equal(source.includes('commonApi.uploadCode'), false, 'upload modal should not own API upload calls')
+  assert.ok(uploadSource.includes('commonApi.uploadCode'), 'upload composable should own API upload calls')
+  assert.ok(uploadSource.includes('fileInput.value?.click()'), 'file selection should tolerate an unmounted input ref')
 })
 
 test('app delegates session contest clock and error dialog state to composables', async () => {
