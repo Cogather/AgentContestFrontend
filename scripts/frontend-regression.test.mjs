@@ -29,6 +29,12 @@ import { normalizeUserProfile } from '../src/utils/userProfile.js'
 import { firstDefined, formatNumber } from '../src/utils/valueHelpers.js'
 import { requestErrorDetail, requestErrorMessage } from '../src/utils/requestErrors.js'
 import {
+  getSubmissionCount,
+  isTestAccountRank,
+  rankRowClass,
+  visiblePageNumbers
+} from '../src/utils/rankingDisplay.js'
+import {
   contestPhaseAt,
   formatDurationText,
   timestampOf
@@ -206,6 +212,34 @@ test('ranking board splits twenty rows into two ten-row columns', async () => {
   assert.ok(source.includes('rankingColumns'), 'ranking board should derive visual ranking columns')
   assert.ok(componentSource.includes('class="ranking-columns"'), 'ranking board should render a two-column ranking wrapper')
   assert.ok(componentSource.includes('class="ranking-column"'), 'ranking board should render each ten-row column separately')
+})
+
+test('ranking display helpers keep row badges counts and visible pages reusable', async () => {
+  const source = await readFile(new URL('../src/composables/useRankingBoard.js', import.meta.url), 'utf8')
+
+  assert.equal(getSubmissionCount({ submission_count: 7 }), 7)
+  assert.equal(getSubmissionCount({ submissionCount: 8 }), 8)
+  assert.equal(isTestAccountRank({ test_account: 'yes' }), true)
+  assert.equal(isTestAccountRank({ testAccount: '1' }), true)
+  assert.equal(isTestAccountRank({ testAccount: 'false' }), false)
+  assert.deepEqual(rankRowClass({ rank: 1 }), {
+    'top-three': true,
+    'rank-first-row': true,
+    'rank-second-row': false,
+    'rank-third-row': false,
+    'top-ten': false,
+    'top-twenty': false,
+    'top-fifty': false,
+    'top-hundred': false,
+    'top-two-hundred': false
+  })
+  assert.deepEqual(visiblePageNumbers(3, 1), [1, 2, 3])
+  assert.deepEqual(visiblePageNumbers(10, 1), [1, 2, 3, 4, 5])
+  assert.deepEqual(visiblePageNumbers(10, 5), [3, 4, 5, 6, 7])
+  assert.deepEqual(visiblePageNumbers(10, 10), [6, 7, 8, 9, 10])
+  assert.ok(source.includes("from '../utils/rankingDisplay'"), 'ranking composable should import ranking display helpers')
+  assert.equal(source.includes('const isTruthyFlag ='), false, 'ranking composable should not own test account flag parsing')
+  assert.equal(source.includes('const visiblePageNumbers ='), false, 'ranking composable should not own pagination window formatting')
 })
 
 test('frontend does not use native alert for error messages', async () => {
