@@ -1,5 +1,6 @@
 import { computed, onMounted, onUnmounted, ref, unref, watch } from 'vue'
 import { userApi } from '../api'
+import { useIntervalTimer } from './useIntervalTimer'
 import {
   canShowScoreDetail,
   getTokenUsage,
@@ -37,8 +38,10 @@ export const useSubmissionHistory = ({ userId, username, onCanceled } = {}) => {
     evaluatingCount: null
   })
   let toastTimer = null
-  let historyRefreshTimer = null
   let historyRefreshInFlight = false
+  const historyRefreshTimer = useIntervalTimer(() => {
+    loadHistory({ silent: true })
+  }, HISTORY_REFRESH_INTERVAL_MS)
 
   const pageTitle = computed(() => {
     return unref(username) ? `${unref(username)} 的历史提交` : '历史提交记录'
@@ -94,20 +97,14 @@ export const useSubmissionHistory = ({ userId, username, onCanceled } = {}) => {
   }
 
   const startHistoryAutoRefresh = () => {
-    if (historyRefreshTimer || !unref(userId)) {
+    if (historyRefreshTimer.isRunning() || !unref(userId)) {
       return
     }
-    historyRefreshTimer = setInterval(() => {
-      loadHistory({ silent: true })
-    }, HISTORY_REFRESH_INTERVAL_MS)
+    historyRefreshTimer.start()
   }
 
   const stopHistoryAutoRefresh = () => {
-    if (!historyRefreshTimer) {
-      return
-    }
-    clearInterval(historyRefreshTimer)
-    historyRefreshTimer = null
+    historyRefreshTimer.stop()
   }
 
   const showToast = (message) => {
