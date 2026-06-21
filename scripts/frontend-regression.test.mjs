@@ -47,6 +47,7 @@ import {
   splitIntoRankingColumns,
   visiblePageNumbers
 } from '../src/utils/rankingDisplay.js'
+import { normalizeRankingPageData } from '../src/utils/rankingPageData.js'
 import {
   activeSubmissionSummary,
   countSubmissionsByStatus
@@ -317,6 +318,40 @@ test('ranking display helpers keep row badges counts and visible pages reusable'
   assert.equal(source.includes('const isTruthyFlag ='), false, 'ranking composable should not own test account flag parsing')
   assert.equal(source.includes('const visiblePageNumbers ='), false, 'ranking composable should not own pagination window formatting')
   assert.equal(source.includes('const RANKING_COLUMN_SIZE ='), false, 'ranking composable should not own visual column sizing')
+})
+
+test('ranking page data normalization keeps api field mapping reusable', async () => {
+  const source = await readFile(new URL('../src/composables/useRankingBoard.js', import.meta.url), 'utf8')
+  const normalized = normalizeRankingPageData({
+    items: [{ rank: 1 }],
+    total: '23',
+    total_pages: '2',
+    total_participants: '88',
+    max_score: '91.5',
+    page: '2',
+    page_size: '20'
+  }, 1, 10)
+
+  assert.deepEqual(normalized, {
+    items: [{ rank: 1 }],
+    total: 23,
+    totalPages: 2,
+    totalParticipants: 88,
+    maxScore: 91.5,
+    page: 2,
+    pageSize: 20
+  })
+  assert.deepEqual(normalizeRankingPageData({ page: 0, page_size: 'bad' }, 3, 20), {
+    items: [],
+    total: 0,
+    totalPages: 0,
+    totalParticipants: 0,
+    maxScore: 0,
+    page: 3,
+    pageSize: 20
+  })
+  assert.ok(source.includes('normalizeRankingPageData'), 'ranking composable should delegate api page shape normalization')
+  assert.equal(source.includes('Number(pageData.total_pages || 0)'), false, 'ranking composable should not parse snake_case page fields inline')
 })
 
 test('frontend does not use native alert for error messages', async () => {
