@@ -3,18 +3,11 @@ import {
   DEFAULT_CONTEST_CONFIG,
   normalizeContestConfig
 } from '../config/contestDefaults.js'
-
-const formatDurationText = (remainingMs) => {
-  const safeRemainingMs = Math.max(0, remainingMs)
-  const totalSeconds = Math.floor(safeRemainingMs / 1000)
-  const days = Math.floor(totalSeconds / 86400)
-  const hours = Math.floor((totalSeconds % 86400) / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  const seconds = totalSeconds % 60
-  return `${days}天 ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-}
-
-const timestampOf = (value) => new Date(value).getTime()
+import {
+  contestPhaseAt,
+  formatDurationText,
+  timestampOf
+} from '../utils/contestTime.js'
 
 export const useContestClock = (contestConfig = DEFAULT_CONTEST_CONFIG) => {
   const currentTimeTick = ref(Date.now())
@@ -25,18 +18,7 @@ export const useContestClock = (contestConfig = DEFAULT_CONTEST_CONFIG) => {
   const competitionEndTime = computed(() => timestampOf(resolvedContestConfig.value.endAt))
 
   const competitionPhase = computed(() => {
-    const startTime = competitionStartTime.value
-    const endTime = competitionEndTime.value
-    if (!Number.isFinite(startTime) || !Number.isFinite(endTime)) {
-      return 'unknown'
-    }
-    if (currentTimeTick.value < startTime) {
-      return 'pending'
-    }
-    if (currentTimeTick.value >= endTime) {
-      return 'ended'
-    }
-    return 'running'
+    return contestPhaseAt(currentTimeTick.value, competitionStartTime.value, competitionEndTime.value)
   })
 
   const competitionCountdownLabel = computed(() => {
