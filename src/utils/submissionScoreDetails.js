@@ -1,4 +1,4 @@
-import { firstDefined } from '../utils/valueHelpers.js'
+import { firstDefined } from './valueHelpers.js'
 
 const positiveQuestionNumber = (value, fallback) => {
   const question = Number(firstDefined(value, fallback))

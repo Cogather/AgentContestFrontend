@@ -6,7 +6,7 @@ import {
   hasScoreValue,
   mergeQuestionScoreDetails,
   normalizeStatus
-} from '../components/historyScoreDetail'
+} from '../utils/submissionScoreDetails'
 import { firstDefined, formatNumber } from '../utils/valueHelpers'
 
 const HISTORY_REFRESH_INTERVAL_MS = 5000
