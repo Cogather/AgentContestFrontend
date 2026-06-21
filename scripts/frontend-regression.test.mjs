@@ -11,6 +11,7 @@ import {
   EMERGENCY_LOGIN_PATH,
   isEmergencyLoginPath,
   normalizeUserId,
+  normalizeUserIdFromRecord,
   THIRD_PARTY_USER_ID_STORAGE_KEY,
   USER_STORAGE_KEY
 } from '../src/utils/userIdentity.js'
@@ -284,6 +285,10 @@ test('frontend identity helpers are shared by app bootstrap session and API laye
 
   assert.equal(normalizeUserId('w00678227'), '00678227')
   assert.equal(normalizeUserId('1234'), '')
+  assert.equal(normalizeUserIdFromRecord({ userId: 'w00678227' }), '00678227')
+  assert.equal(normalizeUserIdFromRecord({ employee_id: '00678228' }), '00678228')
+  assert.equal(normalizeUserIdFromRecord({ workId: 'W00678229' }), '00678229')
+  assert.equal(normalizeUserIdFromRecord({ userId: '1234' }), '')
   assert.equal(isEmergencyLoginPath('/emergency-login/'), true)
   assert.equal(USER_STORAGE_KEY, 'agent_game_user')
   assert.equal(THIRD_PARTY_USER_ID_STORAGE_KEY, 'agent_game_third_party_user_id')
@@ -295,6 +300,8 @@ test('frontend identity helpers are shared by app bootstrap session and API laye
   assert.ok(profileSource.includes("from './userIdentity.js'"), 'profile normalization should reuse shared user id parsing')
   assert.equal(apiSource.includes('const normalizeUserId ='), false, 'API client should not duplicate user id parsing')
   assert.equal(mainSource.includes('const normalizeUserId ='), false, 'app bootstrap should not duplicate user id parsing')
+  assert.equal(mainSource.includes('const extractUserId ='), false, 'app bootstrap should not duplicate user id record parsing')
+  assert.ok(mainSource.includes('normalizeUserIdFromRecord(res?.data)'), 'app bootstrap should parse third-party login responses with the shared helper')
   assert.equal(sessionSource.includes('const normalizeUserId ='), false, 'session composable should not duplicate user id parsing')
   assert.equal(sessionSource.includes('const normalizeUserProfile ='), false, 'session composable should not duplicate profile normalization')
 })

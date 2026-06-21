@@ -8,6 +8,16 @@ export const normalizeUserId = (value) => {
   return normalized.length === 8 ? normalized : ''
 }
 
+export const normalizeUserIdFromRecord = (record, keys = THIRD_PARTY_USER_ID_QUERY_KEYS) => {
+  if (!record || typeof record !== 'object') {
+    return ''
+  }
+  const rawValue = keys
+    .map(key => record[key])
+    .find(value => value)
+  return normalizeUserId(rawValue)
+}
+
 export const isEmergencyLoginPath = (pathname = '') => {
   return String(pathname || '').replace(/\/+$/, '') === EMERGENCY_LOGIN_PATH
 }

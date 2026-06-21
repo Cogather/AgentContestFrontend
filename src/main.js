@@ -4,7 +4,7 @@ import './style.css'
 import App from './App.vue'
 import {
   isEmergencyLoginPath,
-  normalizeUserId,
+  normalizeUserIdFromRecord,
   THIRD_PARTY_USER_ID_STORAGE_KEY
 } from './utils/userIdentity'
 
@@ -21,20 +21,6 @@ const redirectHttpToHttps = () => {
   httpsUrl.protocol = 'https:'
   window.location.replace(httpsUrl.toString())
   return true
-}
-
-const extractUserId = (data) => {
-  if (!data || typeof data !== 'object') {
-    return ''
-  }
-  return normalizeUserId(
-    data.userId ||
-    data.user_id ||
-    data.employeeId ||
-    data.employee_id ||
-    data.workId ||
-    data.work_id
-  )
 }
 
 const redirectToLogin = () => {
@@ -64,7 +50,7 @@ const initializeApp = async () => {
 
   try {
     const res = await axios.get(LOGIN_STATUS_PATH, { withCredentials: true })
-    const userId = extractUserId(res?.data)
+    const userId = normalizeUserIdFromRecord(res?.data)
     if (userId) {
       localStorage.setItem(THIRD_PARTY_USER_ID_STORAGE_KEY, userId)
       mountApp()
