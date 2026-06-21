@@ -383,6 +383,22 @@ test('frontend loads contest config from backend with local defaults as fallback
   assert.ok(appSource.includes('contestChallengeContent'), 'App should render challenge content from contest config')
 })
 
+test('app reuses one contest schedule panel for home and login pages', async () => {
+  const appSource = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+  const scheduleSource = await readFile(new URL('../src/components/ContestSchedulePanel.vue', import.meta.url), 'utf8')
+
+  assert.ok(appSource.includes('ContestSchedulePanel'), 'App should render schedule information through a shared component')
+  assert.equal(
+    appSource.match(/<ContestSchedulePanel/g)?.length,
+    2,
+    'login and home pages should use the same schedule component'
+  )
+  assert.equal(appSource.includes('hero-schedule-copy'), false, 'App should not duplicate schedule panel internals')
+  assert.ok(scheduleSource.includes('scheduleText'), 'schedule component should own the schedule text rendering')
+  assert.ok(scheduleSource.includes('countdown-ended'), 'schedule component should keep ended-state styling')
+  assert.ok(scheduleSource.includes('hero-schedule-visual'), 'schedule component should keep the abstract visual motif')
+})
+
 test('home upload entry stays clickable and relies on click-time validation', async () => {
   const source = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
 
