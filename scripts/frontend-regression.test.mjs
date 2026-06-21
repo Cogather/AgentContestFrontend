@@ -42,7 +42,9 @@ import { requestErrorDetail, requestErrorMessage } from '../src/utils/requestErr
 import {
   getSubmissionCount,
   isTestAccountRank,
+  RANKING_COLUMN_SIZE,
   rankRowClass,
+  splitIntoRankingColumns,
   visiblePageNumbers
 } from '../src/utils/rankingDisplay.js'
 import {
@@ -274,9 +276,15 @@ test('ranking board defaults to twenty rows per page', async () => {
 
 test('ranking board splits twenty rows into two ten-row columns', async () => {
   const source = await readFile(new URL('../src/composables/useRankingBoard.js', import.meta.url), 'utf8')
+  const displaySource = await readFile(new URL('../src/utils/rankingDisplay.js', import.meta.url), 'utf8')
   const componentSource = await readFile(new URL('../src/components/RankingBoard.vue', import.meta.url), 'utf8')
+  const items = Array.from({ length: 20 }, (_, index) => ({ rank: index + 1 }))
+  const columns = splitIntoRankingColumns(items)
 
-  assert.ok(source.includes('RANKING_COLUMN_SIZE = 10'), 'ranking board should use ten rows per visual column')
+  assert.equal(RANKING_COLUMN_SIZE, 10)
+  assert.deepEqual(columns.map(column => column.length), [10, 10])
+  assert.ok(displaySource.includes('RANKING_COLUMN_SIZE = 10'), 'ranking display helper should own rows per visual column')
+  assert.ok(source.includes('splitIntoRankingColumns'), 'ranking board should delegate visual column splitting')
   assert.ok(source.includes('rankingColumns'), 'ranking board should derive visual ranking columns')
   assert.ok(componentSource.includes('class="ranking-columns"'), 'ranking board should render a two-column ranking wrapper')
   assert.ok(componentSource.includes('class="ranking-column"'), 'ranking board should render each ten-row column separately')
@@ -308,6 +316,7 @@ test('ranking display helpers keep row badges counts and visible pages reusable'
   assert.ok(source.includes("from '../utils/rankingDisplay'"), 'ranking composable should import ranking display helpers')
   assert.equal(source.includes('const isTruthyFlag ='), false, 'ranking composable should not own test account flag parsing')
   assert.equal(source.includes('const visiblePageNumbers ='), false, 'ranking composable should not own pagination window formatting')
+  assert.equal(source.includes('const RANKING_COLUMN_SIZE ='), false, 'ranking composable should not own visual column sizing')
 })
 
 test('frontend does not use native alert for error messages', async () => {

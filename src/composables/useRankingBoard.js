@@ -4,11 +4,10 @@ import {
   getSubmissionCount,
   isTestAccountRank,
   rankRowClass,
+  splitIntoRankingColumns,
   visiblePageNumbers
 } from '../utils/rankingDisplay'
 import { requestErrorMessage } from '../utils/requestErrors'
-
-const RANKING_COLUMN_SIZE = 10
 
 const emptyPersonalRank = () => ({
   rank: '-',
@@ -39,13 +38,7 @@ export const useRankingBoard = (currentUserId) => {
   const totalScore = computed(() => maxScore.value)
   const totalPages = computed(() => totalPagesCount.value)
   const paginatedList = computed(() => rankingList.value)
-  const rankingColumns = computed(() => {
-    const columns = []
-    for (let index = 0; index < paginatedList.value.length; index += RANKING_COLUMN_SIZE) {
-      columns.push(paginatedList.value.slice(index, index + RANKING_COLUMN_SIZE))
-    }
-    return columns
-  })
+  const rankingColumns = computed(() => splitIntoRankingColumns(paginatedList.value))
   const visiblePages = computed(() => visiblePageNumbers(totalPages.value, currentPage.value))
 
   const sortIconFor = (field) => {
