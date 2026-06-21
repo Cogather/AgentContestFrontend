@@ -6,6 +6,16 @@ import {
   canShowScoreDetail,
   mergeQuestionScoreDetails
 } from '../src/utils/submissionScoreDetails.js'
+import {
+  canCancelSubmission,
+  detailStatusText,
+  failureReason,
+  queueAheadCount,
+  scoreDetailUnavailableText,
+  statusText,
+  submissionCreatedTime,
+  submissionId
+} from '../src/utils/submissionDisplay.js'
 import { useContestClock } from '../src/composables/useContestClock.js'
 import {
   EMERGENCY_LOGIN_PATH,
@@ -129,6 +139,30 @@ test('contest time helpers keep phase and duration rules reusable', () => {
   assert.equal(contestPhaseAt(start, Number.NaN, end), 'unknown')
   assert.equal(formatDurationText(90061000), '1天 01:01:01')
   assert.equal(formatDurationText(-1), '0天 00:00:00')
+})
+
+test('submission display helpers normalize ids status text and failure reasons', () => {
+  const queuedSubmission = {
+    submissionId: 'abc123',
+    status: 'UPLOADED',
+    queue_position: 4,
+    createdAt: '2026-06-01T10:00:00+08:00'
+  }
+  const failedSubmission = {
+    id: 'failed-1',
+    status: 'FAILED',
+    message: '第一行\\n第二行'
+  }
+
+  assert.equal(submissionId(queuedSubmission), 'abc123')
+  assert.equal(submissionCreatedTime(queuedSubmission), queuedSubmission.createdAt)
+  assert.equal(queueAheadCount(queuedSubmission), 3)
+  assert.equal(statusText(queuedSubmission.status, queuedSubmission), '排队中... 前边还有 3 笔提交在排队')
+  assert.equal(canCancelSubmission(queuedSubmission), true)
+  assert.equal(canCancelSubmission({ id: 'abc123', status: 'EVALUATING' }), false)
+  assert.equal(failureReason(failedSubmission), '第一行\n第二行')
+  assert.equal(detailStatusText(failedSubmission), '失败：第一行\n第二行')
+  assert.equal(scoreDetailUnavailableText({ status: 'UPLOADED' }), '待评测')
 })
 
 test('frontend request error formatting is shared instead of duplicated in composables', async () => {
@@ -461,6 +495,7 @@ test('history score detail trigger has a visible button affordance', async () =>
 test('history page displays submission id for every record', async () => {
   const source = await readFile(new URL('../src/components/HistoryPage.vue', import.meta.url), 'utf8')
   const historySource = await readFile(new URL('../src/composables/useSubmissionHistory.js', import.meta.url), 'utf8')
+  const displaySource = await readFile(new URL('../src/utils/submissionDisplay.js', import.meta.url), 'utf8')
 
   assert.ok(source.includes('提交 ID'), 'history table should include a submission id header')
   assert.ok(source.includes('submissionId(item)'), 'history rows should read backend submission id through a field-compatible helper')
@@ -468,26 +503,28 @@ test('history page displays submission id for every record', async () => {
   assert.ok(source.includes('submissionCreatedTime(item)'), 'history rows should read backend createdAt as the submitted time')
   assert.ok(source.includes('submission-id-badge'), 'history rows should make submission id visually distinct')
   assert.ok(source.includes("{{ submissionId(item) ? '#' + submissionId(item) : '-' }}"), 'history rows should render backend submission id')
-  assert.ok(historySource.includes('item?.submission_id'), 'history rows should tolerate snake_case submission id fields')
-  assert.ok(historySource.includes('item?.submissionId'), 'history rows should tolerate camelCase submission id fields')
+  assert.ok(historySource.includes("from '../utils/submissionDisplay'"), 'history composable should import shared submission display helpers')
+  assert.ok(displaySource.includes('item?.submission_id'), 'history rows should tolerate snake_case submission id fields')
+  assert.ok(displaySource.includes('item?.submissionId'), 'history rows should tolerate camelCase submission id fields')
 })
 
 test('history page shows uploaded submissions as queued with queue-ahead count', async () => {
   const source = await readFile(new URL('../src/components/HistoryPage.vue', import.meta.url), 'utf8')
-  const historySource = await readFile(new URL('../src/composables/useSubmissionHistory.js', import.meta.url), 'utf8')
+  const displaySource = await readFile(new URL('../src/utils/submissionDisplay.js', import.meta.url), 'utf8')
 
-  assert.ok(historySource.includes("uploaded: '排队中...'"), 'history page should display uploaded status as 排队中...')
-  assert.ok(historySource.includes("`${statusTextMap.uploaded} 前边还有 ${count} 笔提交在排队`"), 'history page should show queue-ahead copy with readable spacing')
-  assert.ok(historySource.includes('queueAheadCount'), 'history page should derive the queue-ahead count for queued submissions')
-  assert.ok(historySource.includes('item?.queue_ahead'), 'history page should tolerate snake_case queue-ahead fields')
-  assert.ok(historySource.includes('item?.queueAhead'), 'history page should tolerate camelCase queue-ahead fields')
-  assert.ok(historySource.includes('前边还有 ${count} 笔提交在排队'), 'history page should render the queue-ahead count in Chinese')
+  assert.ok(displaySource.includes("uploaded: '排队中...'"), 'history page should display uploaded status as 排队中...')
+  assert.ok(displaySource.includes("`${statusTextMap.uploaded} 前边还有 ${count} 笔提交在排队`"), 'history page should show queue-ahead copy with readable spacing')
+  assert.ok(displaySource.includes('queueAheadCount'), 'history page should derive the queue-ahead count for queued submissions')
+  assert.ok(displaySource.includes('item?.queue_ahead'), 'history page should tolerate snake_case queue-ahead fields')
+  assert.ok(displaySource.includes('item?.queueAhead'), 'history page should tolerate camelCase queue-ahead fields')
+  assert.ok(displaySource.includes('前边还有 ${count} 笔提交在排队'), 'history page should render the queue-ahead count in Chinese')
   assert.ok(source.includes('statusText(item.status, item)'), 'history table should render the derived status text')
 })
 
 test('history page only allows canceling queued submissions', async () => {
   const source = await readFile(new URL('../src/components/HistoryPage.vue', import.meta.url), 'utf8')
   const historySource = await readFile(new URL('../src/composables/useSubmissionHistory.js', import.meta.url), 'utf8')
+  const displaySource = await readFile(new URL('../src/utils/submissionDisplay.js', import.meta.url), 'utf8')
   const apiSource = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
   const appSource = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
 
@@ -496,13 +533,13 @@ test('history page only allows canceling queued submissions', async () => {
     'frontend API should call the signed-session cancel endpoint'
   )
   assert.ok(
-    historySource.includes("String(item?.status || '').toLowerCase() === 'uploaded'"),
+    displaySource.includes("String(item?.status || '').toLowerCase() === 'uploaded'"),
     'cancel button should only be available while the submission is queued'
   )
   assert.ok(source.includes('cancel-submission-btn'), 'history page should render a visible cancel action')
   assert.ok(source.includes('取消中...'), 'cancel action should show a pending state')
-  assert.equal(historySource.includes("toLowerCase() === 'evaluating'"), false, 'evaluating submissions must not be cancelable')
-  assert.equal(historySource.includes("toLowerCase() === 'failed'"), false, 'failed submissions must not be cancelable')
+  assert.equal(displaySource.includes("toLowerCase() === 'evaluating'"), false, 'evaluating submissions must not be cancelable')
+  assert.equal(displaySource.includes("toLowerCase() === 'failed'"), false, 'failed submissions must not be cancelable')
   assert.ok(source.includes("defineEmits(['back', 'canceled'])"), 'history page should emit an event after successful cancellation')
   assert.ok(source.includes("onCanceled: payload => emit('canceled', payload)"), 'history page should forward cancellation events from the composable')
   assert.ok(historySource.includes('onCanceled?.({ submissionId: id })'), 'cancel success should notify parent views with the canceled submission id')
