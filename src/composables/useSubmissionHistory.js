@@ -1,6 +1,7 @@
 import { computed, onMounted, onUnmounted, ref, unref, watch } from 'vue'
 import { userApi } from '../api'
 import { useIntervalTimer } from './useIntervalTimer'
+import { useTransientValue } from './useTransientValue'
 import {
   canShowScoreDetail,
   getTokenUsage,
@@ -29,7 +30,8 @@ export const useSubmissionHistory = ({ userId, username, onCanceled } = {}) => {
   const submissions = ref([])
   const loading = ref(false)
   const errorMessage = ref('')
-  const toastMessage = ref('')
+  const toast = useTransientValue('')
+  const toastMessage = toast.value
   const detailItem = ref(null)
   const selectedQuestion = ref(1)
   const cancelingSubmissionId = ref('')
@@ -37,7 +39,6 @@ export const useSubmissionHistory = ({ userId, username, onCanceled } = {}) => {
     queuedCount: null,
     evaluatingCount: null
   })
-  let toastTimer = null
   let historyRefreshInFlight = false
   const historyRefreshTimer = useIntervalTimer(() => {
     loadHistory({ silent: true })
@@ -108,14 +109,7 @@ export const useSubmissionHistory = ({ userId, username, onCanceled } = {}) => {
   }
 
   const showToast = (message) => {
-    toastMessage.value = message
-    if (toastTimer) {
-      clearTimeout(toastTimer)
-    }
-    toastTimer = setTimeout(() => {
-      toastMessage.value = ''
-      toastTimer = null
-    }, 2600)
+    toast.show(message, 2600)
   }
 
   const isCancelingSubmission = (item) => {
@@ -198,9 +192,6 @@ export const useSubmissionHistory = ({ userId, username, onCanceled } = {}) => {
 
   onUnmounted(() => {
     stopHistoryAutoRefresh()
-    if (toastTimer) {
-      clearTimeout(toastTimer)
-    }
   })
 
   return {
