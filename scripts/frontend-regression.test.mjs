@@ -53,6 +53,10 @@ import {
   UPLOAD_LIMIT_TEXT
 } from '../src/utils/uploadFileRules.js'
 import {
+  buildLoginRedirectUrl,
+  redirectHttpToHttps
+} from '../src/utils/appBootstrap.js'
+import {
   contestPhaseAt,
   formatDurationText,
   timestampOf
@@ -508,21 +512,40 @@ test('optional contest config fallback does not log noisy API errors', async () 
 })
 
 test('login redirect supports relative and absolute login URLs', async () => {
-  const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8')
+  const source = await readFile(new URL('../src/utils/appBootstrap.js', import.meta.url), 'utf8')
 
-  assert.ok(source.includes('new URL(LOGIN_PAGE_URL, window.location.origin)'), 'login redirect should not throw when login page URL is relative')
+  assert.ok(source.includes('new URL(loginPageUrl, origin)'), 'login redirect should not throw when login page URL is relative')
+  assert.equal(
+    buildLoginRedirectUrl('/auth/login', 'https://contest.example/history', 'https://contest.example').toString(),
+    'https://contest.example/auth/login?redirect=https%3A%2F%2Fcontest.example%2Fhistory'
+  )
+  assert.equal(
+    buildLoginRedirectUrl('https://login.example/core_config/', 'https://contest.example/', 'https://contest.example').toString(),
+    'https://login.example/core_config/?redirect=https%3A%2F%2Fcontest.example%2F'
+  )
 })
 
 test('frontend redirects non-local http traffic to https before app startup', async () => {
-  const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8')
+  const mainSource = await readFile(new URL('../src/main.js', import.meta.url), 'utf8')
+  const source = await readFile(new URL('../src/utils/appBootstrap.js', import.meta.url), 'utf8')
+  const replacements = []
 
   assert.ok(source.includes('redirectHttpToHttps'), 'entrypoint should define an http-to-https redirect guard')
-  assert.ok(source.includes("window.location.protocol !== 'http:'"), 'redirect guard should only act on http pages')
+  assert.ok(source.includes("location.protocol !== 'http:'"), 'redirect guard should only act on http pages')
   assert.ok(source.includes('LOCAL_HTTP_HOSTS'), 'redirect guard should keep local development on http')
   assert.ok(source.includes("httpsUrl.protocol = 'https:'"), 'redirect guard should preserve the current URL and switch only the protocol')
-  assert.ok(source.includes('window.location.replace(httpsUrl.toString())'), 'redirect guard should replace the current http URL')
+  assert.ok(source.includes('replace(httpsUrl.toString())'), 'redirect guard should replace the current http URL')
+  assert.equal(redirectHttpToHttps({
+    location: new URL('http://contest.example/history'),
+    replace: value => replacements.push(value)
+  }), true)
+  assert.deepEqual(replacements, ['https://contest.example/history'])
+  assert.equal(redirectHttpToHttps({
+    location: new URL('http://127.0.0.1:5173/history'),
+    replace: value => replacements.push(value)
+  }), false)
   assert.ok(
-    source.indexOf('redirectHttpToHttps()') < source.indexOf('initializeApp()'),
+    mainSource.indexOf('redirectHttpToHttps()') < mainSource.indexOf('initializeApp()'),
     'http-to-https redirect should run before app initialization'
   )
 })
