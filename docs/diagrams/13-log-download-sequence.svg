@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 720" width="1120" height="720">
+<style>
+text { font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #111827; }
+.title { font-size: 24px; font-weight: 700; }
+.label { font-size: 14px; font-weight: 650; }
+.small { font-size: 11px; fill: #6b7280; }
+.tiny { font-size: 10px; fill: #6b7280; }
+.entity-header { font-size: 14px; font-weight: 700; }
+.field { font-size: 11px; fill: #374151; }
+</style>
+<defs>
+<marker id="arrow-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#2563eb"/>
+</marker>
+<marker id="arrow-red" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#dc2626"/>
+</marker>
+<marker id="arrow-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#16a34a"/>
+</marker>
+<marker id="arrow-purple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#9333ea"/>
+</marker>
+<marker id="arrow-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#ea580c"/>
+</marker>
+<marker id="arrow-gray" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#6b7280"/>
+</marker>
+<filter id="softShadow" x="-10%" y="-10%" width="120%" height="130%">
+<feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#111827" flood-opacity="0.08"/>
+</filter>
+</defs>
+<rect width="1120" height="720" fill="#ffffff"/>
+<text x="40" y="42" class="title">Sequence: Submission Log Download</text>
+<rect x="23" y="82" width="144" height="46" rx="8" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="95" y="110" text-anchor="middle" class="label">Python Script</text>
+<line x1="95" y1="128" x2="95" y2="646" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6,5"/>
+<rect x="213" y="82" width="144" height="46" rx="8" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="285" y="110" text-anchor="middle" class="label">LogController</text>
+<line x1="285" y1="128" x2="285" y2="646" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6,5"/>
+<rect x="408" y="82" width="144" height="46" rx="8" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="480" y="110" text-anchor="middle" class="label">LogService</text>
+<line x1="480" y1="128" x2="480" y2="646" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6,5"/>
+<rect x="603" y="82" width="144" height="46" rx="8" fill="#faf5ff" stroke="#e9d5ff" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="675" y="110" text-anchor="middle" class="label">SubmissionRepo</text>
+<line x1="675" y1="128" x2="675" y2="646" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6,5"/>
+<rect x="773" y="82" width="144" height="46" rx="8" fill="#f9fafb" stroke="#d1d5db" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="845" y="110" text-anchor="middle" class="label">MySQL</text>
+<line x1="845" y1="128" x2="845" y2="646" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6,5"/>
+<rect x="963" y="82" width="144" height="46" rx="8" fill="#fff7ed" stroke="#fed7aa" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="1035" y="110" text-anchor="middle" class="label">Log Mounts</text>
+<line x1="1035" y1="128" x2="1035" y2="646" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6,5"/>
+<path d="M 95 170 L 285 170" fill="none" stroke="#2563eb" stroke-width="1.7" marker-end="url(#arrow-blue)"/>
+<rect x="107.0" y="148" width="166" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="190.0" y="161" text-anchor="middle" class="tiny">GET /download?id&amp;key</text>
+<path d="M 285 220 L 285 220" fill="none" stroke="#dc2626" stroke-width="1.7" marker-end="url(#arrow-red)"/>
+<rect x="191.5" y="198" width="187" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="285.0" y="211" text-anchor="middle" class="tiny">constant-time key check</text>
+<rect x="48" y="250" width="1020" height="250" rx="8" fill="#16a34a" fill-opacity="0.035" stroke="#16a34a" stroke-width="1.2" stroke-dasharray="7,5"/>
+<rect x="58" y="239" width="207" height="22" rx="11" fill="#ffffff" stroke="#16a34a" stroke-width="1"/>
+<text x="68" y="254" class="tiny" fill="#16a34a">Find mounted submission log</text>
+<path d="M 285 285 L 480 285" fill="none" stroke="#16a34a" stroke-width="1.7" marker-end="url(#arrow-green)"/>
+<rect x="317.0" y="263" width="131" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="382.5" y="276" text-anchor="middle" class="tiny">loadLogFile(id)</text>
+<path d="M 480 330 L 675 330" fill="none" stroke="#16a34a" stroke-width="1.7" marker-end="url(#arrow-green)"/>
+<rect x="515.5" y="308" width="124" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="577.5" y="321" text-anchor="middle" class="tiny">existsById(id)</text>
+<path d="M 675 375 L 845 375" fill="none" stroke="#16a34a" stroke-width="1.7" marker-end="url(#arrow-green)"/>
+<rect x="684.0" y="353" width="152" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="760.0" y="366" text-anchor="middle" class="tiny">submission exists?</text>
+<path d="M 480 420 L 1035 420" fill="none" stroke="#ea580c" stroke-width="1.7" marker-end="url(#arrow-orange)"/>
+<rect x="664.0" y="398" width="187" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="757.5" y="411" text-anchor="middle" class="tiny">scan templates in order</text>
+<path d="M 1035 465 L 480 465" fill="none" stroke="#6b7280" stroke-width="1.7" marker-end="url(#arrow-gray)" stroke-dasharray="5,4"/>
+<rect x="674.5" y="443" width="166" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="757.5" y="456" text-anchor="middle" class="tiny">first readable *.log</text>
+<path d="M 480 510 L 285 510" fill="none" stroke="#6b7280" stroke-width="1.7" marker-end="url(#arrow-gray)" stroke-dasharray="5,4"/>
+<rect x="306.5" y="488" width="152" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="382.5" y="501" text-anchor="middle" class="tiny">FileSystemResource</text>
+<path d="M 285 555 L 95 555" fill="none" stroke="#6b7280" stroke-width="1.7" marker-end="url(#arrow-gray)" stroke-dasharray="5,4"/>
+<rect x="117.5" y="533" width="145" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="190.0" y="546" text-anchor="middle" class="tiny">attachment stream</text>
+<rect x="60" y="610" width="980" height="36" rx="8" fill="#dc2626" fill-opacity="0.035" stroke="#dc2626" stroke-width="1.2" stroke-dasharray="7,5"/>
+<rect x="70" y="599" width="746" height="22" rx="11" fill="#ffffff" stroke="#dc2626" stroke-width="1"/>
+<text x="80" y="614" class="tiny" fill="#dc2626">Not found path: missing submission, unreadable mount, or no *.log in configured {submissionId} directory</text>
+</svg>

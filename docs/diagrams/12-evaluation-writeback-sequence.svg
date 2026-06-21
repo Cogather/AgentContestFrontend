@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1220 800" width="1220" height="800">
+<style>
+text { font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #111827; }
+.title { font-size: 24px; font-weight: 700; }
+.label { font-size: 14px; font-weight: 650; }
+.small { font-size: 11px; fill: #6b7280; }
+.tiny { font-size: 10px; fill: #6b7280; }
+.entity-header { font-size: 14px; font-weight: 700; }
+.field { font-size: 11px; fill: #374151; }
+</style>
+<defs>
+<marker id="arrow-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#2563eb"/>
+</marker>
+<marker id="arrow-red" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#dc2626"/>
+</marker>
+<marker id="arrow-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#16a34a"/>
+</marker>
+<marker id="arrow-purple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#9333ea"/>
+</marker>
+<marker id="arrow-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#ea580c"/>
+</marker>
+<marker id="arrow-gray" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#6b7280"/>
+</marker>
+<filter id="softShadow" x="-10%" y="-10%" width="120%" height="130%">
+<feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#111827" flood-opacity="0.08"/>
+</filter>
+</defs>
+<rect width="1220" height="800" fill="#ffffff"/>
+<text x="40" y="42" class="title">Sequence: Evaluation Writeback &amp; Score Detail Display</text>
+<rect x="18" y="82" width="144" height="46" rx="8" fill="#fff7ed" stroke="#fed7aa" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="90" y="110" text-anchor="middle" class="label">Judge</text>
+<line x1="90" y1="128" x2="90" y2="726" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6,5"/>
+<rect x="183" y="82" width="144" height="46" rx="8" fill="#faf5ff" stroke="#e9d5ff" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="255" y="110" text-anchor="middle" class="label">Program</text>
+<line x1="255" y1="128" x2="255" y2="726" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6,5"/>
+<rect x="358" y="82" width="144" height="46" rx="8" fill="#f9fafb" stroke="#d1d5db" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="430" y="110" text-anchor="middle" class="label">Model Gateway</text>
+<line x1="430" y1="128" x2="430" y2="726" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6,5"/>
+<rect x="538" y="82" width="144" height="46" rx="8" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="610" y="110" text-anchor="middle" class="label">MySQL</text>
+<line x1="610" y1="128" x2="610" y2="726" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6,5"/>
+<rect x="718" y="82" width="144" height="46" rx="8" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="790" y="110" text-anchor="middle" class="label">User API</text>
+<line x1="790" y1="128" x2="790" y2="726" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6,5"/>
+<rect x="898" y="82" width="144" height="46" rx="8" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="970" y="110" text-anchor="middle" class="label">HistoryPage</text>
+<line x1="970" y1="128" x2="970" y2="726" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6,5"/>
+<rect x="1068" y="82" width="144" height="46" rx="8" fill="#faf5ff" stroke="#e9d5ff" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="1140" y="110" text-anchor="middle" class="label">Detail Modal</text>
+<line x1="1140" y1="128" x2="1140" y2="726" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6,5"/>
+<rect x="48" y="150" width="1125" height="310" rx="8" fill="#ea580c" fill-opacity="0.035" stroke="#ea580c" stroke-width="1.2" stroke-dasharray="7,5"/>
+<rect x="58" y="139" width="109" height="22" rx="11" fill="#ffffff" stroke="#ea580c" stroke-width="1"/>
+<text x="68" y="154" class="tiny" fill="#ea580c">Judge runtime</text>
+<path d="M 90 185 L 610 185" fill="none" stroke="#16a34a" stroke-width="1.7" marker-end="url(#arrow-green)"/>
+<rect x="245.0" y="163" width="210" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="350.0" y="176" text-anchor="middle" class="tiny">claim UPLOADED -&gt; EVALUATING</text>
+<path d="M 90 230 L 255 230" fill="none" stroke="#ea580c" stroke-width="1.7" marker-end="url(#arrow-orange)"/>
+<rect x="79.0" y="208" width="187" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="172.5" y="221" text-anchor="middle" class="tiny">run start.sh with tasks</text>
+<path d="M 255 275 L 430 275" fill="none" stroke="#ea580c" stroke-width="1.7" marker-end="url(#arrow-orange)"/>
+<rect x="287.5" y="253" width="110" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="342.5" y="266" text-anchor="middle" class="tiny">LLM requests</text>
+<path d="M 430 320 L 255 320" fill="none" stroke="#6b7280" stroke-width="1.7" marker-end="url(#arrow-gray)" stroke-dasharray="5,4"/>
+<rect x="252.5" y="298" width="180" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="342.5" y="311" text-anchor="middle" class="tiny">model answers + tokens</text>
+<path d="M 255 365 L 90 365" fill="none" stroke="#6b7280" stroke-width="1.7" marker-end="url(#arrow-gray)" stroke-dasharray="5,4"/>
+<rect x="117.5" y="343" width="110" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="172.5" y="356" text-anchor="middle" class="tiny">task outputs</text>
+<path d="M 90 410 L 610 410" fill="none" stroke="#16a34a" stroke-width="1.7" marker-end="url(#arrow-green)"/>
+<rect x="245.0" y="388" width="210" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="350.0" y="401" text-anchor="middle" class="tiny">score, score_detail, token_usage</text>
+<rect x="48" y="505" width="1125" height="190" rx="8" fill="#9333ea" fill-opacity="0.035" stroke="#9333ea" stroke-width="1.2" stroke-dasharray="7,5"/>
+<rect x="58" y="494" width="158" height="22" rx="11" fill="#ffffff" stroke="#9333ea" stroke-width="1"/>
+<text x="68" y="509" class="tiny" fill="#9333ea">Frontend detail view</text>
+<path d="M 970 540 L 790 540" fill="none" stroke="#2563eb" stroke-width="1.7" marker-end="url(#arrow-blue)"/>
+<rect x="800.5" y="518" width="159" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="880.0" y="531" text-anchor="middle" class="tiny">GET /me/submissions</text>
+<path d="M 790 585 L 610 585" fill="none" stroke="#16a34a" stroke-width="1.7" marker-end="url(#arrow-green)"/>
+<rect x="595.0" y="563" width="210" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="700.0" y="576" text-anchor="middle" class="tiny">submissions + question_details</text>
+<path d="M 790 630 L 970 630" fill="none" stroke="#6b7280" stroke-width="1.7" marker-end="url(#arrow-gray)" stroke-dasharray="5,4"/>
+<rect x="807.5" y="608" width="145" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="880.0" y="621" text-anchor="middle" class="tiny">score_detail JSON</text>
+<path d="M 970 675 L 1140 675" fill="none" stroke="#9333ea" stroke-width="1.7" marker-end="url(#arrow-purple)"/>
+<rect x="972.0" y="653" width="166" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="1055.0" y="666" text-anchor="middle" class="tiny">merge by question id</text>
+<rect x="80" y="725" width="1040" height="36" rx="8" fill="#dc2626" fill-opacity="0.035" stroke="#dc2626" stroke-width="1.2" stroke-dasharray="7,5"/>
+<rect x="90" y="714" width="739" height="22" rx="11" fill="#ffffff" stroke="#dc2626" stroke-width="1"/>
+<text x="100" y="729" class="tiny" fill="#dc2626">Missing or malformed score_detail: frontend keeps the record visible and shows available status/message</text>
+</svg>

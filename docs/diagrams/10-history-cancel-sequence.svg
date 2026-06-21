@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1370 850" width="1370" height="850">
+<style>
+text { font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #111827; }
+.title { font-size: 24px; font-weight: 700; }
+.label { font-size: 14px; font-weight: 650; }
+.small { font-size: 11px; fill: #6b7280; }
+.tiny { font-size: 10px; fill: #6b7280; }
+.entity-header { font-size: 14px; font-weight: 700; }
+.field { font-size: 11px; fill: #374151; }
+</style>
+<defs>
+<marker id="arrow-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#2563eb"/>
+</marker>
+<marker id="arrow-red" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#dc2626"/>
+</marker>
+<marker id="arrow-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#16a34a"/>
+</marker>
+<marker id="arrow-purple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#9333ea"/>
+</marker>
+<marker id="arrow-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#ea580c"/>
+</marker>
+<marker id="arrow-gray" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#6b7280"/>
+</marker>
+<filter id="softShadow" x="-10%" y="-10%" width="120%" height="130%">
+<feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#111827" flood-opacity="0.08"/>
+</filter>
+</defs>
+<rect width="1370" height="850" fill="#ffffff"/>
+<text x="40" y="42" class="title">Sequence: History Refresh &amp; Cancel Queued Submission</text>
+<rect x="18" y="82" width="144" height="46" rx="8" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="90" y="110" text-anchor="middle" class="label">HistoryPage</text>
+<line x1="90" y1="128" x2="90" y2="776" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6,5"/>
+<rect x="178" y="82" width="144" height="46" rx="8" fill="#fff7ed" stroke="#fed7aa" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="250" y="110" text-anchor="middle" class="label">Axios</text>
+<line x1="250" y1="128" x2="250" y2="776" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6,5"/>
+<rect x="353" y="82" width="144" height="46" rx="8" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="425" y="110" text-anchor="middle" class="label">UserController</text>
+<line x1="425" y1="128" x2="425" y2="776" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6,5"/>
+<rect x="538" y="82" width="144" height="46" rx="8" fill="#fef2f2" stroke="#fecaca" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="610" y="110" text-anchor="middle" class="label">SessionService</text>
+<line x1="610" y1="128" x2="610" y2="776" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6,5"/>
+<rect x="713" y="82" width="144" height="46" rx="8" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="785" y="110" text-anchor="middle" class="label">UserService</text>
+<line x1="785" y1="128" x2="785" y2="776" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6,5"/>
+<rect x="898" y="82" width="144" height="46" rx="8" fill="#faf5ff" stroke="#e9d5ff" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="970" y="110" text-anchor="middle" class="label">SubmissionRepo</text>
+<line x1="970" y1="128" x2="970" y2="776" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6,5"/>
+<rect x="1058" y="82" width="144" height="46" rx="8" fill="#f9fafb" stroke="#d1d5db" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="1130" y="110" text-anchor="middle" class="label">MySQL</text>
+<line x1="1130" y1="128" x2="1130" y2="776" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6,5"/>
+<rect x="1218" y="82" width="144" height="46" rx="8" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="1290" y="110" text-anchor="middle" class="label">RankingBoard</text>
+<line x1="1290" y1="128" x2="1290" y2="776" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6,5"/>
+<rect x="45" y="150" width="1280" height="245" rx="8" fill="#2563eb" fill-opacity="0.035" stroke="#2563eb" stroke-width="1.2" stroke-dasharray="7,5"/>
+<rect x="55" y="139" width="158" height="22" rx="11" fill="#ffffff" stroke="#2563eb" stroke-width="1"/>
+<text x="65" y="154" class="tiny" fill="#2563eb">History auto refresh</text>
+<path d="M 90 185 L 250 185" fill="none" stroke="#2563eb" stroke-width="1.7" marker-end="url(#arrow-blue)"/>
+<rect x="65.0" y="163" width="210" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="170.0" y="176" text-anchor="middle" class="tiny">GET /api/users/me/submissions</text>
+<path d="M 250 225 L 425 225" fill="none" stroke="#2563eb" stroke-width="1.7" marker-end="url(#arrow-blue)"/>
+<rect x="272.0" y="203" width="131" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="337.5" y="216" text-anchor="middle" class="tiny">history request</text>
+<path d="M 425 265 L 610 265" fill="none" stroke="#dc2626" stroke-width="1.7" marker-end="url(#arrow-red)"/>
+<rect x="434.5" y="243" width="166" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="517.5" y="256" text-anchor="middle" class="tiny">requireSessionUser()</text>
+<path d="M 425 305 L 785 305" fill="none" stroke="#16a34a" stroke-width="1.7" marker-end="url(#arrow-green)"/>
+<rect x="518.5" y="283" width="173" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="605.0" y="296" text-anchor="middle" class="tiny">listSubmissions(user)</text>
+<path d="M 785 345 L 970 345" fill="none" stroke="#16a34a" stroke-width="1.7" marker-end="url(#arrow-green)"/>
+<rect x="791.0" y="323" width="173" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="877.5" y="336" text-anchor="middle" class="tiny">findByUser order desc</text>
+<path d="M 785 385 L 970 385" fill="none" stroke="#16a34a" stroke-width="1.7" marker-end="url(#arrow-green)"/>
+<rect x="784.0" y="363" width="187" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="877.5" y="376" text-anchor="middle" class="tiny">countAhead for UPLOADED</text>
+<path d="M 425 425 L 90 425" fill="none" stroke="#6b7280" stroke-width="1.7" marker-end="url(#arrow-gray)" stroke-dasharray="5,4"/>
+<rect x="181.5" y="403" width="152" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="257.5" y="416" text-anchor="middle" class="tiny">items + queueAhead</text>
+<rect x="45" y="465" width="1280" height="275" rx="8" fill="#dc2626" fill-opacity="0.035" stroke="#dc2626" stroke-width="1.2" stroke-dasharray="7,5"/>
+<rect x="55" y="454" width="158" height="22" rx="11" fill="#ffffff" stroke="#dc2626" stroke-width="1"/>
+<text x="65" y="469" class="tiny" fill="#dc2626">Cancel only UPLOADED</text>
+<path d="M 90 500 L 250 500" fill="none" stroke="#2563eb" stroke-width="1.7" marker-end="url(#arrow-blue)"/>
+<rect x="65.0" y="478" width="210" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="170.0" y="491" text-anchor="middle" class="tiny">POST /me/submissions/{id}/cancel</text>
+<path d="M 250 540 L 425 540" fill="none" stroke="#2563eb" stroke-width="1.7" marker-end="url(#arrow-blue)"/>
+<rect x="275.5" y="518" width="124" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="337.5" y="531" text-anchor="middle" class="tiny">cancel request</text>
+<path d="M 425 580 L 610 580" fill="none" stroke="#dc2626" stroke-width="1.7" marker-end="url(#arrow-red)"/>
+<rect x="434.5" y="558" width="166" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="517.5" y="571" text-anchor="middle" class="tiny">requireSessionUser()</text>
+<path d="M 425 620 L 785 620" fill="none" stroke="#16a34a" stroke-width="1.7" marker-end="url(#arrow-green)"/>
+<rect x="504.5" y="598" width="201" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="605.0" y="611" text-anchor="middle" class="tiny">cancelSubmission(user,id)</text>
+<path d="M 785 660 L 970 660" fill="none" stroke="#16a34a" stroke-width="1.7" marker-end="url(#arrow-green)"/>
+<rect x="798.0" y="638" width="159" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="877.5" y="651" text-anchor="middle" class="tiny">find id + ownership</text>
+<path d="M 970 700 L 1130 700" fill="none" stroke="#16a34a" stroke-width="1.7" marker-end="url(#arrow-green)"/>
+<rect x="977.5" y="678" width="145" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="1050.0" y="691" text-anchor="middle" class="tiny">status = CANCELED</text>
+<path d="M 425 740 L 90 740" fill="none" stroke="#6b7280" stroke-width="1.7" marker-end="url(#arrow-gray)" stroke-dasharray="5,4"/>
+<rect x="185.0" y="718" width="145" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="257.5" y="731" text-anchor="middle" class="tiny">canceled response</text>
+<path d="M 90 780 L 1290 780" fill="none" stroke="#9333ea" stroke-width="1.7" marker-end="url(#arrow-purple)"/>
+<rect x="586.0" y="758" width="208" height="18" rx="9" fill="#ffffff" opacity="0.95"/>
+<text x="690.0" y="771" text-anchor="middle" class="tiny">emit canceled -&gt; refresh()</text>
+</svg>

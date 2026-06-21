@@ -1,495 +1,72 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue'
-import { userApi } from './api'
 import UploadModal from './components/UploadModal.vue'
 import HistoryPage from './components/HistoryPage.vue'
 import RankingBoard from './components/RankingBoard.vue'
 import IconSymbol from './components/IconSymbol.vue'
 import ErrorModal from './components/ErrorModal.vue'
-import { getLatestCooldownSubmissionTime } from './utils/submissionCooldown'
-
-// 参赛题目
-const challengeContent = ref(`欢迎参加 Agent 大赛！
-
-本次大赛主题：通用 Agent 设计挑战
-
-任务目标：
-设计并实现一个能够完成多样化任务的通用 Agent 系统，参赛者需要让 Agent 通过我们提供的评测集，根据任务完成情况和得分进行排名。
-
-评分标准：
-- 任务完成度
-- 任务得分
-- 完成时间
-
-祝各位参赛者取得好成绩！`)
-
-const USER_STORAGE_KEY = 'agent_game_user'
-const THIRD_PARTY_USER_ID_STORAGE_KEY = 'agent_game_third_party_user_id'
-const THIRD_PARTY_USER_ID_QUERY_KEYS = ['user_id', 'userId', 'employee_id', 'employeeId', 'work_id', 'workId']
-const EMERGENCY_LOGIN_PATH = '/emergency-login'
+import { useContestConfig } from './composables/useContestConfig'
+import { useContestClock } from './composables/useContestClock'
+import { useErrorDialog } from './composables/useErrorDialog'
+import { useUserSession } from './composables/useUserSession'
 
 // 用户配置
-const currentUser = ref(null)
-const sessionReady = ref(false)
 const showUploadModal = ref(false)
 const showHistoryPage = ref(false)
 const rankingBoardRef = ref(null)
-const errorDialog = ref({
-  visible: false,
-  message: ''
-})
-const registerForm = ref({
-  user_id: '',
-  username: ''
-})
-const registerLoading = ref(false)
-const registerError = ref('')
-const isEmergencyLoginPage = ref(window.location.pathname.replace(/\/+$/, '') === EMERGENCY_LOGIN_PATH)
-const UPLOAD_INTERVAL_MS = 30 * 60 * 1000
-const COMPETITION_START_AT = import.meta.env.VITE_COMPETITION_START_AT || '2026-05-24T08:00:00-07:00'
-const COMPETITION_END_AT = import.meta.env.VITE_COMPETITION_END_AT || '2026-06-15T00:00:00-07:00'
-const COMPETITION_SCHEDULE_TEXT = import.meta.env.VITE_COMPETITION_SCHEDULE_TEXT || '2026/5/24 8:00--2026/6/14'
-const competitionStartDate = new Date(COMPETITION_START_AT)
-const competitionEndDate = new Date(COMPETITION_END_AT)
-const uploadCooldownEndsAt = ref(0)
-const cooldownTick = ref(Date.now())
-const isUploadCooldownLoading = ref(false)
-const canceledCooldownSubmissionIds = ref(new Set())
-let cooldownTimer = null
+const {
+  contestConfig,
+  loadContestConfig
+} = useContestConfig()
+const contestTitle = computed(() => contestConfig.value.title)
+const contestSubtitle = computed(() => contestConfig.value.subtitle)
+const contestModeLabel = computed(() => contestConfig.value.modeLabel)
+const contestChallengeContent = computed(() => contestConfig.value.challengeContent)
+const {
+  competitionScheduleText,
+  competitionPhase,
+  competitionCountdownLabel,
+  competitionCountdownText,
+  isCompetitionPending,
+  isCompetitionEnded,
+  startClock,
+  stopClock
+} = useContestClock(contestConfig)
+const {
+  errorDialog,
+  showErrorDialog,
+  closeErrorDialog
+} = useErrorDialog()
+const {
+  currentUser,
+  sessionReady,
+  registerForm,
+  registerLoading,
+  registerError,
+  isEmergencyLoginPage,
+  isCurrentUserTestAccount,
+  initializeSession,
+  loginUser,
+  loginEmergencyUser
+} = useUserSession()
 
-const uploadCooldownRemainingMs = computed(() => {
-  return Math.max(0, uploadCooldownEndsAt.value - cooldownTick.value)
-})
-
-const uploadCooldownText = computed(() => {
-  const totalSeconds = Math.ceil(uploadCooldownRemainingMs.value / 1000)
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-})
-
-const isUploadCoolingDown = computed(() => uploadCooldownRemainingMs.value > 0)
-
-const isCurrentUserTestAccount = computed(() => {
-  return Boolean(currentUser.value?.test_account || currentUser.value?.testAccount)
-})
-
-const formatDurationText = (remainingMs) => {
-  const safeRemainingMs = Math.max(0, remainingMs)
-  const totalSeconds = Math.floor(safeRemainingMs / 1000)
-  const days = Math.floor(totalSeconds / 86400)
-  const hours = Math.floor((totalSeconds % 86400) / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  const seconds = totalSeconds % 60
-  return `${days}天 ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-}
-
-const competitionPhase = computed(() => {
-  const startTime = competitionStartDate.getTime()
-  const endTime = competitionEndDate.getTime()
-  if (!Number.isFinite(startTime) || !Number.isFinite(endTime)) {
-    return 'unknown'
-  }
-  if (cooldownTick.value < startTime) {
-    return 'pending'
-  }
-  if (cooldownTick.value >= endTime) {
-    return 'ended'
-  }
-  return 'running'
-})
-
-const competitionCountdownLabel = computed(() => {
-  if (competitionPhase.value === 'pending') {
-    return '距离个人赛正式开始：'
-  }
-  if (competitionPhase.value === 'running') {
-    return '距离个人赛提交结束：'
-  }
-  return ''
-})
-
-const competitionCountdownText = computed(() => {
-  const startTime = competitionStartDate.getTime()
-  const endTime = competitionEndDate.getTime()
-  if (!Number.isFinite(startTime) || !Number.isFinite(endTime)) {
-    return '待定'
-  }
-  if (competitionPhase.value === 'pending') {
-    return formatDurationText(startTime - cooldownTick.value)
-  }
-  if (competitionPhase.value === 'running') {
-    return formatDurationText(endTime - cooldownTick.value)
-  }
-  if (competitionPhase.value === 'ended') {
-    return '已结束'
-  }
-  return '待定'
-})
-
-const isCompetitionPending = computed(() => {
-  return competitionPhase.value === 'pending'
-})
-
-const isCompetitionEnded = computed(() => {
-  return competitionPhase.value === 'ended'
-})
-
-const canUploadNow = computed(() => {
-  if (!currentUser.value) {
-    return false
-  }
-  if (isCurrentUserTestAccount.value) {
-    return true
-  }
-  return !isCompetitionPending.value && !isCompetitionEnded.value && !isUploadCooldownLoading.value && !isUploadCoolingDown.value
-})
-
-const uploadButtonText = computed(() => {
-  if (isCurrentUserTestAccount.value) {
-    return '上传代码'
-  }
-  if (isCompetitionPending.value) {
-    return '未到参赛时间，无法提交'
-  }
-  if (isCompetitionEnded.value) {
-    return '个人赛已结束'
-  }
-  if (isUploadCooldownLoading.value) {
-    return '提交状态加载中'
-  }
-  if (isUploadCoolingDown.value) {
-    return `${uploadCooldownText.value} 后可上传`
-  }
-  return '上传代码'
-})
-
-const uploadTipText = computed(() => {
-  if (isCurrentUserTestAccount.value) {
-    return ''
-  }
-  if (isCompetitionPending.value) {
-    return '大赛开始后开放代码提交'
-  }
-  if (isCompetitionEnded.value) {
-    return '提交通道已关闭'
-  }
-  if (isUploadCooldownLoading.value) {
-    return '正在同步提交状态'
-  }
-  if (isUploadCoolingDown.value) {
-    return '每次上传间隔需满30分钟'
-  }
-  return ''
-})
-
-const normalizeUserProfile = (user) => {
-  if (!user) {
-    return null
-  }
-  const uuid = String(user.uuid || user.client_uuid || user.clientUuid || '').trim()
-  const userId = normalizeUserId(user.user_id || user.userId)
-  const username = String(user.username || '').trim()
-  return {
-    ...user,
-    uuid: uuid,
-    user_id: userId,
-    username
-  }
-}
-
-const saveCurrentUser = (user) => {
-  const normalizedUser = normalizeUserProfile(user) || user
-  currentUser.value = normalizedUser
-  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(normalizedUser))
-  return normalizedUser
-}
-
-const normalizeUserId = (value) => {
-  const normalized = String(value || '').replace(/\D/g, '').slice(0, 8)
-  return normalized.length === 8 ? normalized : ''
-}
-
-const resolveThirdPartyUserId = () => {
-  const params = new URLSearchParams(window.location.search)
-  const queryUserId = THIRD_PARTY_USER_ID_QUERY_KEYS
-    .map(key => params.get(key))
-    .find(value => value)
-  const normalizedQueryUserId = normalizeUserId(queryUserId)
-  if (normalizedQueryUserId) {
-    localStorage.setItem(THIRD_PARTY_USER_ID_STORAGE_KEY, normalizedQueryUserId)
-    return normalizedQueryUserId
-  }
-  const storedUserId = normalizeUserId(localStorage.getItem(THIRD_PARTY_USER_ID_STORAGE_KEY))
-  if (storedUserId) {
-    return storedUserId
-  }
-  return ''
-}
-
-const loadExistingUser = async (userId) => {
-  if (!userId) {
-    return false
-  }
-  try {
-    const res = await userApi.getMe()
-    if (res.code === 0 && res.data) {
-      const existingUser = normalizeUserProfile(res.data)
-      if (existingUser?.user_id && existingUser.user_id !== userId) {
-        return false
-      }
-      saveCurrentUser(existingUser || res.data)
-      return true
-    }
-  } catch (error) {
-    if (![401, 403, 404].includes(error?.response?.status)) {
-      console.error('Failed to load current user:', error)
-    }
-  }
-  return false
-}
-
-const bootstrapRegisteredUserSession = async (userId) => {
-  if (!userId) {
-    return {
-      success: false,
-      newUserRequired: true,
-      message: ''
-    }
-  }
-  try {
-    const res = await userApi.addUser({
-      user_id: userId,
-      username: ''
-    })
-    if (res.code === 0 && res.data) {
-      saveCurrentUser(res.data)
-      return {
-        success: true,
-        newUserRequired: false,
-        message: ''
-      }
-    }
-    return {
-      success: false,
-      newUserRequired: false,
-      message: res.message || '参赛信息加载失败'
-    }
-  } catch (error) {
-    const status = error?.response?.status
-    const responseMessage = error?.response?.data?.message || ''
-    if (status === 400 && responseMessage.includes('请输入昵称')) {
-      return {
-        success: false,
-        newUserRequired: true,
-        message: ''
-      }
-    }
-    if (status !== 400 || !responseMessage.includes('请输入昵称')) {
-      console.error('Failed to bootstrap registered user session:', error)
-    }
-    return {
-      success: false,
-      newUserRequired: false,
-      message: getRequestErrorMessage(error, '参赛信息加载失败')
-    }
-  }
-}
-
-const submissionId = (submission) => {
-  const id = submission?.id ?? submission?.submission_id ?? submission?.submissionId
-  return id === null || id === undefined ? '' : String(id)
-}
-
-const rememberCanceledCooldownSubmission = (id) => {
-  const normalizedId = id === null || id === undefined ? '' : String(id)
-  if (!normalizedId) {
-    return
-  }
-  const nextIds = new Set(canceledCooldownSubmissionIds.value)
-  nextIds.add(normalizedId)
-  canceledCooldownSubmissionIds.value = nextIds
-}
-
-const isCanceledCooldownSubmission = (submission) => {
-  const id = submissionId(submission)
-  return Boolean(id) && canceledCooldownSubmissionIds.value.has(id)
-}
-
-const refreshUploadCooldown = async () => {
-  if (!currentUser.value || isCurrentUserTestAccount.value) {
-    uploadCooldownEndsAt.value = 0
-    isUploadCooldownLoading.value = false
-    return
-  }
-  isUploadCooldownLoading.value = true
-  try {
-    const res = await userApi.getSubmissions()
-    const submissions = res.code === 0 && Array.isArray(res.data) ? res.data : []
-    const latestSubmittedAt = getLatestCooldownSubmissionTime(
-      submissions.filter(submission => !isCanceledCooldownSubmission(submission))
-    )
-    uploadCooldownEndsAt.value = latestSubmittedAt ? latestSubmittedAt + UPLOAD_INTERVAL_MS : 0
-    cooldownTick.value = Date.now()
-  } catch (error) {
-    console.error('Failed to load upload cooldown:', error)
-    uploadCooldownEndsAt.value = 0
-  } finally {
-    isUploadCooldownLoading.value = false
-  }
-}
-
-const handleSubmissionCanceled = async (event = {}) => {
-  const canceledSubmissionId = typeof event === 'object' ? event?.submissionId : event
-  rememberCanceledCooldownSubmission(canceledSubmissionId)
-  uploadCooldownEndsAt.value = 0
-  cooldownTick.value = Date.now()
-  await refreshUploadCooldown()
+const handleSubmissionCanceled = () => {
   if (rankingBoardRef.value) {
     rankingBoardRef.value.refresh()
   }
 }
 
 onMounted(async () => {
-  cooldownTimer = setInterval(() => {
-    cooldownTick.value = Date.now()
-  }, 1000)
-  if (isEmergencyLoginPage.value) {
-    sessionReady.value = true
-    return
-  }
-  try {
-    const resolvedUserId = resolveThirdPartyUserId()
-    registerForm.value.user_id = resolvedUserId
-    registerError.value = resolvedUserId ? '' : '未获取到有效工号，请从大赛入口进入'
-
-    const hasSession = await loadExistingUser(resolvedUserId)
-    const bootstrapResult = hasSession
-      ? { success: true, newUserRequired: false, message: '' }
-      : await bootstrapRegisteredUserSession(resolvedUserId)
-    if (bootstrapResult.success) {
-      refreshUploadCooldown()
-    }
-    if (!bootstrapResult.success) {
-      currentUser.value = null
-      localStorage.removeItem(USER_STORAGE_KEY)
-      registerError.value = bootstrapResult.newUserRequired ? '' : bootstrapResult.message || registerError.value
-    }
-  } finally {
-    sessionReady.value = true
-  }
+  startClock()
+  await Promise.all([
+    loadContestConfig(),
+    initializeSession()
+  ])
 })
 
 onUnmounted(() => {
-  if (cooldownTimer) {
-    clearInterval(cooldownTimer)
-    cooldownTimer = null
-  }
+  stopClock()
 })
-
-const buildDefaultProfile = () => {
-  const username = registerForm.value.username.trim()
-  return {
-    user_id: normalizeUserId(registerForm.value.user_id),
-    username
-  }
-}
-
-const getRequestErrorMessage = (error, fallback) => {
-  const responseMessage = error?.response?.data?.message
-  if (responseMessage) {
-    return `${fallback}：${responseMessage}`
-  }
-  if (error?.response?.status) {
-    return `${fallback}：HTTP ${error.response.status}`
-  }
-  if (error?.code === 'ECONNABORTED') {
-    return `${fallback}：请求超时`
-  }
-  if (error?.message) {
-    return `${fallback}：${error.message}`
-  }
-  return fallback
-}
-
-const showErrorDialog = (message) => {
-  errorDialog.value = {
-    visible: true,
-    message
-  }
-}
-
-const closeErrorDialog = () => {
-  errorDialog.value = {
-    visible: false,
-    message: ''
-  }
-}
-
-const loginUser = async () => {
-  registerError.value = ''
-  const userId = normalizeUserId(registerForm.value.user_id)
-
-  if (!userId || userId.length !== 8) {
-    registerError.value = '未获取到有效工号，请先完成第三方登录'
-    return
-  }
-  if (!registerForm.value.username.trim()) {
-    registerError.value = '请输入昵称'
-    return
-  }
-
-  registerLoading.value = true
-  try {
-    const payload = buildDefaultProfile()
-    const res = await userApi.addUser(payload)
-
-    if (res.code === 0 || res.code === 409) {
-      saveCurrentUser(res.data || payload)
-      await refreshUploadCooldown()
-    } else {
-      registerError.value = res.message || '登录失败'
-    }
-  } catch (error) {
-    console.error('Login error:', error)
-    registerError.value = getRequestErrorMessage(error, '登录失败，请检查网络连接')
-  } finally {
-    registerLoading.value = false
-  }
-}
-
-const loginEmergencyUser = async () => {
-  registerError.value = ''
-  const userId = normalizeUserId(registerForm.value.user_id)
-
-  if (!userId || userId.length !== 8) {
-    registerError.value = '请输入有效的 8 位工号'
-    return
-  }
-
-  registerLoading.value = true
-  try {
-    const res = await userApi.emergencyLogin({
-      user_id: userId,
-      username: ''
-    })
-
-    if (res.code === 0 && res.data) {
-      saveCurrentUser(res.data)
-      localStorage.setItem(THIRD_PARTY_USER_ID_STORAGE_KEY, userId)
-      isEmergencyLoginPage.value = false
-      window.history.replaceState({}, '', '/')
-      await refreshUploadCooldown()
-    } else {
-      registerError.value = res.message || '应急登录失败'
-    }
-  } catch (error) {
-    console.error('Emergency login error:', error)
-    registerError.value = getRequestErrorMessage(error, '应急登录失败')
-  } finally {
-    registerLoading.value = false
-  }
-}
 
 // 打开历史上传记录
 const openHistory = () => {
@@ -523,10 +100,6 @@ const openUpload = () => {
     showErrorDialog('个人赛已结束')
     return
   }
-  if (isUploadCoolingDown.value) {
-    showErrorDialog(`距离上次上传不足30分钟，请在 ${uploadCooldownText.value} 后再次上传`)
-    return
-  }
   showUploadModal.value = true
 }
 
@@ -538,8 +111,6 @@ const closeUpload = () => {
 // 处理上传成功
 const handleUploadSuccess = () => {
   closeUpload()
-  uploadCooldownEndsAt.value = Date.now() + UPLOAD_INTERVAL_MS
-  cooldownTick.value = Date.now()
   if (rankingBoardRef.value) {
     rankingBoardRef.value.refresh()
   }
@@ -556,7 +127,7 @@ const handleUploadSuccess = () => {
           <span class="logo-mark">
             <IconSymbol name="network" :size="21" />
           </span>
-          <span class="logo-text">西研软件大赛</span>
+          <span class="logo-text">{{ contestTitle }}</span>
         </div>
         <div class="header-right">
           <div class="status-indicator" v-if="currentUser">
@@ -569,19 +140,19 @@ const handleUploadSuccess = () => {
 
     <main v-if="sessionReady && !currentUser" class="register-main">
       <section class="register-shell">
-        <div class="register-brand" aria-label="西研软件大赛">
+        <div class="register-brand" :aria-label="contestTitle">
           <div class="register-brand-layout">
             <div class="register-brand-copy">
-              <h1 class="register-title">西研软件大赛</h1>
+              <h1 class="register-title">{{ contestTitle }}</h1>
               <span class="register-line"></span>
-              <p class="register-copy">面向真实任务的智能体挑战大赛</p>
+              <p class="register-copy">{{ contestSubtitle }}</p>
             </div>
 
             <div class="hero-schedule-panel register-schedule-panel" aria-label="赛事赛程">
               <div class="hero-schedule-copy">
                 <div class="schedule-line">
                   <span>赛程：</span>
-                  <strong>{{ COMPETITION_SCHEDULE_TEXT }}</strong>
+                  <strong>{{ competitionScheduleText }}</strong>
                 </div>
                 <div class="schedule-line schedule-countdown">
                   <span v-if="competitionCountdownLabel">{{ competitionCountdownLabel }}</span>
@@ -686,14 +257,14 @@ const handleUploadSuccess = () => {
           <span class="node node-c"></span>
           <span class="node node-d"></span>
         </div>
-        <div class="hero-title-shell" aria-label="西研软件大赛">
+        <div class="hero-title-shell" :aria-label="contestTitle">
           <div class="hero-copy-block">
             <div class="hero-title-row">
-              <h1 class="hero-title" data-text="西研软件大赛">西研软件大赛</h1>
+              <h1 class="hero-title" :data-text="contestTitle">{{ contestTitle }}</h1>
             </div>
             <div class="hero-subline">
-              <p class="hero-subtitle">面向真实任务的智能体挑战大赛</p>
-              <span class="hero-kicker">个人赛</span>
+              <p class="hero-subtitle">{{ contestSubtitle }}</p>
+              <span class="hero-kicker">{{ contestModeLabel }}</span>
             </div>
           </div>
 
@@ -701,7 +272,7 @@ const handleUploadSuccess = () => {
             <div class="hero-schedule-copy">
               <div class="schedule-line">
                 <span>赛程：</span>
-                <strong>{{ COMPETITION_SCHEDULE_TEXT }}</strong>
+                <strong>{{ competitionScheduleText }}</strong>
               </div>
               <div class="schedule-line schedule-countdown">
                 <span v-if="competitionCountdownLabel">{{ competitionCountdownLabel }}</span>
@@ -733,7 +304,7 @@ const handleUploadSuccess = () => {
             </div>
             <div class="card-body">
               <div class="challenge-content">
-                <pre class="challenge-text">{{ challengeContent }}</pre>
+                <pre class="challenge-text">{{ contestChallengeContent }}</pre>
               </div>
             </div>
           </div>
@@ -765,13 +336,10 @@ const handleUploadSuccess = () => {
                 </div>
 
                 <div class="action-buttons">
-                  <button class="btn btn-upload" @click="openUpload" :disabled="!canUploadNow">
+                  <button class="btn btn-upload" @click="openUpload">
                     <IconSymbol name="upload" :size="16" />
-                    {{ uploadButtonText }}
+                    上传代码
                   </button>
-                  <p v-if="uploadTipText" class="upload-cooldown-tip">
-                    {{ uploadTipText }}
-                  </p>
                   <button class="btn btn-secondary" @click="openHistory">
                     <IconSymbol name="history" :size="16" />
                     历史上传记录
@@ -1555,33 +1123,16 @@ body {
 	  border: 1px solid rgba(15, 124, 255, 0.22);
 	}
 
-	.btn-upload:disabled {
-	  background: linear-gradient(135deg, #94a3b8, #64748b);
-	  border-color: rgba(100, 116, 139, 0.28);
-	}
-
 	.btn-upload:hover,
 	.btn-upload.is-dragging {
 	  transform: translateY(-1px);
 	  box-shadow: 0 0 0 1px rgba(15, 124, 255, 0.14), 0 12px 30px rgba(29, 78, 216, 0.22);
 	}
 
-	.btn-upload:disabled:hover {
-	  transform: none;
-	  box-shadow: none;
+	.btn-upload.is-dragging {
+	  background: linear-gradient(135deg, #b4232f, #921927);
+	  transform: scale(1.05);
 	}
-
-	.upload-cooldown-tip {
-	  margin: -2px 0 2px;
-	  color: var(--muted);
-	  font-size: 12px;
-	  text-align: center;
-	}
-
-.btn-upload.is-dragging {
-  background: linear-gradient(135deg, #b4232f, #921927);
-  transform: scale(1.05);
-}
 
 /* 未配置状态 */
 .no-user {
@@ -2018,12 +1569,6 @@ body {
   box-shadow: 0 16px 28px rgba(180, 35, 47, 0.24);
 }
 
-.btn-upload:disabled {
-  background: linear-gradient(135deg, #9aa7b8, #748096);
-  border-color: rgba(116, 128, 150, 0.28);
-  box-shadow: none;
-}
-
 .btn-secondary {
   border-color: rgba(71, 96, 136, 0.16);
   background: rgba(255, 255, 255, 0.78);
@@ -2034,10 +1579,6 @@ body {
   border-color: rgba(27, 111, 216, 0.28);
   color: #374151;
   box-shadow: 0 10px 20px rgba(23, 44, 76, 0.08);
-}
-
-.upload-cooldown-tip {
-  color: var(--accent-red);
 }
 
 .live-badge {

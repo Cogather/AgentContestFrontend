@@ -6,10 +6,7 @@ import {
   canShowScoreDetail,
   mergeQuestionScoreDetails
 } from '../src/components/historyScoreDetail.js'
-import {
-  getLatestCooldownSubmissionTime,
-  isCooldownEligibleSubmission
-} from '../src/utils/submissionCooldown.js'
+import { useContestClock } from '../src/composables/useContestClock.js'
 
 test('score detail uses however many scored questions the backend returns', () => {
   const submission = {
@@ -113,33 +110,66 @@ test('upload dialog displays the zip package size limit', async () => {
   assert.ok(source.includes('.zip'), 'upload dialog should show that only zip packages are supported')
 })
 
-test('upload cooldown only uses backend cooldown eligible submission statuses', () => {
-  assert.equal(isCooldownEligibleSubmission({ status: 'UPLOADED' }), true)
-  assert.equal(isCooldownEligibleSubmission({ status: 'evaluating' }), true)
-  assert.equal(isCooldownEligibleSubmission({ status: 'completed' }), true)
-  assert.equal(isCooldownEligibleSubmission({ status: 'failed' }), false)
-  assert.equal(isCooldownEligibleSubmission({ status: 'uploading' }), false)
-  assert.equal(isCooldownEligibleSubmission({ status: 'validating' }), false)
+test('app delegates session contest clock and error dialog state to composables', async () => {
+  const source = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+
+  assert.ok(source.includes('useUserSession'), 'App should consume user session through a composable')
+  assert.ok(source.includes('useContestClock'), 'App should consume contest clock through a composable')
+  assert.ok(source.includes('useContestConfig'), 'App should consume contest metadata through a composable')
+  assert.ok(source.includes('useErrorDialog'), 'App should consume error dialog state through a composable')
+  assert.equal(source.includes('const COMPETITION_START_AT'), false, 'App should not own contest date parsing')
+  assert.equal(source.includes('bootstrapRegisteredUserSession'), false, 'App should not own session bootstrap details')
+  assert.equal(source.includes('normalizeUserProfile'), false, 'App should not own user profile normalization')
+  assert.equal(source.includes('欢迎参加 Agent 大赛'), false, 'App should not hardcode challenge copy')
 })
 
-test('failed or uploading submissions do not make the frontend cooldown timer block uploads', () => {
-  const latestFailed = {
-    status: 'FAILED',
-    created_at: '2026-06-08T10:00:00+08:00'
-  }
-  const olderUploaded = {
-    status: 'UPLOADED',
-    created_at: '2026-06-08T09:40:00+08:00'
-  }
-  const currentUploading = {
-    status: 'UPLOADING',
-    created_at: '2026-06-08T10:10:00+08:00'
-  }
+test('contest clock exposes stable schedule and ended state from one module', () => {
+  const contestClock = useContestClock()
 
-  assert.equal(
-    getLatestCooldownSubmissionTime([latestFailed, currentUploading, olderUploaded]),
-    new Date(olderUploaded.created_at).getTime()
-  )
+  assert.equal(contestClock.competitionScheduleText.value, '2026/5/24 8:00--2026/6/14')
+  assert.equal(contestClock.competitionPhase.value, 'ended')
+  assert.equal(contestClock.competitionCountdownText.value, '已结束')
+  contestClock.stopClock()
+})
+
+test('contest config defaults use Beijing time to match backend enforcement', async () => {
+  const source = await readFile(new URL('../src/config/contestDefaults.js', import.meta.url), 'utf8')
+
+  assert.ok(source.includes("startAt: '2026-05-24T08:00:00+08:00'"))
+  assert.ok(source.includes("endAt: '2026-06-15T00:00:00+08:00'"))
+  assert.equal(source.includes('2026-05-24T08:00:00-07:00'), false)
+  assert.equal(source.includes('2026-06-15T00:00:00-07:00'), false)
+})
+
+test('frontend loads contest config from backend with local defaults as fallback', async () => {
+  const apiSource = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
+  const configSource = await readFile(new URL('../src/composables/useContestConfig.js', import.meta.url), 'utf8')
+  const appSource = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+
+  assert.ok(apiSource.includes('/api/contest/config'), 'API client should expose backend contest config')
+  assert.ok(configSource.includes('DEFAULT_CONTEST_CONFIG'), 'contest config composable should have reusable local defaults')
+  assert.ok(configSource.includes('normalizeContestConfig'), 'contest config composable should normalize backend and fallback data')
+  assert.ok(appSource.includes('contestTitle'), 'App should render title from contest config')
+  assert.ok(appSource.includes('contestSubtitle'), 'App should render subtitle from contest config')
+  assert.ok(appSource.includes('contestModeLabel'), 'App should render mode label from contest config')
+  assert.ok(appSource.includes('contestChallengeContent'), 'App should render challenge content from contest config')
+})
+
+test('home upload entry stays clickable and relies on click-time validation', async () => {
+  const source = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+
+  assert.equal(source.includes(':disabled="!canUploadNow"'), false, 'main upload button should not be grayed by page state')
+  assert.equal(/\.btn-upload:disabled\s*\{/.test(source), false, 'main upload button should not have a disabled gray theme')
+  assert.equal(source.includes('uploadButtonText'), false, 'main upload button should keep a stable label')
+  assert.equal(source.includes('uploadTipText'), false, 'main upload entry should not show cooldown helper copy')
+  assert.equal(source.includes('后可上传'), false, 'main upload button should not show a countdown')
+  assert.equal(source.includes('每次上传间隔需满30分钟'), false, 'main upload entry should not show cooldown helper copy')
+  assert.ok(/const openUpload = \(\) => \{/.test(source), 'upload click should use a simple local entry guard')
+  assert.ok(source.includes("showErrorDialog('未到参赛时间，无法提交')"), 'pending competition should be blocked when upload is clicked')
+  assert.ok(source.includes("showErrorDialog('个人赛已结束')"), 'ended competition should be blocked when upload is clicked')
+  assert.equal(source.includes('refreshUploadCooldown'), false, 'frontend should not duplicate backend upload interval rules')
+  assert.equal(source.includes('isUploadCoolingDown'), false, 'frontend should not keep a local upload cooldown gate')
+  assert.equal(source.includes('距离上次上传不足'), false, 'upload interval error text should come from the backend upload response')
 })
 
 test('api requests include cookies for backend user identity checks', async () => {
@@ -157,11 +187,20 @@ test('api requests send current work id header for login session bootstrap', asy
 
 test('expected unauthenticated session checks do not log noisy API errors', async () => {
   const source = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
-  const appSource = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+  const sessionSource = await readFile(new URL('../src/composables/useUserSession.js', import.meta.url), 'utf8')
 
   assert.ok(source.includes('isExpectedSessionProbeError'), 'API client should classify expected session probe errors')
   assert.ok(source.includes("config?.url === '/api/users/me'"), 'API client should only suppress expected me endpoint probes')
-  assert.ok(appSource.includes('[401, 403, 404].includes(error?.response?.status)'), 'startup should not console-error expected missing sessions')
+  assert.ok(sessionSource.includes('[401, 403, 404].includes(error?.response?.status)'), 'startup should not console-error expected missing sessions')
+})
+
+test('optional contest config fallback does not log noisy API errors', async () => {
+  const source = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
+  const configSource = await readFile(new URL('../src/composables/useContestConfig.js', import.meta.url), 'utf8')
+
+  assert.ok(source.includes('isOptionalContestConfigError'), 'API client should classify optional contest config failures')
+  assert.ok(source.includes("config?.url === '/api/contest/config'"), 'API client should only suppress contest config fallback failures')
+  assert.ok(configSource.includes('contestConfig.value = DEFAULT_CONTEST_CONFIG'), 'contest config failures should fall back to bundled defaults')
 })
 
 test('login redirect supports relative and absolute login URLs', async () => {
@@ -186,9 +225,10 @@ test('frontend redirects non-local http traffic to https before app startup', as
 
 test('post-login user scoped frontend calls use signed session me endpoints', async () => {
   const source = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+  const sessionSource = await readFile(new URL('../src/composables/useUserSession.js', import.meta.url), 'utf8')
   const apiSource = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
 
-  assert.ok(source.includes('getMe'), 'startup should load registered profile through me endpoint')
+  assert.ok(sessionSource.includes('getMe'), 'startup should load registered profile through me endpoint')
   assert.ok(apiSource.includes('/api/users/me/submissions'), 'history should use me submissions endpoint')
   assert.ok(apiSource.includes('/api/upload/me'), 'upload should use me upload endpoint')
   assert.ok(apiSource.includes('/api/rank/me'), 'personal rank should use me rank endpoint')
@@ -197,11 +237,12 @@ test('post-login user scoped frontend calls use signed session me endpoints', as
 
 test('registered users bootstrap silently without identity confirmation UI', async () => {
   const source = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+  const sessionSource = await readFile(new URL('../src/composables/useUserSession.js', import.meta.url), 'utf8')
 
-  assert.ok(source.includes('bootstrapRegisteredUserSession'), 'startup should silently bootstrap backend session for registered users')
-  assert.ok(source.includes("username: ''"), 'registered-user bootstrap should not require a nickname')
-  assert.equal(source.includes('applyRegisteredUserProfile'), false, 'bootstrap should not call removed profile helpers')
-  assert.ok(source.includes('newUserRequired'), 'startup should distinguish the backend nickname-required state')
+  assert.ok(sessionSource.includes('bootstrapRegisteredUserSession'), 'startup should silently bootstrap backend session for registered users')
+  assert.ok(sessionSource.includes("username: ''"), 'registered-user bootstrap should not require a nickname')
+  assert.equal(sessionSource.includes('applyRegisteredUserProfile'), false, 'bootstrap should not call removed profile helpers')
+  assert.ok(sessionSource.includes('newUserRequired'), 'startup should distinguish the backend nickname-required state')
   assert.equal(source.includes('auth-state'), false, 'frontend should not render a separate identity confirmation page')
   assert.equal(source.includes('身份确认'), false, 'frontend should not show identity confirmation copy')
   assert.equal(source.includes('重新确认'), false, 'frontend should not show a manual reconfirm button')
@@ -229,14 +270,14 @@ test('emergency login route bypasses third-party login and calls backend allow-l
 })
 
 test('registration payload normalizes prefixed work ids before posting to backend', async () => {
-  const source = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+  const source = await readFile(new URL('../src/composables/useUserSession.js', import.meta.url), 'utf8')
 
   assert.ok(
     source.includes('const userId = normalizeUserId(registerForm.value.user_id)'),
     'registration validation should normalize prefixed work ids before length checks'
   )
   assert.ok(
-    source.includes('user_id: normalizeUserId(registerForm.value.user_id)'),
+    source.includes('user_id: userId'),
     'registration payload should send the same normalized 8-digit work id as the request header'
   )
   assert.ok(
@@ -314,9 +355,8 @@ test('history page only allows canceling queued submissions', async () => {
   assert.ok(source.includes("defineEmits(['back', 'canceled'])"), 'history page should emit an event after successful cancellation')
   assert.ok(source.includes("emit('canceled', { submissionId: id })"), 'cancel success should notify parent views with the canceled submission id')
   assert.ok(appSource.includes('@canceled="handleSubmissionCanceled"'), 'homepage should handle cancellation explicitly')
-  assert.ok(appSource.includes('uploadCooldownEndsAt.value = 0'), 'homepage should clear local cooldown immediately after cancellation')
-  assert.ok(appSource.includes('canceledCooldownSubmissionIds'), 'homepage should ignore locally canceled submissions while recalculating cooldown')
   assert.ok(appSource.includes('rankingBoardRef.value.refresh()'), 'homepage should refresh ranking metrics after cancellation')
+  assert.equal(appSource.includes('canceledCooldownSubmissionIds'), false, 'homepage should not keep local cooldown exceptions after backend owns interval rules')
 })
 
 test('history page displays active queued and evaluating task counts', async () => {

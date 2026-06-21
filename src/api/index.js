@@ -63,6 +63,12 @@ const isExpectedSessionProbeError = (error) => {
     && [401, 403, 404].includes(status)
 }
 
+const isOptionalContestConfigError = (error) => {
+  const config = error?.config
+  return config?.url === '/api/contest/config'
+    && String(config?.method || '').toLowerCase() === 'get'
+}
+
 const api = axios.create({
   baseURL: getBaseUrl(),
   timeout: 10000,
@@ -93,7 +99,7 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   response => response.data,
   error => {
-    if (!isExpectedSessionProbeError(error)) {
+    if (!isExpectedSessionProbeError(error) && !isOptionalContestConfigError(error)) {
       console.error('API Error:', error)
     }
     return Promise.reject(error)
@@ -121,6 +127,10 @@ export const rankApi = {
     params
   }),
   getUserRank: () => api.get('/api/rank/me')
+}
+
+export const contestApi = {
+  getConfig: () => api.get('/api/contest/config')
 }
 
 export const commonApi = {

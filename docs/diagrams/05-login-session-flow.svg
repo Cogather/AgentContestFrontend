@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 780" width="1160" height="780">
+<style>
+text { font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #111827; }
+.title { font-size: 24px; font-weight: 700; }
+.label { font-size: 14px; font-weight: 650; }
+.small { font-size: 11px; fill: #6b7280; }
+.tiny { font-size: 10px; fill: #6b7280; }
+.entity-header { font-size: 14px; font-weight: 700; }
+.field { font-size: 11px; fill: #374151; }
+</style>
+<defs>
+<marker id="arrow-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#2563eb"/>
+</marker>
+<marker id="arrow-red" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#dc2626"/>
+</marker>
+<marker id="arrow-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#16a34a"/>
+</marker>
+<marker id="arrow-purple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#9333ea"/>
+</marker>
+<marker id="arrow-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#ea580c"/>
+</marker>
+<marker id="arrow-gray" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#6b7280"/>
+</marker>
+<filter id="softShadow" x="-10%" y="-10%" width="120%" height="130%">
+<feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#111827" flood-opacity="0.08"/>
+</filter>
+</defs>
+<rect width="1160" height="780" fill="#ffffff"/>
+<text x="40" y="42" class="title">Login &amp; Session Flow</text>
+<rect x="54" y="80" width="1050" height="140" rx="12" fill="#2563eb" fill-opacity="0.035" stroke="#2563eb" stroke-width="1.2" stroke-dasharray="7,5"/>
+<text x="68" y="101" fill="#2563eb" font-size="11" font-weight="700">Third-party Bootstrap</text>
+<rect x="54" y="250" width="1050" height="190" rx="12" fill="#16a34a" fill-opacity="0.035" stroke="#16a34a" stroke-width="1.2" stroke-dasharray="7,5"/>
+<text x="68" y="271" fill="#16a34a" font-size="11" font-weight="700">Backend Session Issuing</text>
+<rect x="54" y="470" width="1050" height="150" rx="12" fill="#dc2626" fill-opacity="0.035" stroke="#dc2626" stroke-width="1.2" stroke-dasharray="7,5"/>
+<text x="68" y="491" fill="#dc2626" font-size="11" font-weight="700">Protected Requests</text>
+<rect x="90" y="120" width="170" height="62" rx="10" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="175.0" y="147" text-anchor="middle" class="label">Route Guard</text>
+<text x="175.0" y="167" text-anchor="middle" class="small">check localStorage</text>
+<text x="175.0" y="182" text-anchor="middle" class="small">or redirect login</text>
+<rect x="320" y="120" width="170" height="62" rx="10" fill="#fff7ed" stroke="#fed7aa" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="405.0" y="147" text-anchor="middle" class="label">Internal Login</text>
+<text x="405.0" y="167" text-anchor="middle" class="small">returns work id</text>
+<text x="405.0" y="182" text-anchor="middle" class="small">store 8 digits</text>
+<rect x="550" y="120" width="170" height="62" rx="10" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="635.0" y="147" text-anchor="middle" class="label">Vue App</text>
+<text x="635.0" y="167" text-anchor="middle" class="small">initializeSession</text>
+<text x="635.0" y="182" text-anchor="middle" class="small">POST users</text>
+<rect x="90" y="300" width="190" height="72" rx="10" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="185.0" y="327" text-anchor="middle" class="label">POST /api/users</text>
+<text x="185.0" y="347" text-anchor="middle" class="small">X-Agent-Contest-User-Id</text>
+<text x="185.0" y="362" text-anchor="middle" class="small">new user needs nickname</text>
+<rect x="340" y="300" width="190" height="72" rx="10" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="435.0" y="327" text-anchor="middle" class="label">UserService</text>
+<text x="435.0" y="347" text-anchor="middle" class="small">create or find user</text>
+<text x="435.0" y="362" text-anchor="middle" class="small">nickname immutable</text>
+<rect x="590" y="300" width="190" height="72" rx="10" fill="#fef2f2" stroke="#fecaca" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="685.0" y="327" text-anchor="middle" class="label">UserSessionService</text>
+<text x="685.0" y="347" text-anchor="middle" class="small">HMAC token</text>
+<text x="685.0" y="362" text-anchor="middle" class="small">userId + uuid + exp</text>
+<rect x="840" y="300" width="170" height="72" rx="10" fill="#f9fafb" stroke="#d1d5db" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="925.0" y="327" text-anchor="middle" class="label">HttpOnly Cookie</text>
+<text x="925.0" y="347" text-anchor="middle" class="small">agent_contest_session</text>
+<text x="925.0" y="362" text-anchor="middle" class="small">SameSite=Lax</text>
+<rect x="120" y="515" width="190" height="72" rx="10" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="215.0" y="542" text-anchor="middle" class="label">me endpoints</text>
+<text x="215.0" y="562" text-anchor="middle" class="small">/api/users/me</text>
+<text x="215.0" y="577" text-anchor="middle" class="small">/api/upload/me</text>
+<rect x="395" y="515" width="190" height="72" rx="10" fill="#fef2f2" stroke="#fecaca" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="490.0" y="542" text-anchor="middle" class="label">requireSessionUser</text>
+<text x="490.0" y="562" text-anchor="middle" class="small">verify signature</text>
+<text x="490.0" y="577" text-anchor="middle" class="small">uuid equals DB</text>
+<ellipse cx="760" cy="515" rx="70.0" ry="20.0" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
+<rect x="690.0" y="515" width="140" height="72" fill="#eff6ff" stroke="none"/>
+<line x1="690.0" y1="515" x2="690.0" y2="587" stroke="#2563eb" stroke-width="1.5"/>
+<line x1="830.0" y1="515" x2="830.0" y2="587" stroke="#2563eb" stroke-width="1.5"/>
+<ellipse cx="760" cy="587" rx="70.0" ry="20.0" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+<text x="760" y="556.0" text-anchor="middle" class="label">users table</text>
+<rect x="940" y="515" width="120" height="72" rx="10" fill="#fef2f2" stroke="#fecaca" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="1000.0" y="542" text-anchor="middle" class="label">403/401 logs</text>
+<text x="1000.0" y="562" text-anchor="middle" class="small">mismatch audit</text>
+<path d="M 260 151 L 320 151" fill="none" stroke="#2563eb" stroke-width="1.8" marker-end="url(#arrow-blue)"/>
+<rect x="236.0" y="131.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
+<text x="290.0" y="144.0" text-anchor="middle" class="tiny">redirect</text>
+<path d="M 490 151 L 550 151" fill="none" stroke="#2563eb" stroke-width="1.8" marker-end="url(#arrow-blue)"/>
+<rect x="466.0" y="131.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
+<text x="520.0" y="144.0" text-anchor="middle" class="tiny">work id</text>
+<path d="M 635 182 L 185 300" fill="none" stroke="#2563eb" stroke-width="1.8" marker-end="url(#arrow-blue)"/>
+<rect x="356.0" y="221.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
+<text x="410.0" y="234.0" text-anchor="middle" class="tiny">bootstrap</text>
+<path d="M 280 336 L 340 336" fill="none" stroke="#16a34a" stroke-width="1.8" marker-end="url(#arrow-green)"/>
+<path d="M 530 336 L 590 336" fill="none" stroke="#dc2626" stroke-width="1.8" marker-end="url(#arrow-red)"/>
+<rect x="506.0" y="316.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
+<text x="560.0" y="329.0" text-anchor="middle" class="tiny">sign</text>
+<path d="M 780 336 L 840 336" fill="none" stroke="#dc2626" stroke-width="1.8" marker-end="url(#arrow-red)"/>
+<rect x="756.0" y="316.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
+<text x="810.0" y="329.0" text-anchor="middle" class="tiny">Set-Cookie</text>
+<path d="M 925 372 L 925 470 L 215 470 L 215 515" fill="none" stroke="#2563eb" stroke-width="1.8" marker-end="url(#arrow-blue)"/>
+<rect x="516.0" y="450.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
+<text x="570.0" y="463.0" text-anchor="middle" class="tiny">later calls</text>
+<path d="M 310 551 L 395 551" fill="none" stroke="#dc2626" stroke-width="1.8" marker-end="url(#arrow-red)"/>
+<rect x="298.5" y="531.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
+<text x="352.5" y="544.0" text-anchor="middle" class="tiny">cookie</text>
+<path d="M 585 551 L 760 551" fill="none" stroke="#16a34a" stroke-width="1.8" marker-end="url(#arrow-green)"/>
+<rect x="618.5" y="531.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
+<text x="672.5" y="544.0" text-anchor="middle" class="tiny">uuid lookup</text>
+<path d="M 585 570 L 640 570 L 640 630 L 940 630 L 940 587" fill="none" stroke="#dc2626" stroke-width="1.8" marker-end="url(#arrow-red)" stroke-dasharray="5,4"/>
+<rect x="586.0" y="580.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
+<text x="640.0" y="593.0" text-anchor="middle" class="tiny">reject</text>
+<g transform="translate(60,690)">
+<line x1="0" y1="8" x2="30" y2="8" stroke="#2563eb" stroke-width="1.7" marker-end="url(#arrow-blue)"/>
+<text x="38" y="12" class="small">frontend navigation / API</text>
+<line x1="0" y1="28" x2="30" y2="28" stroke="#16a34a" stroke-width="1.7" marker-end="url(#arrow-green)"/>
+<text x="38" y="32" class="small">user lookup</text>
+<line x1="0" y1="48" x2="30" y2="48" stroke="#dc2626" stroke-width="1.7" marker-end="url(#arrow-red)"/>
+<text x="38" y="52" class="small">session security</text>
+</g>
+</svg>
