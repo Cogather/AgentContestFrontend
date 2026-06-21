@@ -4,8 +4,8 @@ import {
   normalizeContestConfig
 } from '../config/contestDefaults.js'
 import {
+  contestCountdownInfo,
   contestPhaseAt,
-  formatDurationText,
   timestampOf
 } from '../utils/contestTime.js'
 
@@ -21,32 +21,13 @@ export const useContestClock = (contestConfig = DEFAULT_CONTEST_CONFIG) => {
     return contestPhaseAt(currentTimeTick.value, competitionStartTime.value, competitionEndTime.value)
   })
 
-  const competitionCountdownLabel = computed(() => {
-    if (competitionPhase.value === 'pending') {
-      return '距离个人赛正式开始：'
-    }
-    if (competitionPhase.value === 'running') {
-      return '距离个人赛提交结束：'
-    }
-    return ''
-  })
-
-  const competitionCountdownText = computed(() => {
-    const startTime = competitionStartTime.value
-    const endTime = competitionEndTime.value
-    if (!Number.isFinite(startTime) || !Number.isFinite(endTime)) {
-      return '待定'
-    }
-    if (competitionPhase.value === 'pending') {
-      return formatDurationText(startTime - currentTimeTick.value)
-    }
-    if (competitionPhase.value === 'running') {
-      return formatDurationText(endTime - currentTimeTick.value)
-    }
-    if (competitionPhase.value === 'ended') {
-      return '已结束'
-    }
-    return '待定'
+  const competitionCountdown = computed(() => {
+    return contestCountdownInfo({
+      phase: competitionPhase.value,
+      now: currentTimeTick.value,
+      startTime: competitionStartTime.value,
+      endTime: competitionEndTime.value
+    })
   })
 
   const startClock = () => {
@@ -67,8 +48,8 @@ export const useContestClock = (contestConfig = DEFAULT_CONTEST_CONFIG) => {
   return {
     competitionScheduleText: computed(() => resolvedContestConfig.value.scheduleText),
     competitionPhase,
-    competitionCountdownLabel,
-    competitionCountdownText,
+    competitionCountdownLabel: computed(() => competitionCountdown.value.label),
+    competitionCountdownText: computed(() => competitionCountdown.value.text),
     isCompetitionPending: computed(() => competitionPhase.value === 'pending'),
     isCompetitionEnded: computed(() => competitionPhase.value === 'ended'),
     startClock,
