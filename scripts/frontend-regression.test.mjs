@@ -14,6 +14,7 @@ import {
   THIRD_PARTY_USER_ID_STORAGE_KEY,
   USER_STORAGE_KEY
 } from '../src/utils/userIdentity.js'
+import { normalizeUserProfile } from '../src/utils/userProfile.js'
 import { firstDefined, formatNumber } from '../src/utils/valueHelpers.js'
 import { requestErrorDetail, requestErrorMessage } from '../src/utils/requestErrors.js'
 
@@ -74,6 +75,26 @@ test('shared value helpers normalize fallback and number display behavior', () =
   assert.equal(formatNumber(null), '-')
   assert.equal(formatNumber('not-a-number'), '-')
   assert.equal(formatNumber('not-a-number', { invalidFallback: '原值不可用' }), '原值不可用')
+})
+
+test('shared user profile helper normalizes backend identity fields', () => {
+  assert.equal(normalizeUserProfile(null), null)
+  assert.deepEqual(
+    normalizeUserProfile({
+      userId: 'w00678227',
+      username: '  明海  ',
+      client_uuid: '  abc-123  ',
+      test_account: true
+    }),
+    {
+      userId: 'w00678227',
+      username: '明海',
+      client_uuid: '  abc-123  ',
+      test_account: true,
+      uuid: 'abc-123',
+      user_id: '00678227'
+    }
+  )
 })
 
 test('shared request error helpers format backend network and timeout failures', () => {
@@ -259,6 +280,7 @@ test('frontend identity helpers are shared by app bootstrap session and API laye
   const apiSource = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
   const mainSource = await readFile(new URL('../src/main.js', import.meta.url), 'utf8')
   const sessionSource = await readFile(new URL('../src/composables/useUserSession.js', import.meta.url), 'utf8')
+  const profileSource = await readFile(new URL('../src/utils/userProfile.js', import.meta.url), 'utf8')
 
   assert.equal(normalizeUserId('w00678227'), '00678227')
   assert.equal(normalizeUserId('1234'), '')
@@ -269,9 +291,12 @@ test('frontend identity helpers are shared by app bootstrap session and API laye
   assert.ok(apiSource.includes("from '../utils/userIdentity'"), 'API client should reuse identity helpers')
   assert.ok(mainSource.includes("from './utils/userIdentity'"), 'app bootstrap should reuse identity helpers')
   assert.ok(sessionSource.includes("from '../utils/userIdentity'"), 'session composable should reuse identity helpers')
+  assert.ok(sessionSource.includes("from '../utils/userProfile'"), 'session composable should reuse shared profile normalization')
+  assert.ok(profileSource.includes("from './userIdentity.js'"), 'profile normalization should reuse shared user id parsing')
   assert.equal(apiSource.includes('const normalizeUserId ='), false, 'API client should not duplicate user id parsing')
   assert.equal(mainSource.includes('const normalizeUserId ='), false, 'app bootstrap should not duplicate user id parsing')
   assert.equal(sessionSource.includes('const normalizeUserId ='), false, 'session composable should not duplicate user id parsing')
+  assert.equal(sessionSource.includes('const normalizeUserProfile ='), false, 'session composable should not duplicate profile normalization')
 })
 
 test('expected unauthenticated session checks do not log noisy API errors', async () => {
@@ -360,6 +385,7 @@ test('emergency login route bypasses third-party login and calls backend allow-l
 
 test('registration payload normalizes prefixed work ids before posting to backend', async () => {
   const source = await readFile(new URL('../src/composables/useUserSession.js', import.meta.url), 'utf8')
+  const profileSource = await readFile(new URL('../src/utils/userProfile.js', import.meta.url), 'utf8')
 
   assert.ok(
     source.includes('const userId = normalizeUserId(registerForm.value.user_id)'),
@@ -370,7 +396,7 @@ test('registration payload normalizes prefixed work ids before posting to backen
     'registration payload should send the same normalized 8-digit work id as the request header'
   )
   assert.ok(
-    source.includes('const userId = normalizeUserId(user.user_id || user.userId)'),
+    profileSource.includes('user_id: normalizeUserId(user.user_id || user.userId)'),
     'stored user profile should keep the frontend user id in the same normalized format'
   )
 })

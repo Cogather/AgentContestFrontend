@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { userApi } from '../api'
 import { requestErrorMessage } from '../utils/requestErrors'
+import { normalizeUserProfile } from '../utils/userProfile'
 import {
   isEmergencyLoginPath,
   normalizeUserId,
@@ -8,21 +9,6 @@ import {
   THIRD_PARTY_USER_ID_STORAGE_KEY,
   USER_STORAGE_KEY
 } from '../utils/userIdentity'
-
-const normalizeUserProfile = (user) => {
-  if (!user) {
-    return null
-  }
-  const uuid = String(user.uuid || user.client_uuid || user.clientUuid || '').trim()
-  const userId = normalizeUserId(user.user_id || user.userId)
-  const username = String(user.username || '').trim()
-  return {
-    ...user,
-    uuid,
-    user_id: userId,
-    username
-  }
-}
 
 export const useUserSession = () => {
   const currentUser = ref(null)
