@@ -8,6 +8,8 @@ const isTruthyFlag = (value) => {
   return false
 }
 
+export const RANKING_COLUMN_SIZE = 10
+
 export const getSubmissionCount = (item) => item?.submission_count ?? item?.submissionCount ?? 0
 
 export const isTestAccountRank = (item) => {
@@ -48,4 +50,16 @@ export const visiblePageNumbers = (total, current) => {
     pages.push(page)
   }
   return pages
+}
+
+export const splitIntoRankingColumns = (items, columnSize = RANKING_COLUMN_SIZE) => {
+  const sourceItems = Array.isArray(items) ? items : []
+  const safeColumnSize = Number.isFinite(Number(columnSize)) && Number(columnSize) > 0
+    ? Math.floor(Number(columnSize))
+    : RANKING_COLUMN_SIZE
+  const columns = []
+  for (let index = 0; index < sourceItems.length; index += safeColumnSize) {
+    columns.push(sourceItems.slice(index, index + safeColumnSize))
+  }
+  return columns
 }
