@@ -18,6 +18,11 @@ import {
 import { normalizeUserProfile } from '../src/utils/userProfile.js'
 import { firstDefined, formatNumber } from '../src/utils/valueHelpers.js'
 import { requestErrorDetail, requestErrorMessage } from '../src/utils/requestErrors.js'
+import {
+  contestPhaseAt,
+  formatDurationText,
+  timestampOf
+} from '../src/utils/contestTime.js'
 
 test('score detail uses however many scored questions the backend returns', () => {
   const submission = {
@@ -111,6 +116,19 @@ test('shared request error helpers format backend network and timeout failures',
     requestErrorMessage({ response: { data: { message: '用户身份校验失败' } } }, '登录失败', { prefixFallback: true }),
     '登录失败：用户身份校验失败'
   )
+})
+
+test('contest time helpers keep phase and duration rules reusable', () => {
+  const start = timestampOf('2026-05-24T08:00:00+08:00')
+  const end = timestampOf('2026-06-15T00:00:00+08:00')
+
+  assert.equal(contestPhaseAt(start - 1, start, end), 'pending')
+  assert.equal(contestPhaseAt(start, start, end), 'running')
+  assert.equal(contestPhaseAt(end - 1, start, end), 'running')
+  assert.equal(contestPhaseAt(end, start, end), 'ended')
+  assert.equal(contestPhaseAt(start, Number.NaN, end), 'unknown')
+  assert.equal(formatDurationText(90061000), '1天 01:01:01')
+  assert.equal(formatDurationText(-1), '0天 00:00:00')
 })
 
 test('frontend request error formatting is shared instead of duplicated in composables', async () => {
@@ -222,6 +240,15 @@ test('contest clock exposes stable schedule and ended state from one module', ()
   assert.equal(contestClock.competitionPhase.value, 'ended')
   assert.equal(contestClock.competitionCountdownText.value, '已结束')
   contestClock.stopClock()
+})
+
+test('contest clock delegates date math to shared contest time helpers', async () => {
+  const source = await readFile(new URL('../src/composables/useContestClock.js', import.meta.url), 'utf8')
+
+  assert.ok(source.includes("from '../utils/contestTime.js'"), 'contest clock should reuse shared time helpers')
+  assert.ok(source.includes('contestPhaseAt('), 'contest clock should use the shared phase helper')
+  assert.equal(source.includes('const formatDurationText ='), false, 'contest clock should not own duration formatting')
+  assert.equal(source.includes('const timestampOf ='), false, 'contest clock should not own timestamp parsing')
 })
 
 test('contest config defaults use Beijing time to match backend enforcement', async () => {
