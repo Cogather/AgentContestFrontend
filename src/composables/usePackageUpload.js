@@ -1,5 +1,6 @@
-import { computed, onUnmounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { commonApi } from '../api'
+import { useTransientValue } from './useTransientValue'
 import { requestErrorMessage } from '../utils/requestErrors'
 import {
   formatFileSizeMb,
@@ -12,17 +13,17 @@ export const usePackageUpload = ({ onClose, onSuccess } = {}) => {
   const isDragging = ref(false)
   const fileInput = ref(null)
   const uploading = ref(false)
-  const uploadSucceeded = ref(false)
   const uploadError = ref('')
   const selectedFile = ref(null)
-  let successTimer = null
+  const uploadSuccess = useTransientValue(false)
+  const uploadSucceeded = uploadSuccess.value
 
   const selectedFileSizeText = computed(() => formatFileSizeMb(selectedFile.value?.size))
 
   const close = () => {
     if (uploading.value || uploadSucceeded.value) return
     selectedFile.value = null
-    uploadSucceeded.value = false
+    uploadSuccess.clear()
     uploadError.value = ''
     onClose?.()
   }
@@ -40,7 +41,7 @@ export const usePackageUpload = ({ onClose, onSuccess } = {}) => {
       return
     }
     selectedFile.value = file
-    uploadSucceeded.value = false
+    uploadSuccess.clear()
     uploadError.value = ''
     if (inputTarget) inputTarget.value = ''
   }
@@ -68,16 +69,8 @@ export const usePackageUpload = ({ onClose, onSuccess } = {}) => {
   }
 
   const completeUpload = () => {
-    uploadSucceeded.value = true
     selectedFile.value = null
-    if (successTimer) {
-      clearTimeout(successTimer)
-    }
-    successTimer = window.setTimeout(() => {
-      successTimer = null
-      uploadSucceeded.value = false
-      onSuccess?.()
-    }, 900)
+    uploadSuccess.show(true, 900, onSuccess)
   }
 
   const confirmUpload = async () => {
@@ -107,12 +100,6 @@ export const usePackageUpload = ({ onClose, onSuccess } = {}) => {
       uploading.value = false
     }
   }
-
-  onUnmounted(() => {
-    if (successTimer) {
-      clearTimeout(successTimer)
-    }
-  })
 
   return {
     isDragging,

@@ -402,6 +402,19 @@ test('upload modal delegates package upload state to a composable', async () => 
   assert.ok(uploadSource.includes('fileInput.value?.click()'), 'file selection should tolerate an unmounted input ref')
 })
 
+test('transient upload and history messages use shared timeout cleanup', async () => {
+  const uploadSource = await readFile(new URL('../src/composables/usePackageUpload.js', import.meta.url), 'utf8')
+  const historySource = await readFile(new URL('../src/composables/useSubmissionHistory.js', import.meta.url), 'utf8')
+  const transientSource = await readFile(new URL('../src/composables/useTransientValue.js', import.meta.url), 'utf8')
+
+  assert.ok(uploadSource.includes('useTransientValue'), 'upload success state should use shared transient value cleanup')
+  assert.ok(historySource.includes('useTransientValue'), 'history toast state should use shared transient value cleanup')
+  assert.ok(transientSource.includes('setTimeout('), 'shared transient helper should own timeout setup')
+  assert.ok(transientSource.includes('clearTimeout('), 'shared transient helper should own timeout cleanup')
+  assert.equal(uploadSource.includes('let successTimer'), false, 'upload composable should not own timeout bookkeeping')
+  assert.equal(historySource.includes('let toastTimer'), false, 'history composable should not own toast timeout bookkeeping')
+})
+
 test('upload file rules keep zip validation and size formatting reusable', async () => {
   const source = await readFile(new URL('../src/components/UploadModal.vue', import.meta.url), 'utf8')
   const uploadSource = await readFile(new URL('../src/composables/usePackageUpload.js', import.meta.url), 'utf8')
