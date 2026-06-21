@@ -9,9 +9,12 @@ import {
 import {
   canCancelSubmission,
   detailStatusText,
+  failedStatusText,
   failureReason,
+  isFailedSubmission,
   queueAheadCount,
   scoreDetailUnavailableText,
+  statusClassName,
   statusText,
   submissionCreatedTime,
   submissionId
@@ -214,11 +217,26 @@ test('submission display helpers normalize ids status text and failure reasons',
   assert.equal(submissionCreatedTime(queuedSubmission), queuedSubmission.createdAt)
   assert.equal(queueAheadCount(queuedSubmission), 3)
   assert.equal(statusText(queuedSubmission.status, queuedSubmission), '排队中... 前边还有 3 笔提交在排队')
+  assert.equal(statusClassName(queuedSubmission), 'uploaded')
   assert.equal(canCancelSubmission(queuedSubmission), true)
   assert.equal(canCancelSubmission({ id: 'abc123', status: 'EVALUATING' }), false)
+  assert.equal(isFailedSubmission(failedSubmission), true)
   assert.equal(failureReason(failedSubmission), '第一行\n第二行')
+  assert.equal(failedStatusText(failedSubmission), '失败：第一行\n第二行')
   assert.equal(detailStatusText(failedSubmission), '失败：第一行\n第二行')
   assert.equal(scoreDetailUnavailableText({ status: 'UPLOADED' }), '待评测')
+})
+
+test('history page uses exposed status helpers instead of missing template globals', async () => {
+  const source = await readFile(new URL('../src/components/HistoryPage.vue', import.meta.url), 'utf8')
+  const historySource = await readFile(new URL('../src/composables/useSubmissionHistory.js', import.meta.url), 'utf8')
+
+  assert.ok(source.includes('isFailedSubmission(item)'), 'history page should use the composable failed-status helper')
+  assert.ok(source.includes('statusClassName(item)'), 'history page should use the composable status-class helper')
+  assert.equal(source.includes('normalizeStatus(item.status)'), false, 'history page should not reference unexposed normalizeStatus in the template')
+  assert.ok(historySource.includes('failedStatusText'), 'history composable should expose failed status text')
+  assert.ok(historySource.includes('isFailedSubmission'), 'history composable should expose failed status checks')
+  assert.ok(historySource.includes('statusClassName'), 'history composable should expose status class names')
 })
 
 test('frontend request error formatting is shared instead of duplicated in composables', async () => {
