@@ -1,15 +1,12 @@
 import { computed, ref } from 'vue'
 import { userApi } from '../api'
-
-const USER_STORAGE_KEY = 'agent_game_user'
-const THIRD_PARTY_USER_ID_STORAGE_KEY = 'agent_game_third_party_user_id'
-const THIRD_PARTY_USER_ID_QUERY_KEYS = ['user_id', 'userId', 'employee_id', 'employeeId', 'work_id', 'workId']
-const EMERGENCY_LOGIN_PATH = '/emergency-login'
-
-const normalizeUserId = (value) => {
-  const normalized = String(value || '').replace(/\D/g, '').slice(0, 8)
-  return normalized.length === 8 ? normalized : ''
-}
+import {
+  isEmergencyLoginPath,
+  normalizeUserId,
+  THIRD_PARTY_USER_ID_QUERY_KEYS,
+  THIRD_PARTY_USER_ID_STORAGE_KEY,
+  USER_STORAGE_KEY
+} from '../utils/userIdentity'
 
 const normalizeUserProfile = (user) => {
   if (!user) {
@@ -52,7 +49,7 @@ export const useUserSession = () => {
   })
   const registerLoading = ref(false)
   const registerError = ref('')
-  const isEmergencyLoginPage = ref(window.location.pathname.replace(/\/+$/, '') === EMERGENCY_LOGIN_PATH)
+  const isEmergencyLoginPage = ref(isEmergencyLoginPath(window.location.pathname))
 
   const isCurrentUserTestAccount = computed(() => {
     return Boolean(currentUser.value?.test_account || currentUser.value?.testAccount)

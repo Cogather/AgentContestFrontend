@@ -2,12 +2,15 @@ import axios from 'axios'
 import { createApp } from 'vue'
 import './style.css'
 import App from './App.vue'
+import {
+  isEmergencyLoginPath,
+  normalizeUserId,
+  THIRD_PARTY_USER_ID_STORAGE_KEY
+} from './utils/userIdentity'
 
-const THIRD_PARTY_USER_ID_STORAGE_KEY = 'agent_game_third_party_user_id'
 const LOGIN_STATUS_PATH = import.meta.env.VITE_LOGIN_STATUS_PATH || '/auth/login'
 const LOGIN_PAGE_URL = import.meta.env.VITE_LOGIN_PAGE_URL || '/auth/login'
 const ENABLE_LOGIN_GUARD = import.meta.env.VITE_ENABLE_LOGIN_GUARD === 'true'
-const EMERGENCY_LOGIN_PATH = '/emergency-login'
 const LOCAL_HTTP_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]'])
 
 const redirectHttpToHttps = () => {
@@ -18,11 +21,6 @@ const redirectHttpToHttps = () => {
   httpsUrl.protocol = 'https:'
   window.location.replace(httpsUrl.toString())
   return true
-}
-
-const normalizeUserId = (value) => {
-  const normalized = String(value || '').replace(/\D/g, '').slice(0, 8)
-  return normalized.length === 8 ? normalized : ''
 }
 
 const extractUserId = (data) => {
@@ -45,10 +43,6 @@ const redirectToLogin = () => {
   window.location.replace(redirectUrl.toString())
 }
 
-const isEmergencyLoginPath = () => {
-  return window.location.pathname.replace(/\/+$/, '') === EMERGENCY_LOGIN_PATH
-}
-
 const mountApp = () => {
   createApp(App).mount('#app')
 }
@@ -58,7 +52,7 @@ const initializeApp = async () => {
     return
   }
 
-  if (isEmergencyLoginPath()) {
+  if (isEmergencyLoginPath(window.location.pathname)) {
     mountApp()
     return
   }
