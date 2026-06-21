@@ -5,7 +5,7 @@ import { test } from 'node:test'
 import {
   canShowScoreDetail,
   mergeQuestionScoreDetails
-} from '../src/components/historyScoreDetail.js'
+} from '../src/utils/submissionScoreDetails.js'
 import { useContestClock } from '../src/composables/useContestClock.js'
 import {
   EMERGENCY_LOGIN_PATH,
@@ -50,6 +50,12 @@ test('score detail uses however many scored questions the backend returns', () =
       total: 10
     }
   ])
+})
+
+test('score detail parsing lives in shared utils instead of component folders', async () => {
+  const historySource = await readFile(new URL('../src/composables/useSubmissionHistory.js', import.meta.url), 'utf8')
+
+  assert.ok(historySource.includes("from '../utils/submissionScoreDetails'"), 'history composable should import score detail helpers from utils')
 })
 
 test('score formatting preserves decimal scores without noisy trailing zeroes', async () => {
