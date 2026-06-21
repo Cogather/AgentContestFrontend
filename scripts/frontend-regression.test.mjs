@@ -349,6 +349,7 @@ test('history score detail trigger has a visible button affordance', async () =>
 
 test('history page displays submission id for every record', async () => {
   const source = await readFile(new URL('../src/components/HistoryPage.vue', import.meta.url), 'utf8')
+  const historySource = await readFile(new URL('../src/composables/useSubmissionHistory.js', import.meta.url), 'utf8')
 
   assert.ok(source.includes('提交 ID'), 'history table should include a submission id header')
   assert.ok(source.includes('submissionId(item)'), 'history rows should read backend submission id through a field-compatible helper')
@@ -356,23 +357,26 @@ test('history page displays submission id for every record', async () => {
   assert.ok(source.includes('submissionCreatedTime(item)'), 'history rows should read backend createdAt as the submitted time')
   assert.ok(source.includes('submission-id-badge'), 'history rows should make submission id visually distinct')
   assert.ok(source.includes("{{ submissionId(item) ? '#' + submissionId(item) : '-' }}"), 'history rows should render backend submission id')
-  assert.ok(source.includes('item?.submission_id'), 'history rows should tolerate snake_case submission id fields')
-  assert.ok(source.includes('item?.submissionId'), 'history rows should tolerate camelCase submission id fields')
+  assert.ok(historySource.includes('item?.submission_id'), 'history rows should tolerate snake_case submission id fields')
+  assert.ok(historySource.includes('item?.submissionId'), 'history rows should tolerate camelCase submission id fields')
 })
 
 test('history page shows uploaded submissions as queued with queue-ahead count', async () => {
   const source = await readFile(new URL('../src/components/HistoryPage.vue', import.meta.url), 'utf8')
+  const historySource = await readFile(new URL('../src/composables/useSubmissionHistory.js', import.meta.url), 'utf8')
 
-  assert.ok(source.includes("uploaded: '排队中...'"), 'history page should display uploaded status as 排队中...')
-  assert.ok(source.includes("`${statusTextMap.uploaded} 前边还有 ${count} 笔提交在排队`"), 'history page should show queue-ahead copy with readable spacing')
-  assert.ok(source.includes('queueAheadCount'), 'history page should derive the queue-ahead count for queued submissions')
-  assert.ok(source.includes('item?.queue_ahead'), 'history page should tolerate snake_case queue-ahead fields')
-  assert.ok(source.includes('item?.queueAhead'), 'history page should tolerate camelCase queue-ahead fields')
-  assert.ok(source.includes('前边还有 ${count} 笔提交在排队'), 'history page should render the queue-ahead count in Chinese')
+  assert.ok(historySource.includes("uploaded: '排队中...'"), 'history page should display uploaded status as 排队中...')
+  assert.ok(historySource.includes("`${statusTextMap.uploaded} 前边还有 ${count} 笔提交在排队`"), 'history page should show queue-ahead copy with readable spacing')
+  assert.ok(historySource.includes('queueAheadCount'), 'history page should derive the queue-ahead count for queued submissions')
+  assert.ok(historySource.includes('item?.queue_ahead'), 'history page should tolerate snake_case queue-ahead fields')
+  assert.ok(historySource.includes('item?.queueAhead'), 'history page should tolerate camelCase queue-ahead fields')
+  assert.ok(historySource.includes('前边还有 ${count} 笔提交在排队'), 'history page should render the queue-ahead count in Chinese')
+  assert.ok(source.includes('statusText(item.status, item)'), 'history table should render the derived status text')
 })
 
 test('history page only allows canceling queued submissions', async () => {
   const source = await readFile(new URL('../src/components/HistoryPage.vue', import.meta.url), 'utf8')
+  const historySource = await readFile(new URL('../src/composables/useSubmissionHistory.js', import.meta.url), 'utf8')
   const apiSource = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
   const appSource = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
 
@@ -381,15 +385,16 @@ test('history page only allows canceling queued submissions', async () => {
     'frontend API should call the signed-session cancel endpoint'
   )
   assert.ok(
-    source.includes("String(item?.status || '').toLowerCase() === 'uploaded'"),
+    historySource.includes("String(item?.status || '').toLowerCase() === 'uploaded'"),
     'cancel button should only be available while the submission is queued'
   )
   assert.ok(source.includes('cancel-submission-btn'), 'history page should render a visible cancel action')
   assert.ok(source.includes('取消中...'), 'cancel action should show a pending state')
-  assert.equal(source.includes("toLowerCase() === 'evaluating'"), false, 'evaluating submissions must not be cancelable')
-  assert.equal(source.includes("toLowerCase() === 'failed'"), false, 'failed submissions must not be cancelable')
+  assert.equal(historySource.includes("toLowerCase() === 'evaluating'"), false, 'evaluating submissions must not be cancelable')
+  assert.equal(historySource.includes("toLowerCase() === 'failed'"), false, 'failed submissions must not be cancelable')
   assert.ok(source.includes("defineEmits(['back', 'canceled'])"), 'history page should emit an event after successful cancellation')
-  assert.ok(source.includes("emit('canceled', { submissionId: id })"), 'cancel success should notify parent views with the canceled submission id')
+  assert.ok(source.includes("onCanceled: payload => emit('canceled', payload)"), 'history page should forward cancellation events from the composable')
+  assert.ok(historySource.includes('onCanceled?.({ submissionId: id })'), 'cancel success should notify parent views with the canceled submission id')
   assert.ok(appSource.includes('@canceled="handleSubmissionCanceled"'), 'homepage should handle cancellation explicitly')
   assert.ok(appSource.includes('rankingBoardRef.value.refresh()'), 'homepage should refresh ranking metrics after cancellation')
   assert.equal(appSource.includes('canceledCooldownSubmissionIds'), false, 'homepage should not keep local cooldown exceptions after backend owns interval rules')
@@ -397,6 +402,7 @@ test('history page only allows canceling queued submissions', async () => {
 
 test('history page displays active queued and evaluating task counts', async () => {
   const source = await readFile(new URL('../src/components/HistoryPage.vue', import.meta.url), 'utf8')
+  const historySource = await readFile(new URL('../src/composables/useSubmissionHistory.js', import.meta.url), 'utf8')
   const apiSource = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
 
   assert.ok(
@@ -406,9 +412,9 @@ test('history page displays active queued and evaluating task counts', async () 
   assert.ok(source.includes('activeTaskSummary'), 'history page should derive active task summary counts')
   assert.ok(source.includes('当前排队'), 'history page should show queued task count copy')
   assert.ok(source.includes('正在评测'), 'history page should show evaluating task count copy')
-  assert.ok(source.includes('queuedCount'), 'history page should read queued count from backend summary')
-  assert.ok(source.includes('evaluatingCount'), 'history page should read evaluating count from backend summary')
-  assert.ok(source.includes('await loadSubmissionQueueSummary()'), 'manual history refresh should also refresh active task counts')
+  assert.ok(historySource.includes('queuedCount'), 'history page should read queued count from backend summary')
+  assert.ok(historySource.includes('evaluatingCount'), 'history page should read evaluating count from backend summary')
+  assert.ok(historySource.includes('await loadSubmissionQueueSummary()'), 'manual history refresh should also refresh active task counts')
 })
 
 test('history submission id column stays compact and truncates long ids', async () => {
@@ -437,7 +443,7 @@ test('history submission id column stays compact and truncates long ids', async 
 })
 
 test('history page auto refreshes every five seconds and clears the timer', async () => {
-  const source = await readFile(new URL('../src/components/HistoryPage.vue', import.meta.url), 'utf8')
+  const source = await readFile(new URL('../src/composables/useSubmissionHistory.js', import.meta.url), 'utf8')
 
   assert.ok(source.includes('HISTORY_REFRESH_INTERVAL_MS = 5000'), 'history refresh interval should be five seconds')
   assert.ok(source.includes('setInterval('), 'history page should start an interval refresh')
