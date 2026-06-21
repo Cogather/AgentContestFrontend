@@ -457,6 +457,21 @@ test('app delegates the top navigation header to a component', async () => {
   assert.ok(headerSource.includes('status-indicator'), 'AppHeader should own current-user status UI')
 })
 
+test('app delegates login and emergency login forms to a register panel component', async () => {
+  const appSource = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+  const panelSource = await readFile(new URL('../src/components/RegisterPanel.vue', import.meta.url), 'utf8')
+
+  assert.ok(appSource.includes('RegisterPanel'), 'App should render the extracted register panel component')
+  assert.ok(appSource.includes('@login-user="loginUser"'), 'App should wire normal login submit to the register panel')
+  assert.ok(appSource.includes('@login-emergency-user="loginEmergencyUser"'), 'App should wire emergency login submit to the register panel')
+  assert.equal(appSource.includes('<form v-if="isEmergencyLoginPage"'), false, 'App should not own emergency login form markup')
+  assert.equal(appSource.includes('<form v-else class="register-panel"'), false, 'App should not own normal login form markup')
+  assert.equal(appSource.includes('.register-panel'), false, 'App should not own register panel styles')
+  assert.ok(panelSource.includes('<h2>参赛登录</h2>'), 'register panel should keep normal login copy')
+  assert.ok(panelSource.includes('<h2>应急登录</h2>'), 'register panel should keep emergency login copy')
+  assert.ok(panelSource.includes('defineEmits'), 'register panel should expose submit events')
+})
+
 test('contest clock exposes stable schedule and ended state from one module', () => {
   const contestClock = useContestClock()
 
@@ -697,6 +712,7 @@ test('post-login user scoped frontend calls use signed session me endpoints', as
 test('registered users bootstrap silently without identity confirmation UI', async () => {
   const source = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
   const sessionSource = await readFile(new URL('../src/composables/useUserSession.js', import.meta.url), 'utf8')
+  const registerPanelSource = await readFile(new URL('../src/components/RegisterPanel.vue', import.meta.url), 'utf8')
 
   assert.ok(sessionSource.includes('bootstrapRegisteredUserSession'), 'startup should silently bootstrap backend session for registered users')
   assert.ok(sessionSource.includes("username: ''"), 'registered-user bootstrap should not require a nickname')
@@ -708,16 +724,17 @@ test('registered users bootstrap silently without identity confirmation UI', asy
   assert.equal(source.includes('老用户'), false, 'login UI should not show old-user wording')
   assert.equal(source.includes('可留空'), false, 'login UI should not tell users to leave nickname blank')
   assert.equal(source.includes('直接进入'), false, 'login flow should not expose direct-enter copy')
-  assert.ok(source.includes('<h2>参赛登录</h2>'), 'login panel title should remain 参赛登录')
-  assert.ok(source.includes("registerLoading ? '登录中...' : '登录'"), 'login button copy should remain 登录')
-  assert.equal(source.includes('完成登记'), false, 'login UI should not show registration completion copy')
-  assert.ok(source.includes('昵称设置后不可修改，请谨慎填写'), 'new-user nickname copy should stay simple')
+  assert.ok(registerPanelSource.includes('<h2>参赛登录</h2>'), 'login panel title should remain 参赛登录')
+  assert.ok(registerPanelSource.includes("loading ? '登录中...' : '登录'"), 'login button copy should remain 登录')
+  assert.equal(registerPanelSource.includes('完成登记'), false, 'login UI should not show registration completion copy')
+  assert.ok(registerPanelSource.includes('昵称设置后不可修改，请谨慎填写'), 'new-user nickname copy should stay simple')
 })
 
 test('emergency login route bypasses third-party login and calls backend allow-list endpoint', async () => {
   const mainSource = await readFile(new URL('../src/main.js', import.meta.url), 'utf8')
   const appSource = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
   const apiSource = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
+  const registerPanelSource = await readFile(new URL('../src/components/RegisterPanel.vue', import.meta.url), 'utf8')
 
   assert.ok(mainSource.includes("from './utils/userIdentity'"), 'entrypoint should share emergency login path helpers')
   assert.ok(mainSource.includes('isEmergencyLoginPath(window.location.pathname)'), 'entrypoint should detect the emergency login path')
@@ -725,7 +742,7 @@ test('emergency login route bypasses third-party login and calls backend allow-l
   assert.ok(apiSource.includes('/api/users/emergency-login'), 'API client should expose the backend emergency login endpoint')
   assert.ok(appSource.includes('isEmergencyLoginPage'), 'App should render a dedicated emergency login mode')
   assert.ok(appSource.includes('loginEmergencyUser'), 'emergency login form should call a dedicated submit handler')
-  assert.ok(appSource.includes('应急登录'), 'emergency login UI should be visibly distinct from normal login')
+  assert.ok(registerPanelSource.includes('应急登录'), 'emergency login UI should be visibly distinct from normal login')
 })
 
 test('registration payload normalizes prefixed work ids before posting to backend', async () => {
