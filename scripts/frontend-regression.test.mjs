@@ -77,19 +77,22 @@ test('ranking board does not start an interval-based auto refresh', async () => 
 })
 
 test('ranking board defaults to twenty rows per page', async () => {
-  const source = await readFile(new URL('../src/components/RankingBoard.vue', import.meta.url), 'utf8')
+  const source = await readFile(new URL('../src/composables/useRankingBoard.js', import.meta.url), 'utf8')
+  const componentSource = await readFile(new URL('../src/components/RankingBoard.vue', import.meta.url), 'utf8')
 
   assert.ok(source.includes('const pageSize = ref(20)'), 'ranking board should request 20 rows by default')
-  assert.ok(source.includes('<option :value="20">20</option>'), 'page size selector should keep 20 as an available size')
+  assert.ok(componentSource.includes('<option :value="20">20</option>'), 'page size selector should keep 20 as an available size')
+  assert.ok(componentSource.includes('useRankingBoard'), 'ranking board component should delegate state to the composable')
 })
 
 test('ranking board splits twenty rows into two ten-row columns', async () => {
-  const source = await readFile(new URL('../src/components/RankingBoard.vue', import.meta.url), 'utf8')
+  const source = await readFile(new URL('../src/composables/useRankingBoard.js', import.meta.url), 'utf8')
+  const componentSource = await readFile(new URL('../src/components/RankingBoard.vue', import.meta.url), 'utf8')
 
   assert.ok(source.includes('RANKING_COLUMN_SIZE = 10'), 'ranking board should use ten rows per visual column')
   assert.ok(source.includes('rankingColumns'), 'ranking board should derive visual ranking columns')
-  assert.ok(source.includes('class="ranking-columns"'), 'ranking board should render a two-column ranking wrapper')
-  assert.ok(source.includes('class="ranking-column"'), 'ranking board should render each ten-row column separately')
+  assert.ok(componentSource.includes('class="ranking-columns"'), 'ranking board should render a two-column ranking wrapper')
+  assert.ok(componentSource.includes('class="ranking-column"'), 'ranking board should render each ten-row column separately')
 })
 
 test('frontend does not use native alert for error messages', async () => {
@@ -472,11 +475,12 @@ test('ranking summary and personal metrics have emphasized right-side structure'
 
 test('ranking score token usage and submission count headers are sortable', async () => {
   const source = await readFile(new URL('../src/components/RankingBoard.vue', import.meta.url), 'utf8')
+  const rankingSource = await readFile(new URL('../src/composables/useRankingBoard.js', import.meta.url), 'utf8')
 
   for (const field of ['score', 'submission_count', 'token_usage']) {
     assert.ok(source.includes(`@click="toggleSort('${field}')"`), `${field} header should toggle sorting`)
   }
-  assert.ok(source.includes('sortField: requestSortField'), 'rank page request should include sortField')
+  assert.ok(rankingSource.includes('sortField: requestSortField'), 'rank page request should include sortField')
 })
 
 test('ranking numeric sort headers align with their values', async () => {
