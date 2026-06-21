@@ -3,8 +3,7 @@ import { userApi } from '../api'
 import {
   canShowScoreDetail,
   getTokenUsage,
-  mergeQuestionScoreDetails,
-  normalizeStatus
+  mergeQuestionScoreDetails
 } from '../utils/submissionScoreDetails'
 import { requestErrorMessage } from '../utils/requestErrors'
 import {
@@ -17,15 +16,10 @@ import {
   submissionCreatedTime,
   submissionId
 } from '../utils/submissionDisplay'
-import { firstDefined, formatNumber } from '../utils/valueHelpers'
+import { activeSubmissionSummary } from '../utils/submissionSummary'
+import { formatNumber } from '../utils/valueHelpers'
 
 const HISTORY_REFRESH_INTERVAL_MS = 5000
-
-const numericCount = (...values) => {
-  const value = firstDefined(...values)
-  const numberValue = Number(value)
-  return Number.isFinite(numberValue) && numberValue >= 0 ? Math.floor(numberValue) : null
-}
 
 export const useSubmissionHistory = ({ userId, username, onCanceled } = {}) => {
   const submissions = ref([])
@@ -47,23 +41,8 @@ export const useSubmissionHistory = ({ userId, username, onCanceled } = {}) => {
     return unref(username) ? `${unref(username)} 的历史提交` : '历史提交记录'
   })
 
-  const countLocalSubmissionsByStatus = (status) => {
-    return submissions.value.filter(item => normalizeStatus(item?.status) === status).length
-  }
-
   const activeTaskSummary = computed(() => {
-    return {
-      queuedCount: numericCount(
-        submissionQueueSummary.value?.queuedCount,
-        submissionQueueSummary.value?.queued_count,
-        countLocalSubmissionsByStatus('uploaded')
-      ),
-      evaluatingCount: numericCount(
-        submissionQueueSummary.value?.evaluatingCount,
-        submissionQueueSummary.value?.evaluating_count,
-        countLocalSubmissionsByStatus('evaluating')
-      )
-    }
+    return activeSubmissionSummary(submissionQueueSummary.value, submissions.value)
   })
 
   const loadSubmissionQueueSummary = async () => {

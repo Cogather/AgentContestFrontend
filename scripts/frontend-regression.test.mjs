@@ -35,6 +35,10 @@ import {
   visiblePageNumbers
 } from '../src/utils/rankingDisplay.js'
 import {
+  activeSubmissionSummary,
+  countSubmissionsByStatus
+} from '../src/utils/submissionSummary.js'
+import {
   contestPhaseAt,
   formatDurationText,
   timestampOf
@@ -597,6 +601,34 @@ test('history page displays active queued and evaluating task counts', async () 
   assert.ok(historySource.includes('queuedCount'), 'history page should read queued count from backend summary')
   assert.ok(historySource.includes('evaluatingCount'), 'history page should read evaluating count from backend summary')
   assert.ok(historySource.includes('await loadSubmissionQueueSummary()'), 'manual history refresh should also refresh active task counts')
+})
+
+test('history active task summary falls back to local submission statuses', async () => {
+  const historySource = await readFile(new URL('../src/composables/useSubmissionHistory.js', import.meta.url), 'utf8')
+  const submissions = [
+    { status: 'UPLOADED' },
+    { status: 'uploaded' },
+    { status: 'EVALUATING' },
+    { status: 'COMPLETED' }
+  ]
+
+  assert.equal(countSubmissionsByStatus(submissions, 'uploaded'), 2)
+  assert.equal(countSubmissionsByStatus(submissions, 'evaluating'), 1)
+  assert.deepEqual(activeSubmissionSummary({}, submissions), {
+    queuedCount: 2,
+    evaluatingCount: 1
+  })
+  assert.deepEqual(activeSubmissionSummary({ queued_count: '5', evaluatingCount: 3 }, submissions), {
+    queuedCount: 5,
+    evaluatingCount: 3
+  })
+  assert.deepEqual(activeSubmissionSummary({ queuedCount: '-1', evaluating_count: 'bad' }, submissions), {
+    queuedCount: 2,
+    evaluatingCount: 1
+  })
+  assert.ok(historySource.includes("from '../utils/submissionSummary'"), 'history composable should import active task summary helpers')
+  assert.equal(historySource.includes('const numericCount ='), false, 'history composable should not own summary number parsing')
+  assert.equal(historySource.includes('countLocalSubmissionsByStatus'), false, 'history composable should not own local status counting')
 })
 
 test('history submission id column stays compact and truncates long ids', async () => {
