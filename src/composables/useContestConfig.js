@@ -4,6 +4,7 @@ import {
   DEFAULT_CONTEST_CONFIG,
   normalizeContestConfig
 } from '../config/contestDefaults.js'
+import { requestErrorMessage } from '../utils/requestErrors.js'
 
 export const useContestConfig = () => {
   const contestConfig = ref(DEFAULT_CONTEST_CONFIG)
@@ -19,7 +20,7 @@ export const useContestConfig = () => {
       }
     } catch (error) {
       contestConfig.value = DEFAULT_CONTEST_CONFIG
-      contestConfigError.value = error?.response?.data?.message || error?.message || '赛事配置加载失败'
+      contestConfigError.value = requestErrorMessage(error, '赛事配置加载失败')
     } finally {
       contestConfigReady.value = true
     }

@@ -15,6 +15,7 @@ import {
   USER_STORAGE_KEY
 } from '../src/utils/userIdentity.js'
 import { firstDefined, formatNumber } from '../src/utils/valueHelpers.js'
+import { requestErrorDetail, requestErrorMessage } from '../src/utils/requestErrors.js'
 
 test('score detail uses however many scored questions the backend returns', () => {
   const submission = {
@@ -73,6 +74,38 @@ test('shared value helpers normalize fallback and number display behavior', () =
   assert.equal(formatNumber(null), '-')
   assert.equal(formatNumber('not-a-number'), '-')
   assert.equal(formatNumber('not-a-number', { invalidFallback: '原值不可用' }), '原值不可用')
+})
+
+test('shared request error helpers format backend network and timeout failures', () => {
+  assert.equal(
+    requestErrorDetail({ response: { data: { message: '距离上次上传不足30分钟' }, status: 429 } }),
+    '距离上次上传不足30分钟'
+  )
+  assert.equal(requestErrorDetail({ response: { status: 500 } }), 'HTTP 500')
+  assert.equal(requestErrorDetail({ code: 'ECONNABORTED' }), '请求超时')
+  assert.equal(requestErrorDetail({ message: 'Network Error' }), 'Network Error')
+  assert.equal(requestErrorMessage({}, '上传失败'), '上传失败')
+  assert.equal(
+    requestErrorMessage({ response: { data: { message: '用户身份校验失败' } } }, '登录失败', { prefixFallback: true }),
+    '登录失败：用户身份校验失败'
+  )
+})
+
+test('frontend request error formatting is shared instead of duplicated in composables', async () => {
+  const sessionSource = await readFile(new URL('../src/composables/useUserSession.js', import.meta.url), 'utf8')
+  const uploadSource = await readFile(new URL('../src/composables/usePackageUpload.js', import.meta.url), 'utf8')
+  const historySource = await readFile(new URL('../src/composables/useSubmissionHistory.js', import.meta.url), 'utf8')
+  const rankingSource = await readFile(new URL('../src/composables/useRankingBoard.js', import.meta.url), 'utf8')
+  const configSource = await readFile(new URL('../src/composables/useContestConfig.js', import.meta.url), 'utf8')
+
+  for (const source of [sessionSource, uploadSource, historySource, rankingSource, configSource]) {
+    assert.ok(source.includes('requestErrorMessage'), 'request error text should use the shared helper')
+  }
+  assert.equal(sessionSource.includes('const requestErrorMessage ='), false, 'session composable should not duplicate request error formatting')
+  assert.equal(uploadSource.includes('error?.response?.data?.message ||'), false, 'upload composable should not duplicate backend-message fallback logic')
+  assert.equal(historySource.includes('error?.response?.data?.message ||'), false, 'history composable should not duplicate backend-message fallback logic')
+  assert.equal(rankingSource.includes('error?.response?.data?.message ||'), false, 'ranking composable should not duplicate backend-message fallback logic')
+  assert.equal(configSource.includes('error?.response?.data?.message ||'), false, 'contest config composable should not duplicate backend-message fallback logic')
 })
 
 test('ranking board does not start an interval-based auto refresh', async () => {
