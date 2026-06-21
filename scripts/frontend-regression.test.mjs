@@ -7,6 +7,13 @@ import {
   mergeQuestionScoreDetails
 } from '../src/components/historyScoreDetail.js'
 import { useContestClock } from '../src/composables/useContestClock.js'
+import {
+  EMERGENCY_LOGIN_PATH,
+  isEmergencyLoginPath,
+  normalizeUserId,
+  THIRD_PARTY_USER_ID_STORAGE_KEY,
+  USER_STORAGE_KEY
+} from '../src/utils/userIdentity.js'
 
 test('score detail uses however many scored questions the backend returns', () => {
   const submission = {
@@ -185,6 +192,25 @@ test('api requests send current work id header for login session bootstrap', asy
   assert.ok(source.includes('getMe'), 'API client should expose current session lookup')
 })
 
+test('frontend identity helpers are shared by app bootstrap session and API layers', async () => {
+  const apiSource = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
+  const mainSource = await readFile(new URL('../src/main.js', import.meta.url), 'utf8')
+  const sessionSource = await readFile(new URL('../src/composables/useUserSession.js', import.meta.url), 'utf8')
+
+  assert.equal(normalizeUserId('w00678227'), '00678227')
+  assert.equal(normalizeUserId('1234'), '')
+  assert.equal(isEmergencyLoginPath('/emergency-login/'), true)
+  assert.equal(USER_STORAGE_KEY, 'agent_game_user')
+  assert.equal(THIRD_PARTY_USER_ID_STORAGE_KEY, 'agent_game_third_party_user_id')
+  assert.equal(EMERGENCY_LOGIN_PATH, '/emergency-login')
+  assert.ok(apiSource.includes("from '../utils/userIdentity'"), 'API client should reuse identity helpers')
+  assert.ok(mainSource.includes("from './utils/userIdentity'"), 'app bootstrap should reuse identity helpers')
+  assert.ok(sessionSource.includes("from '../utils/userIdentity'"), 'session composable should reuse identity helpers')
+  assert.equal(apiSource.includes('const normalizeUserId ='), false, 'API client should not duplicate user id parsing')
+  assert.equal(mainSource.includes('const normalizeUserId ='), false, 'app bootstrap should not duplicate user id parsing')
+  assert.equal(sessionSource.includes('const normalizeUserId ='), false, 'session composable should not duplicate user id parsing')
+})
+
 test('expected unauthenticated session checks do not log noisy API errors', async () => {
   const source = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
   const sessionSource = await readFile(new URL('../src/composables/useUserSession.js', import.meta.url), 'utf8')
@@ -260,9 +286,9 @@ test('emergency login route bypasses third-party login and calls backend allow-l
   const appSource = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
   const apiSource = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
 
-  assert.ok(mainSource.includes("EMERGENCY_LOGIN_PATH = '/emergency-login'"), 'entrypoint should define the emergency login path')
-  assert.ok(mainSource.includes('isEmergencyLoginPath()'), 'entrypoint should detect the emergency login path')
-  assert.ok(mainSource.includes('if (isEmergencyLoginPath())'), 'emergency login path should bypass third-party guard')
+  assert.ok(mainSource.includes("from './utils/userIdentity'"), 'entrypoint should share emergency login path helpers')
+  assert.ok(mainSource.includes('isEmergencyLoginPath(window.location.pathname)'), 'entrypoint should detect the emergency login path')
+  assert.ok(mainSource.includes('if (isEmergencyLoginPath(window.location.pathname))'), 'emergency login path should bypass third-party guard')
   assert.ok(apiSource.includes('/api/users/emergency-login'), 'API client should expose the backend emergency login endpoint')
   assert.ok(appSource.includes('isEmergencyLoginPage'), 'App should render a dedicated emergency login mode')
   assert.ok(appSource.includes('loginEmergencyUser'), 'emergency login form should call a dedicated submit handler')
