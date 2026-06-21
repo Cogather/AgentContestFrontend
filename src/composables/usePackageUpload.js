@@ -1,13 +1,12 @@
-import { onUnmounted, ref } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 import { commonApi } from '../api'
 import { requestErrorMessage } from '../utils/requestErrors'
-
-const invalidZipMessage = '程序包的格式错误，请上传zip格式的压缩包'
-const uploadLimitText = '仅支持 100MB 以内 .zip 压缩包'
-
-const isZipFile = (file) => {
-  return file?.name?.toLowerCase().endsWith('.zip')
-}
+import {
+  formatFileSizeMb,
+  INVALID_ZIP_MESSAGE,
+  isZipPackage,
+  UPLOAD_LIMIT_TEXT
+} from '../utils/uploadFileRules'
 
 export const usePackageUpload = ({ onClose, onSuccess } = {}) => {
   const isDragging = ref(false)
@@ -17,6 +16,8 @@ export const usePackageUpload = ({ onClose, onSuccess } = {}) => {
   const uploadError = ref('')
   const selectedFile = ref(null)
   let successTimer = null
+
+  const selectedFileSizeText = computed(() => formatFileSizeMb(selectedFile.value?.size))
 
   const close = () => {
     if (uploading.value || uploadSucceeded.value) return
@@ -32,9 +33,9 @@ export const usePackageUpload = ({ onClose, onSuccess } = {}) => {
   }
 
   const prepareUpload = (file, inputTarget = null) => {
-    if (!isZipFile(file)) {
+    if (!isZipPackage(file)) {
       selectedFile.value = null
-      uploadError.value = invalidZipMessage
+      uploadError.value = INVALID_ZIP_MESSAGE
       if (inputTarget) inputTarget.value = ''
       return
     }
@@ -81,9 +82,9 @@ export const usePackageUpload = ({ onClose, onSuccess } = {}) => {
 
   const confirmUpload = async () => {
     if (uploading.value || !selectedFile.value) return
-    if (!isZipFile(selectedFile.value)) {
+    if (!isZipPackage(selectedFile.value)) {
       selectedFile.value = null
-      uploadError.value = invalidZipMessage
+      uploadError.value = INVALID_ZIP_MESSAGE
       return
     }
 
@@ -120,8 +121,9 @@ export const usePackageUpload = ({ onClose, onSuccess } = {}) => {
     uploadSucceeded,
     uploadError,
     selectedFile,
-    invalidZipMessage,
-    uploadLimitText,
+    selectedFileSizeText,
+    invalidZipMessage: INVALID_ZIP_MESSAGE,
+    uploadLimitText: UPLOAD_LIMIT_TEXT,
     close,
     triggerSelect,
     handleDrop,

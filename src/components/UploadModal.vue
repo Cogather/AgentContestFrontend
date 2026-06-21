@@ -14,6 +14,7 @@ const {
   uploadSucceeded,
   uploadError,
   selectedFile,
+  selectedFileSizeText,
   uploadLimitText,
   close,
   triggerSelect,
@@ -81,7 +82,7 @@ const {
             <div v-else class="file-info" @click="triggerSelect" title="点击重新选择">
               <span class="file-icon">ZIP</span>
               <p class="file-name">{{ selectedFile.name }}</p>
-              <p class="file-size">{{ (selectedFile.size / 1024 / 1024).toFixed(2) }} MB</p>
+              <p class="file-size">{{ selectedFileSizeText }}</p>
               <p class="sub-text">{{ uploadLimitText }}</p>
               <p class="sub-text" style="margin-top: 8px;">(点击可重新选择文件)</p>
               <input
