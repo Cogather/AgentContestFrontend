@@ -445,6 +445,18 @@ test('app delegates session contest clock and error dialog state to composables'
   assert.equal(source.includes('欢迎参加 Agent 大赛'), false, 'App should not hardcode challenge copy')
 })
 
+test('app delegates the top navigation header to a component', async () => {
+  const appSource = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+  const headerSource = await readFile(new URL('../src/components/AppHeader.vue', import.meta.url), 'utf8')
+
+  assert.ok(appSource.includes('AppHeader'), 'App should render the extracted header component')
+  assert.ok(appSource.includes(':current-user="currentUser"'), 'App should pass the current user to the header')
+  assert.equal(appSource.includes('<header class="header">'), false, 'App should not own header markup')
+  assert.ok(headerSource.includes('<header class="header">'), 'AppHeader should own header markup')
+  assert.ok(headerSource.includes('IconSymbol'), 'AppHeader should own the logo icon')
+  assert.ok(headerSource.includes('status-indicator'), 'AppHeader should own current-user status UI')
+})
+
 test('contest clock exposes stable schedule and ended state from one module', () => {
   const contestClock = useContestClock()
 

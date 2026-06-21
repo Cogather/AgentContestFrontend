@@ -4,6 +4,7 @@ import UploadModal from './components/UploadModal.vue'
 import HistoryPage from './components/HistoryPage.vue'
 import RankingBoard from './components/RankingBoard.vue'
 import ContestSchedulePanel from './components/ContestSchedulePanel.vue'
+import AppHeader from './components/AppHeader.vue'
 import IconSymbol from './components/IconSymbol.vue'
 import ErrorModal from './components/ErrorModal.vue'
 import { useContestConfig } from './composables/useContestConfig'
@@ -121,23 +122,7 @@ const handleUploadSuccess = () => {
 
 <template>
   <div class="app">
-    <!-- 顶部导航 -->
-    <header class="header">
-      <div class="header-content">
-        <div class="logo">
-          <span class="logo-mark">
-            <IconSymbol name="network" :size="21" />
-          </span>
-          <span class="logo-text">{{ contestTitle }}</span>
-        </div>
-        <div class="header-right">
-          <div class="status-indicator" v-if="currentUser">
-            <span class="status-dot"></span>
-            <span class="status-text">{{ currentUser.username }}</span>
-          </div>
-        </div>
-      </div>
-    </header>
+    <AppHeader :title="contestTitle" :current-user="currentUser" />
 
     <main v-if="sessionReady && !currentUser" class="register-main">
       <section class="register-shell">
@@ -423,92 +408,6 @@ body {
     linear-gradient(180deg, #ffffff 0%, #f7faff 42%, #eef5ff 100%);
   min-height: 100vh;
   position: relative;
-}
-
-/* 顶部导航 */
-.header {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  background: linear-gradient(180deg, rgba(248, 251, 255, 0.92), rgba(248, 251, 255, 0));
-  backdrop-filter: blur(12px);
-  border-bottom: none;
-}
-
-.header-content {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 16px 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.logo-mark {
-  width: 34px;
-  height: 34px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(15, 124, 255, 0.28);
-  border-radius: 8px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(238, 245, 255, 0.9));
-  color: var(--accent);
-  box-shadow: inset 0 0 14px rgba(15, 124, 255, 0.08), 0 8px 18px rgba(15, 23, 42, 0.08);
-}
-
-.logo-text {
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--text);
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.status-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.86);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  background: var(--accent);
-  box-shadow: 0 0 10px rgba(15, 124, 255, 0.38);
-  border-radius: 50%;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.status-text {
-  font-size: 13px;
-  color: var(--text);
-  font-weight: 600;
 }
 
 /* 主要内容 */
@@ -1170,14 +1069,6 @@ body {
 }
 
 @media (max-width: 640px) {
-  .header-content {
-    padding: 12px 16px;
-  }
-
-  .logo-text {
-    font-size: 18px;
-  }
-
   .hero-section {
     height: 250px;
     min-height: 220px;
@@ -1250,44 +1141,6 @@ body {
     linear-gradient(245deg, rgba(129, 119, 216, 0.08), transparent 34%),
     linear-gradient(180deg, #ffffff 0%, #f7faff 42%, #eef5ff 100%);
   color: var(--text);
-}
-
-.header {
-  position: absolute;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.58));
-  border-bottom: 1px solid rgba(71, 96, 136, 0.1);
-}
-
-.header-content {
-  max-width: 1320px;
-  padding: 18px 24px;
-}
-
-.logo-mark {
-  border-color: rgba(180, 35, 47, 0.2);
-  background:
-    linear-gradient(135deg, rgba(180, 35, 47, 0.12), rgba(27, 111, 216, 0.08)),
-    rgba(255, 255, 255, 0.9);
-  color: var(--accent-red);
-  box-shadow: 0 10px 22px rgba(23, 44, 76, 0.08);
-}
-
-.logo-text {
-  font-size: 19px;
-  font-weight: 800;
-  color: #172033;
-}
-
-.status-indicator {
-  border-color: rgba(71, 96, 136, 0.16);
-  background: rgba(255, 255, 255, 0.78);
-  box-shadow: 0 10px 24px rgba(23, 44, 76, 0.06);
-}
-
-.status-dot {
-  background: var(--accent-red);
-  box-shadow: 0 0 0 4px rgba(180, 35, 47, 0.1);
-  animation: none;
 }
 
 .register-main {
@@ -1627,11 +1480,9 @@ button::before {
   display: none;
 }
 
-.header,
 .hero-section,
 .card,
-.register-panel,
-.status-indicator {
+.register-panel {
   backdrop-filter: blur(14px);
 }
 
@@ -1774,11 +1625,6 @@ body {
     linear-gradient(180deg, #ffffff 0%, #f7faff 46%, #eef5ff 100%);
 }
 
-.header {
-  background: rgba(255, 255, 255, 0.74);
-  border-bottom: 1px solid rgba(71, 96, 136, 0.1);
-}
-
 .register-main {
   padding-top: 118px;
   background:
@@ -1919,7 +1765,6 @@ body {
   --accent-soft: rgba(180, 35, 47, 0.07);
 }
 
-.logo-mark,
 .card-icon,
 .ranking-card .card-icon {
   border-color: rgba(180, 35, 47, 0.16);
@@ -1927,7 +1772,6 @@ body {
   color: #b4232f;
 }
 
-.status-dot,
 .live-dot {
   background: #b4232f;
 }
@@ -2116,7 +1960,6 @@ body {
 }
 
 /* Reduce decorative red; keep it for primary action and key status only */
-.logo-mark,
 .card-icon,
 .ranking-card .card-icon,
 .hero-kicker {
@@ -2150,17 +1993,6 @@ body {
 }
 
 /* Red emphasis in hero, black-led data panels */
-.header .logo-mark {
-  border-color: rgba(180, 35, 47, 0.2);
-  background: rgba(180, 35, 47, 0.08);
-  color: #b4232f;
-}
-
-.status-dot {
-  background: #b4232f;
-  box-shadow: 0 0 0 4px rgba(180, 35, 47, 0.1);
-}
-
 .hero-section {
   background:
     radial-gradient(circle at 79% 32%, rgba(180, 35, 47, 0.08), transparent 24%),
@@ -2493,11 +2325,9 @@ body {
 }
 
 /* Scroll performance pass: avoid large repaint-heavy glass layers */
-.header,
 .hero-section,
 .card,
-.register-panel,
-.status-indicator {
+.register-panel {
   backdrop-filter: none;
 }
 
