@@ -1,11 +1,14 @@
 import axios from 'axios'
+import {
+  normalizeUserId,
+  THIRD_PARTY_USER_ID_STORAGE_KEY,
+  USER_STORAGE_KEY
+} from '../utils/userIdentity'
 
 const DEFAULT_API_BASE_URL = ''
 const DEFAULT_UPLOAD_TIMEOUT_MS = 5 * 60 * 1000
 const WRITE_KEY_HEADER = 'X-Agent-Contest-Write-Key'
 const CURRENT_USER_ID_HEADER = 'X-Agent-Contest-User-Id'
-const USER_STORAGE_KEY = 'agent_game_user'
-const THIRD_PARTY_USER_ID_STORAGE_KEY = 'agent_game_third_party_user_id'
 
 const normalizeBaseUrl = (url) => {
   return String(url || '').replace(/\/+$/, '')
@@ -17,10 +20,6 @@ const getBaseUrl = () => {
 
 const getWriteApiKey = () => {
   return String(import.meta.env.VITE_WRITE_API_KEY || '').trim()
-}
-
-const normalizeUserId = (value) => {
-  return String(value || '').replace(/\D/g, '').slice(0, 8)
 }
 
 const readStoredUser = () => {

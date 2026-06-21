@@ -7,6 +7,14 @@ import {
   mergeQuestionScoreDetails
 } from '../src/components/historyScoreDetail.js'
 import { useContestClock } from '../src/composables/useContestClock.js'
+import {
+  EMERGENCY_LOGIN_PATH,
+  isEmergencyLoginPath,
+  normalizeUserId,
+  THIRD_PARTY_USER_ID_STORAGE_KEY,
+  USER_STORAGE_KEY
+} from '../src/utils/userIdentity.js'
+import { firstDefined, formatNumber } from '../src/utils/valueHelpers.js'
 
 test('score detail uses however many scored questions the backend returns', () => {
   const submission = {
@@ -53,6 +61,14 @@ test('score formatting preserves decimal scores without noisy trailing zeroes', 
   assert.equal(formatScore(null), '-')
 })
 
+test('shared value helpers normalize fallback and number display behavior', () => {
+  assert.equal(firstDefined(null, undefined, '', 'ready'), 'ready')
+  assert.equal(formatNumber(1234567), '1,234,567')
+  assert.equal(formatNumber(null), '-')
+  assert.equal(formatNumber('not-a-number'), '-')
+  assert.equal(formatNumber('not-a-number', { invalidFallback: '原值不可用' }), '原值不可用')
+})
+
 test('ranking board does not start an interval-based auto refresh', async () => {
   const source = await readFile(new URL('../src/components/RankingBoard.vue', import.meta.url), 'utf8')
 
@@ -61,19 +77,22 @@ test('ranking board does not start an interval-based auto refresh', async () => 
 })
 
 test('ranking board defaults to twenty rows per page', async () => {
-  const source = await readFile(new URL('../src/components/RankingBoard.vue', import.meta.url), 'utf8')
+  const source = await readFile(new URL('../src/composables/useRankingBoard.js', import.meta.url), 'utf8')
+  const componentSource = await readFile(new URL('../src/components/RankingBoard.vue', import.meta.url), 'utf8')
 
   assert.ok(source.includes('const pageSize = ref(20)'), 'ranking board should request 20 rows by default')
-  assert.ok(source.includes('<option :value="20">20</option>'), 'page size selector should keep 20 as an available size')
+  assert.ok(componentSource.includes('<option :value="20">20</option>'), 'page size selector should keep 20 as an available size')
+  assert.ok(componentSource.includes('useRankingBoard'), 'ranking board component should delegate state to the composable')
 })
 
 test('ranking board splits twenty rows into two ten-row columns', async () => {
-  const source = await readFile(new URL('../src/components/RankingBoard.vue', import.meta.url), 'utf8')
+  const source = await readFile(new URL('../src/composables/useRankingBoard.js', import.meta.url), 'utf8')
+  const componentSource = await readFile(new URL('../src/components/RankingBoard.vue', import.meta.url), 'utf8')
 
   assert.ok(source.includes('RANKING_COLUMN_SIZE = 10'), 'ranking board should use ten rows per visual column')
   assert.ok(source.includes('rankingColumns'), 'ranking board should derive visual ranking columns')
-  assert.ok(source.includes('class="ranking-columns"'), 'ranking board should render a two-column ranking wrapper')
-  assert.ok(source.includes('class="ranking-column"'), 'ranking board should render each ten-row column separately')
+  assert.ok(componentSource.includes('class="ranking-columns"'), 'ranking board should render a two-column ranking wrapper')
+  assert.ok(componentSource.includes('class="ranking-column"'), 'ranking board should render each ten-row column separately')
 })
 
 test('frontend does not use native alert for error messages', async () => {
@@ -185,6 +204,25 @@ test('api requests send current work id header for login session bootstrap', asy
   assert.ok(source.includes('getMe'), 'API client should expose current session lookup')
 })
 
+test('frontend identity helpers are shared by app bootstrap session and API layers', async () => {
+  const apiSource = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
+  const mainSource = await readFile(new URL('../src/main.js', import.meta.url), 'utf8')
+  const sessionSource = await readFile(new URL('../src/composables/useUserSession.js', import.meta.url), 'utf8')
+
+  assert.equal(normalizeUserId('w00678227'), '00678227')
+  assert.equal(normalizeUserId('1234'), '')
+  assert.equal(isEmergencyLoginPath('/emergency-login/'), true)
+  assert.equal(USER_STORAGE_KEY, 'agent_game_user')
+  assert.equal(THIRD_PARTY_USER_ID_STORAGE_KEY, 'agent_game_third_party_user_id')
+  assert.equal(EMERGENCY_LOGIN_PATH, '/emergency-login')
+  assert.ok(apiSource.includes("from '../utils/userIdentity'"), 'API client should reuse identity helpers')
+  assert.ok(mainSource.includes("from './utils/userIdentity'"), 'app bootstrap should reuse identity helpers')
+  assert.ok(sessionSource.includes("from '../utils/userIdentity'"), 'session composable should reuse identity helpers')
+  assert.equal(apiSource.includes('const normalizeUserId ='), false, 'API client should not duplicate user id parsing')
+  assert.equal(mainSource.includes('const normalizeUserId ='), false, 'app bootstrap should not duplicate user id parsing')
+  assert.equal(sessionSource.includes('const normalizeUserId ='), false, 'session composable should not duplicate user id parsing')
+})
+
 test('expected unauthenticated session checks do not log noisy API errors', async () => {
   const source = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
   const sessionSource = await readFile(new URL('../src/composables/useUserSession.js', import.meta.url), 'utf8')
@@ -260,9 +298,9 @@ test('emergency login route bypasses third-party login and calls backend allow-l
   const appSource = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
   const apiSource = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
 
-  assert.ok(mainSource.includes("EMERGENCY_LOGIN_PATH = '/emergency-login'"), 'entrypoint should define the emergency login path')
-  assert.ok(mainSource.includes('isEmergencyLoginPath()'), 'entrypoint should detect the emergency login path')
-  assert.ok(mainSource.includes('if (isEmergencyLoginPath())'), 'emergency login path should bypass third-party guard')
+  assert.ok(mainSource.includes("from './utils/userIdentity'"), 'entrypoint should share emergency login path helpers')
+  assert.ok(mainSource.includes('isEmergencyLoginPath(window.location.pathname)'), 'entrypoint should detect the emergency login path')
+  assert.ok(mainSource.includes('if (isEmergencyLoginPath(window.location.pathname))'), 'emergency login path should bypass third-party guard')
   assert.ok(apiSource.includes('/api/users/emergency-login'), 'API client should expose the backend emergency login endpoint')
   assert.ok(appSource.includes('isEmergencyLoginPage'), 'App should render a dedicated emergency login mode')
   assert.ok(appSource.includes('loginEmergencyUser'), 'emergency login form should call a dedicated submit handler')
@@ -324,10 +362,8 @@ test('history page displays submission id for every record', async () => {
 
 test('history page shows uploaded submissions as queued with queue-ahead count', async () => {
   const source = await readFile(new URL('../src/components/HistoryPage.vue', import.meta.url), 'utf8')
-  const modalSource = await readFile(new URL('../src/components/HistoryModal.vue', import.meta.url), 'utf8')
 
   assert.ok(source.includes("uploaded: '排队中...'"), 'history page should display uploaded status as 排队中...')
-  assert.ok(modalSource.includes("uploaded: '排队中...'"), 'legacy history modal should display uploaded status as 排队中...')
   assert.ok(source.includes("`${statusTextMap.uploaded} 前边还有 ${count} 笔提交在排队`"), 'history page should show queue-ahead copy with readable spacing')
   assert.ok(source.includes('queueAheadCount'), 'history page should derive the queue-ahead count for queued submissions')
   assert.ok(source.includes('item?.queue_ahead'), 'history page should tolerate snake_case queue-ahead fields')
@@ -437,11 +473,12 @@ test('ranking summary and personal metrics have emphasized right-side structure'
 
 test('ranking score token usage and submission count headers are sortable', async () => {
   const source = await readFile(new URL('../src/components/RankingBoard.vue', import.meta.url), 'utf8')
+  const rankingSource = await readFile(new URL('../src/composables/useRankingBoard.js', import.meta.url), 'utf8')
 
   for (const field of ['score', 'submission_count', 'token_usage']) {
     assert.ok(source.includes(`@click="toggleSort('${field}')"`), `${field} header should toggle sorting`)
   }
-  assert.ok(source.includes('sortField: requestSortField'), 'rank page request should include sortField')
+  assert.ok(rankingSource.includes('sortField: requestSortField'), 'rank page request should include sortField')
 })
 
 test('ranking numeric sort headers align with their values', async () => {
