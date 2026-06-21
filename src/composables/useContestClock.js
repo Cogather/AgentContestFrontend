@@ -8,10 +8,13 @@ import {
   contestPhaseAt,
   timestampOf
 } from '../utils/contestTime.js'
+import { useIntervalTimer } from './useIntervalTimer.js'
 
 export const useContestClock = (contestConfig = DEFAULT_CONTEST_CONFIG) => {
   const currentTimeTick = ref(Date.now())
-  let clockTimer = null
+  const clockTimer = useIntervalTimer(() => {
+    currentTimeTick.value = Date.now()
+  }, 1000)
 
   const resolvedContestConfig = computed(() => normalizeContestConfig(unref(contestConfig)))
   const competitionStartTime = computed(() => timestampOf(resolvedContestConfig.value.startAt))
@@ -31,18 +34,12 @@ export const useContestClock = (contestConfig = DEFAULT_CONTEST_CONFIG) => {
   })
 
   const startClock = () => {
-    stopClock()
     currentTimeTick.value = Date.now()
-    clockTimer = setInterval(() => {
-      currentTimeTick.value = Date.now()
-    }, 1000)
+    clockTimer.restart()
   }
 
   const stopClock = () => {
-    if (clockTimer) {
-      clearInterval(clockTimer)
-      clockTimer = null
-    }
+    clockTimer.stop()
   }
 
   return {

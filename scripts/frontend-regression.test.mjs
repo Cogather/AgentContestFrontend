@@ -872,11 +872,23 @@ test('history submission id column stays compact and truncates long ids', async 
 
 test('history page auto refreshes every five seconds and clears the timer', async () => {
   const source = await readFile(new URL('../src/composables/useSubmissionHistory.js', import.meta.url), 'utf8')
+  const intervalSource = await readFile(new URL('../src/composables/useIntervalTimer.js', import.meta.url), 'utf8')
 
   assert.ok(source.includes('HISTORY_REFRESH_INTERVAL_MS = 5000'), 'history refresh interval should be five seconds')
-  assert.ok(source.includes('setInterval('), 'history page should start an interval refresh')
-  assert.ok(source.includes('clearInterval('), 'history page should clear its interval')
+  assert.ok(source.includes('useIntervalTimer'), 'history page should delegate interval ownership to a shared composable')
+  assert.ok(intervalSource.includes('setInterval('), 'shared interval timer should start an interval')
+  assert.ok(intervalSource.includes('clearInterval('), 'shared interval timer should clear its interval')
   assert.ok(source.includes('onUnmounted'), 'history page should clean up on unmount')
+})
+
+test('contest clock reuses shared interval timer cleanup', async () => {
+  const source = await readFile(new URL('../src/composables/useContestClock.js', import.meta.url), 'utf8')
+  const intervalSource = await readFile(new URL('../src/composables/useIntervalTimer.js', import.meta.url), 'utf8')
+
+  assert.ok(source.includes('useIntervalTimer'), 'contest clock should not hand-roll interval lifecycle')
+  assert.ok(source.includes('clockTimer.restart()'), 'starting the contest clock should restart the shared timer')
+  assert.ok(source.includes('clockTimer.stop()'), 'stopping the contest clock should stop the shared timer')
+  assert.ok(intervalSource.includes('onUnmounted(stop)'), 'shared interval timer should clean up on component unmount')
 })
 
 test('ranking nickname column stays compact on desktop', async () => {
