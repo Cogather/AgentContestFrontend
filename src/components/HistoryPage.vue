@@ -9,6 +9,7 @@ import {
   normalizeStatus
 } from './historyScoreDetail'
 import { formatScore } from '../utils/scoreFormat'
+import { firstDefined, formatNumber } from '../utils/valueHelpers'
 import IconSymbol from './IconSymbol.vue'
 
 const props = defineProps({
@@ -118,10 +119,6 @@ const loadHistory = async ({ silent = false } = {}) => {
       loading.value = false
     }
   }
-}
-
-const firstDefined = (...values) => {
-  return values.find(value => value !== null && value !== undefined && value !== '')
 }
 
 const numericCount = (...values) => {
@@ -236,12 +233,6 @@ const formatTime = (timeStr) => {
     hour: '2-digit',
     minute: '2-digit'
   })
-}
-
-const formatNumber = (value) => {
-  if (value === null || value === undefined || value === '') return '-'
-  const numeric = Number(value)
-  return Number.isFinite(numeric) ? numeric.toLocaleString('zh-CN') : value
 }
 
 const submissionCreatedTime = (item) => {

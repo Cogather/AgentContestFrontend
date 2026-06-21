@@ -227,6 +227,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { rankApi } from '../api'
 import { formatScore } from '../utils/scoreFormat'
+import { formatNumber } from '../utils/valueHelpers'
 import IconSymbol from './IconSymbol.vue'
 
 const props = defineProps({
@@ -322,12 +323,6 @@ const visiblePages = computed(() => {
 
   return pages
 })
-
-const formatNumber = (value) => {
-  if (value === null || value === undefined || value === '') return '-'
-  const numeric = Number(value)
-  return Number.isFinite(numeric) ? numeric.toLocaleString('zh-CN') : '-'
-}
 
 const getSubmissionCount = (item) => item?.submission_count ?? item?.submissionCount ?? 0
 
