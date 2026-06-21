@@ -57,6 +57,7 @@ import {
   redirectHttpToHttps
 } from '../src/utils/appBootstrap.js'
 import {
+  contestCountdownInfo,
   contestPhaseAt,
   formatDurationText,
   timestampOf
@@ -167,6 +168,33 @@ test('contest time helpers keep phase and duration rules reusable', () => {
   assert.equal(contestPhaseAt(start, Number.NaN, end), 'unknown')
   assert.equal(formatDurationText(90061000), '1天 01:01:01')
   assert.equal(formatDurationText(-1), '0天 00:00:00')
+  assert.deepEqual(contestCountdownInfo({
+    phase: 'pending',
+    now: start - 1000,
+    startTime: start,
+    endTime: end
+  }), {
+    label: '距离个人赛正式开始：',
+    text: '0天 00:00:01'
+  })
+  assert.deepEqual(contestCountdownInfo({
+    phase: 'running',
+    now: end - 1000,
+    startTime: start,
+    endTime: end
+  }), {
+    label: '距离个人赛提交结束：',
+    text: '0天 00:00:01'
+  })
+  assert.deepEqual(contestCountdownInfo({
+    phase: 'ended',
+    now: end,
+    startTime: start,
+    endTime: end
+  }), {
+    label: '',
+    text: '已结束'
+  })
 })
 
 test('submission display helpers normalize ids status text and failure reasons', () => {
@@ -356,6 +384,7 @@ test('contest clock delegates date math to shared contest time helpers', async (
 
   assert.ok(source.includes("from '../utils/contestTime.js'"), 'contest clock should reuse shared time helpers')
   assert.ok(source.includes('contestPhaseAt('), 'contest clock should use the shared phase helper')
+  assert.ok(source.includes('contestCountdownInfo('), 'contest clock should use the shared countdown helper')
   assert.equal(source.includes('const formatDurationText ='), false, 'contest clock should not own duration formatting')
   assert.equal(source.includes('const timestampOf ='), false, 'contest clock should not own timestamp parsing')
 })

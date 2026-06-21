@@ -27,3 +27,34 @@ export const contestPhaseAt = (now, startTime, endTime) => {
   }
   return 'running'
 }
+
+export const contestCountdownInfo = ({ phase, now, startTime, endTime }) => {
+  if (!Number.isFinite(startTime) || !Number.isFinite(endTime)) {
+    return {
+      label: '',
+      text: '待定'
+    }
+  }
+  if (phase === 'pending') {
+    return {
+      label: '距离个人赛正式开始：',
+      text: formatDurationText(startTime - now)
+    }
+  }
+  if (phase === 'running') {
+    return {
+      label: '距离个人赛提交结束：',
+      text: formatDurationText(endTime - now)
+    }
+  }
+  if (phase === 'ended') {
+    return {
+      label: '',
+      text: '已结束'
+    }
+  }
+  return {
+    label: '',
+    text: '待定'
+  }
+}
