@@ -6,9 +6,13 @@ import {
   isEmergencyLoginPath,
   normalizeUserId,
   THIRD_PARTY_USER_ID_QUERY_KEYS,
-  THIRD_PARTY_USER_ID_STORAGE_KEY,
-  USER_STORAGE_KEY
 } from '../utils/userIdentity'
+import {
+  clearStoredCurrentUser,
+  readStoredThirdPartyUserId,
+  saveStoredCurrentUser,
+  saveStoredThirdPartyUserId
+} from '../utils/userStorage'
 
 export const useUserSession = () => {
   const currentUser = ref(null)
@@ -26,15 +30,14 @@ export const useUserSession = () => {
   })
 
   const saveCurrentUser = (user) => {
-    const normalizedUser = normalizeUserProfile(user) || user
+    const normalizedUser = saveStoredCurrentUser(user)
     currentUser.value = normalizedUser
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(normalizedUser))
     return normalizedUser
   }
 
   const clearCurrentUser = () => {
     currentUser.value = null
-    localStorage.removeItem(USER_STORAGE_KEY)
+    clearStoredCurrentUser()
   }
 
   const resolveThirdPartyUserId = () => {
@@ -42,13 +45,12 @@ export const useUserSession = () => {
     const queryUserId = THIRD_PARTY_USER_ID_QUERY_KEYS
       .map(key => params.get(key))
       .find(value => value)
-    const normalizedQueryUserId = normalizeUserId(queryUserId)
+    const normalizedQueryUserId = saveStoredThirdPartyUserId(queryUserId)
     if (normalizedQueryUserId) {
-      localStorage.setItem(THIRD_PARTY_USER_ID_STORAGE_KEY, normalizedQueryUserId)
       return normalizedQueryUserId
     }
 
-    return normalizeUserId(localStorage.getItem(THIRD_PARTY_USER_ID_STORAGE_KEY))
+    return readStoredThirdPartyUserId()
   }
 
   const loadExistingSessionUser = async (userId) => {
@@ -192,7 +194,7 @@ export const useUserSession = () => {
 
       if (res.code === 0 && res.data) {
         saveCurrentUser(res.data)
-        localStorage.setItem(THIRD_PARTY_USER_ID_STORAGE_KEY, userId)
+        saveStoredThirdPartyUserId(userId)
         isEmergencyLoginPage.value = false
         window.history.replaceState({}, '', '/')
       } else {

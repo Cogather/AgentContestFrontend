@@ -26,6 +26,14 @@ import {
   USER_STORAGE_KEY
 } from '../src/utils/userIdentity.js'
 import { normalizeUserProfile } from '../src/utils/userProfile.js'
+import {
+  clearStoredCurrentUser,
+  getCurrentStoredUserId,
+  readStoredCurrentUser,
+  readStoredThirdPartyUserId,
+  saveStoredCurrentUser,
+  saveStoredThirdPartyUserId
+} from '../src/utils/userStorage.js'
 import { firstDefined, formatNumber } from '../src/utils/valueHelpers.js'
 import { requestErrorDetail, requestErrorMessage } from '../src/utils/requestErrors.js'
 import {
@@ -406,6 +414,7 @@ test('frontend identity helpers are shared by app bootstrap session and API laye
   const mainSource = await readFile(new URL('../src/main.js', import.meta.url), 'utf8')
   const sessionSource = await readFile(new URL('../src/composables/useUserSession.js', import.meta.url), 'utf8')
   const profileSource = await readFile(new URL('../src/utils/userProfile.js', import.meta.url), 'utf8')
+  const storageSource = await readFile(new URL('../src/utils/userStorage.js', import.meta.url), 'utf8')
 
   assert.equal(normalizeUserId('w00678227'), '00678227')
   assert.equal(normalizeUserId('1234'), '')
@@ -417,17 +426,67 @@ test('frontend identity helpers are shared by app bootstrap session and API laye
   assert.equal(USER_STORAGE_KEY, 'agent_game_user')
   assert.equal(THIRD_PARTY_USER_ID_STORAGE_KEY, 'agent_game_third_party_user_id')
   assert.equal(EMERGENCY_LOGIN_PATH, '/emergency-login')
-  assert.ok(apiSource.includes("from '../utils/userIdentity'"), 'API client should reuse identity helpers')
+  assert.ok(apiSource.includes("from '../utils/userStorage'"), 'API client should read user identity through shared storage helpers')
   assert.ok(mainSource.includes("from './utils/userIdentity'"), 'app bootstrap should reuse identity helpers')
+  assert.ok(mainSource.includes("from './utils/userStorage'"), 'app bootstrap should write third-party identity through shared storage helpers')
   assert.ok(sessionSource.includes("from '../utils/userIdentity'"), 'session composable should reuse identity helpers')
   assert.ok(sessionSource.includes("from '../utils/userProfile'"), 'session composable should reuse shared profile normalization')
+  assert.ok(sessionSource.includes("from '../utils/userStorage'"), 'session composable should persist identity through shared storage helpers')
   assert.ok(profileSource.includes("from './userIdentity.js'"), 'profile normalization should reuse shared user id parsing')
+  assert.ok(storageSource.includes("from './userIdentity.js'"), 'storage helpers should reuse shared user id parsing')
+  assert.ok(storageSource.includes("from './userProfile.js'"), 'storage helpers should reuse shared user profile normalization')
   assert.equal(apiSource.includes('const normalizeUserId ='), false, 'API client should not duplicate user id parsing')
+  assert.equal(apiSource.includes('localStorage'), false, 'API client should not duplicate localStorage access')
   assert.equal(mainSource.includes('const normalizeUserId ='), false, 'app bootstrap should not duplicate user id parsing')
   assert.equal(mainSource.includes('const extractUserId ='), false, 'app bootstrap should not duplicate user id record parsing')
   assert.ok(mainSource.includes('normalizeUserIdFromRecord(res?.data)'), 'app bootstrap should parse third-party login responses with the shared helper')
   assert.equal(sessionSource.includes('const normalizeUserId ='), false, 'session composable should not duplicate user id parsing')
   assert.equal(sessionSource.includes('const normalizeUserProfile ='), false, 'session composable should not duplicate profile normalization')
+})
+
+test('user storage helpers centralize current user identity persistence', () => {
+  const previousStorage = globalThis.localStorage
+  const entries = new Map()
+
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: key => entries.get(key) || null,
+      setItem: (key, value) => entries.set(key, String(value)),
+      removeItem: key => entries.delete(key)
+    }
+  })
+
+  try {
+    const storedUser = saveStoredCurrentUser({
+      userId: 'w00678227',
+      username: '  王明海  ',
+      client_uuid: 'client-uuid'
+    })
+
+    assert.equal(storedUser.user_id, '00678227')
+    assert.equal(storedUser.username, '王明海')
+    assert.equal(storedUser.uuid, 'client-uuid')
+    assert.deepEqual(readStoredCurrentUser(), storedUser)
+    assert.equal(getCurrentStoredUserId(), '00678227')
+
+    assert.equal(saveStoredThirdPartyUserId('w00678228'), '00678228')
+    assert.equal(readStoredThirdPartyUserId(), '00678228')
+    assert.equal(getCurrentStoredUserId(), '00678228')
+
+    clearStoredCurrentUser()
+    assert.equal(readStoredCurrentUser(), null)
+    assert.equal(getCurrentStoredUserId(), '00678228')
+  } finally {
+    if (typeof previousStorage === 'undefined') {
+      delete globalThis.localStorage
+    } else {
+      Object.defineProperty(globalThis, 'localStorage', {
+        configurable: true,
+        value: previousStorage
+      })
+    }
+  }
 })
 
 test('expected unauthenticated session checks do not log noisy API errors', async () => {

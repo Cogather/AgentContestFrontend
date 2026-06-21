@@ -5,8 +5,8 @@ import App from './App.vue'
 import {
   isEmergencyLoginPath,
   normalizeUserIdFromRecord,
-  THIRD_PARTY_USER_ID_STORAGE_KEY
 } from './utils/userIdentity'
+import { saveStoredThirdPartyUserId } from './utils/userStorage'
 
 const LOGIN_STATUS_PATH = import.meta.env.VITE_LOGIN_STATUS_PATH || '/auth/login'
 const LOGIN_PAGE_URL = import.meta.env.VITE_LOGIN_PAGE_URL || '/auth/login'
@@ -52,7 +52,7 @@ const initializeApp = async () => {
     const res = await axios.get(LOGIN_STATUS_PATH, { withCredentials: true })
     const userId = normalizeUserIdFromRecord(res?.data)
     if (userId) {
-      localStorage.setItem(THIRD_PARTY_USER_ID_STORAGE_KEY, userId)
+      saveStoredThirdPartyUserId(userId)
       mountApp()
       return
     }

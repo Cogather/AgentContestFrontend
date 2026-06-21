@@ -1,9 +1,5 @@
 import axios from 'axios'
-import {
-  normalizeUserId,
-  THIRD_PARTY_USER_ID_STORAGE_KEY,
-  USER_STORAGE_KEY
-} from '../utils/userIdentity'
+import { getCurrentStoredUserId } from '../utils/userStorage'
 
 const DEFAULT_API_BASE_URL = ''
 const DEFAULT_UPLOAD_TIMEOUT_MS = 5 * 60 * 1000
@@ -20,29 +16,6 @@ const getBaseUrl = () => {
 
 const getWriteApiKey = () => {
   return String(import.meta.env.VITE_WRITE_API_KEY || '').trim()
-}
-
-const readStoredUser = () => {
-  if (typeof localStorage === 'undefined') {
-    return null
-  }
-  try {
-    return JSON.parse(localStorage.getItem(USER_STORAGE_KEY) || 'null')
-  } catch {
-    return null
-  }
-}
-
-const getCurrentUserId = () => {
-  if (typeof localStorage === 'undefined') {
-    return ''
-  }
-  const thirdPartyUserId = normalizeUserId(localStorage.getItem(THIRD_PARTY_USER_ID_STORAGE_KEY))
-  if (thirdPartyUserId) {
-    return thirdPartyUserId
-  }
-  const storedUser = readStoredUser()
-  return normalizeUserId(storedUser?.user_id || storedUser?.userId)
 }
 
 const getUploadTimeout = () => {
@@ -85,7 +58,7 @@ api.interceptors.request.use(
       config.headers = config.headers || {}
       config.headers[WRITE_KEY_HEADER] = writeApiKey
     }
-    const currentUserId = getCurrentUserId()
+    const currentUserId = getCurrentStoredUserId()
     if (currentUserId) {
       config.headers = config.headers || {}
       config.headers[CURRENT_USER_ID_HEADER] = currentUserId
