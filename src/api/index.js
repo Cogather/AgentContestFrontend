@@ -4,6 +4,7 @@ import {
   resolveUploadTimeoutMs,
   resolveWriteApiKey
 } from '../utils/apiConfig'
+import { shouldLogApiError } from '../utils/apiErrorLogging'
 import { getCurrentStoredUserId } from '../utils/userStorage'
 
 const WRITE_KEY_HEADER = 'X-Agent-Contest-Write-Key'
@@ -19,20 +20,6 @@ const getWriteApiKey = () => {
 
 const isWriteMethod = (method) => {
   return ['post', 'put', 'patch', 'delete'].includes(String(method || '').toLowerCase())
-}
-
-const isExpectedSessionProbeError = (error) => {
-  const config = error?.config
-  const status = error?.response?.status
-  return config?.url === '/api/users/me'
-    && String(config?.method || '').toLowerCase() === 'get'
-    && [401, 403, 404].includes(status)
-}
-
-const isOptionalContestConfigError = (error) => {
-  const config = error?.config
-  return config?.url === '/api/contest/config'
-    && String(config?.method || '').toLowerCase() === 'get'
 }
 
 const api = axios.create({
@@ -65,7 +52,7 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   response => response.data,
   error => {
-    if (!isExpectedSessionProbeError(error) && !isOptionalContestConfigError(error)) {
+    if (shouldLogApiError(error)) {
       console.error('API Error:', error)
     }
     return Promise.reject(error)
