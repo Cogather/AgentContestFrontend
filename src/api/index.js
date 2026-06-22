@@ -5,6 +5,7 @@ import {
   resolveWriteApiKey
 } from '../utils/apiConfig'
 import { shouldLogApiError } from '../utils/apiErrorLogging'
+import { shouldAttachWriteApiKey } from '../utils/apiRequestHeaders'
 import { getCurrentStoredUserId } from '../utils/userStorage'
 
 const WRITE_KEY_HEADER = 'X-Agent-Contest-Write-Key'
@@ -16,10 +17,6 @@ const getBaseUrl = () => {
 
 const getWriteApiKey = () => {
   return resolveWriteApiKey(import.meta.env)
-}
-
-const isWriteMethod = (method) => {
-  return ['post', 'put', 'patch', 'delete'].includes(String(method || '').toLowerCase())
 }
 
 const api = axios.create({
@@ -35,7 +32,7 @@ api.interceptors.request.use(
   config => {
     config.baseURL = getBaseUrl()
     const writeApiKey = getWriteApiKey()
-    if (writeApiKey && isWriteMethod(config.method)) {
+    if (writeApiKey && shouldAttachWriteApiKey(config.method)) {
       config.headers = config.headers || {}
       config.headers[WRITE_KEY_HEADER] = writeApiKey
     }
