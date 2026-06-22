@@ -74,6 +74,7 @@ import {
   resolveUploadTimeoutMs,
   resolveWriteApiKey
 } from '../src/utils/apiConfig.js'
+import { shouldLogApiError } from '../src/utils/apiErrorLogging.js'
 import {
   contestCountdownInfo,
   contestPhaseAt,
@@ -730,8 +731,20 @@ test('expected unauthenticated session checks do not log noisy API errors', asyn
   const source = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
   const sessionSource = await readFile(new URL('../src/composables/useUserSession.js', import.meta.url), 'utf8')
 
-  assert.ok(source.includes('isExpectedSessionProbeError'), 'API client should classify expected session probe errors')
-  assert.ok(source.includes("config?.url === '/api/users/me'"), 'API client should only suppress expected me endpoint probes')
+  assert.equal(shouldLogApiError({
+    config: { url: '/api/users/me', method: 'get' },
+    response: { status: 401 }
+  }), false)
+  assert.equal(shouldLogApiError({
+    config: { url: '/api/users/me', method: 'GET' },
+    response: { status: 403 }
+  }), false)
+  assert.equal(shouldLogApiError({
+    config: { url: '/api/users/me', method: 'post' },
+    response: { status: 401 }
+  }), true)
+  assert.ok(source.includes('shouldLogApiError'), 'API client should use the shared error logging predicate')
+  assert.equal(source.includes('isExpectedSessionProbeError'), false, 'API client should not keep private session-probe logging rules')
   assert.ok(sessionSource.includes('[401, 403, 404].includes(error?.response?.status)'), 'startup should not console-error expected missing sessions')
 })
 
@@ -739,8 +752,15 @@ test('optional contest config fallback does not log noisy API errors', async () 
   const source = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
   const configSource = await readFile(new URL('../src/composables/useContestConfig.js', import.meta.url), 'utf8')
 
-  assert.ok(source.includes('isOptionalContestConfigError'), 'API client should classify optional contest config failures')
-  assert.ok(source.includes("config?.url === '/api/contest/config'"), 'API client should only suppress contest config fallback failures')
+  assert.equal(shouldLogApiError({
+    config: { url: '/api/contest/config', method: 'get' },
+    response: { status: 500 }
+  }), false)
+  assert.equal(shouldLogApiError({
+    config: { url: '/api/rank/page', method: 'get' },
+    response: { status: 500 }
+  }), true)
+  assert.equal(source.includes('isOptionalContestConfigError'), false, 'API client should not keep private contest-config logging rules')
   assert.ok(configSource.includes('contestConfig.value = DEFAULT_CONTEST_CONFIG'), 'contest config failures should fall back to bundled defaults')
 })
 
