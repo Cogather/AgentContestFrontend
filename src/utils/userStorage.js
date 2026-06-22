@@ -18,6 +18,7 @@ const readJsonStorageItem = (key) => {
   try {
     return JSON.parse(storage.getItem(key) || 'null')
   } catch {
+    storage.removeItem(key)
     return null
   }
 }
