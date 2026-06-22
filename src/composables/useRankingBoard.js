@@ -1,6 +1,7 @@
 import { computed, onMounted, ref, unref, watch } from 'vue'
 import { rankApi } from '../api'
 import {
+  getRankTokenUsage,
   getSubmissionCount,
   isTestAccountRank,
   parseJumpPageInput,
@@ -180,6 +181,7 @@ export const useRankingBoard = (currentUserId) => {
     sortIconFor,
     toggleSort,
     rankRowClass,
+    getRankTokenUsage,
     getSubmissionCount,
     isTestAccountRank,
     changePage,
