@@ -55,6 +55,11 @@ npm run dev
 npm run build
 ```
 
+## 测试用例
+
+- [前后端核心功能测试用例](docs/core-functional-test-cases.md)：按 L0/L1/L2 分层覆盖登录、上传、历史提交、得分详情、排行榜、日志下载和部署运维。
+- [前端交互测试脑图](docs/frontend-test-cases.md)：按页面和交互路径组织的前端手工回归用例。
+
 ## API 对接
 
 项目已对接以下后端 API：
