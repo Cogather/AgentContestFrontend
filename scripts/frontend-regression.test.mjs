@@ -68,6 +68,13 @@ import {
   redirectHttpToHttps
 } from '../src/utils/appBootstrap.js'
 import {
+  DEFAULT_UPLOAD_TIMEOUT_MS,
+  normalizeApiBaseUrl,
+  resolveApiBaseUrl,
+  resolveUploadTimeoutMs,
+  resolveWriteApiKey
+} from '../src/utils/apiConfig.js'
+import {
   contestCountdownInfo,
   contestPhaseAt,
   formatDurationText,
@@ -616,6 +623,22 @@ test('api requests send current work id header for login session bootstrap', asy
 
   assert.ok(source.includes('X-Agent-Contest-User-Id'), 'API client should send current work id header')
   assert.ok(source.includes('getMe'), 'API client should expose current session lookup')
+})
+
+test('api config helpers normalize deployment environment values', async () => {
+  const source = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
+
+  assert.equal(normalizeApiBaseUrl(' https://contest.example/api/// '), 'https://contest.example/api')
+  assert.equal(normalizeApiBaseUrl(null), '')
+  assert.equal(resolveApiBaseUrl({ VITE_API_BASE_URL: ' /gateway/// ' }), '/gateway')
+  assert.equal(resolveWriteApiKey({ VITE_WRITE_API_KEY: '  secret-key  ' }), 'secret-key')
+  assert.equal(resolveWriteApiKey({}), '')
+  assert.equal(resolveUploadTimeoutMs({ VITE_UPLOAD_TIMEOUT_MS: '45000' }), 45000)
+  assert.equal(resolveUploadTimeoutMs({ VITE_UPLOAD_TIMEOUT_MS: '-1' }), DEFAULT_UPLOAD_TIMEOUT_MS)
+  assert.equal(resolveUploadTimeoutMs({ VITE_UPLOAD_TIMEOUT_MS: 'bad' }), DEFAULT_UPLOAD_TIMEOUT_MS)
+  assert.ok(source.includes("from '../utils/apiConfig'"), 'API client should delegate env config parsing to shared helpers')
+  assert.equal(source.includes('const normalizeBaseUrl ='), false, 'API client should not own base url parsing')
+  assert.equal(source.includes('const getUploadTimeout ='), false, 'API client should not own upload timeout parsing')
 })
 
 test('frontend identity helpers are shared by app bootstrap session and API layers', async () => {

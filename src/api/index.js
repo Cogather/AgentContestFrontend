@@ -1,26 +1,20 @@
 import axios from 'axios'
+import {
+  resolveApiBaseUrl,
+  resolveUploadTimeoutMs,
+  resolveWriteApiKey
+} from '../utils/apiConfig'
 import { getCurrentStoredUserId } from '../utils/userStorage'
 
-const DEFAULT_API_BASE_URL = ''
-const DEFAULT_UPLOAD_TIMEOUT_MS = 5 * 60 * 1000
 const WRITE_KEY_HEADER = 'X-Agent-Contest-Write-Key'
 const CURRENT_USER_ID_HEADER = 'X-Agent-Contest-User-Id'
 
-const normalizeBaseUrl = (url) => {
-  return String(url || '').replace(/\/+$/, '')
-}
-
 const getBaseUrl = () => {
-  return normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL)
+  return resolveApiBaseUrl(import.meta.env)
 }
 
 const getWriteApiKey = () => {
-  return String(import.meta.env.VITE_WRITE_API_KEY || '').trim()
-}
-
-const getUploadTimeout = () => {
-  const timeout = Number(import.meta.env.VITE_UPLOAD_TIMEOUT_MS)
-  return Number.isFinite(timeout) && timeout > 0 ? timeout : DEFAULT_UPLOAD_TIMEOUT_MS
+  return resolveWriteApiKey(import.meta.env)
 }
 
 const isWriteMethod = (method) => {
@@ -107,7 +101,7 @@ export const contestApi = {
 
 export const commonApi = {
   uploadCode: (formData) => api.post('/api/upload/me', formData, {
-    timeout: getUploadTimeout(),
+    timeout: resolveUploadTimeoutMs(import.meta.env),
     headers: {
       'Content-Type': 'multipart/form-data'
     }
