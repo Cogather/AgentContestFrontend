@@ -1,3 +1,5 @@
+import { firstDefined } from './valueHelpers.js'
+
 const numberOrDefault = (value, fallback = 0) => {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : fallback
@@ -13,10 +15,10 @@ export const normalizeRankingPageData = (pageData, fallbackPage, fallbackPageSiz
   return {
     items: Array.isArray(source.items) ? source.items : [],
     total: numberOrDefault(source.total),
-    totalPages: numberOrDefault(source.total_pages),
-    totalParticipants: numberOrDefault(source.total_participants),
-    maxScore: numberOrDefault(source.max_score),
+    totalPages: numberOrDefault(firstDefined(source.total_pages, source.totalPages)),
+    totalParticipants: numberOrDefault(firstDefined(source.total_participants, source.totalParticipants)),
+    maxScore: numberOrDefault(firstDefined(source.max_score, source.maxScore)),
     page: positiveNumberOrDefault(source.page, fallbackPage),
-    pageSize: positiveNumberOrDefault(source.page_size, fallbackPageSize)
+    pageSize: positiveNumberOrDefault(firstDefined(source.page_size, source.pageSize), fallbackPageSize)
   }
 }
