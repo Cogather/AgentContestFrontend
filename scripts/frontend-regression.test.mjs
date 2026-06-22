@@ -75,6 +75,7 @@ import {
   resolveWriteApiKey
 } from '../src/utils/apiConfig.js'
 import { shouldLogApiError } from '../src/utils/apiErrorLogging.js'
+import { shouldAttachWriteApiKey } from '../src/utils/apiRequestHeaders.js'
 import {
   contestCountdownInfo,
   contestPhaseAt,
@@ -624,6 +625,21 @@ test('api requests send current work id header for login session bootstrap', asy
 
   assert.ok(source.includes('X-Agent-Contest-User-Id'), 'API client should send current work id header')
   assert.ok(source.includes('getMe'), 'API client should expose current session lookup')
+})
+
+test('api request helpers attach write keys only to mutating methods', async () => {
+  const source = await readFile(new URL('../src/api/index.js', import.meta.url), 'utf8')
+
+  assert.equal(shouldAttachWriteApiKey('post'), true)
+  assert.equal(shouldAttachWriteApiKey('PUT'), true)
+  assert.equal(shouldAttachWriteApiKey('patch'), true)
+  assert.equal(shouldAttachWriteApiKey('DELETE'), true)
+  assert.equal(shouldAttachWriteApiKey('get'), false)
+  assert.equal(shouldAttachWriteApiKey('HEAD'), false)
+  assert.equal(shouldAttachWriteApiKey('options'), false)
+  assert.equal(shouldAttachWriteApiKey(null), false)
+  assert.ok(source.includes('shouldAttachWriteApiKey'), 'API client should use the shared write-key method predicate')
+  assert.equal(source.includes('const isWriteMethod ='), false, 'API client should not keep private write method classification')
 })
 
 test('api config helpers normalize deployment environment values', async () => {
