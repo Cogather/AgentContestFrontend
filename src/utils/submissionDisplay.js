@@ -2,6 +2,7 @@ import {
   hasScoreValue,
   normalizeStatus
 } from './submissionScoreDetails.js'
+import { normalizeEscapedLineBreaks } from './textDisplay.js'
 import { firstDefined } from './valueHelpers.js'
 
 const statusTextMap = {
@@ -54,10 +55,7 @@ export const statusText = (status, item = null) => {
 }
 
 export const failureReason = (item) => {
-  return String(item?.message || item?.error_message || item?.errorMessage || '暂无失败原因')
-    .replace(/\\r\\n/g, '\n')
-    .replace(/\\n/g, '\n')
-    .replace(/\/n/g, '\n')
+  return normalizeEscapedLineBreaks(item?.message || item?.error_message || item?.errorMessage || '暂无失败原因')
 }
 
 export const statusClassName = (item) => normalizeStatus(item?.status)

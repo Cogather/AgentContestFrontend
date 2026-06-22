@@ -1,4 +1,5 @@
 import { firstDefined } from './valueHelpers.js'
+import { normalizeEscapedLineBreaks } from './textDisplay.js'
 
 const positiveQuestionNumber = (value, fallback) => {
   const question = Number(firstDefined(value, fallback))
@@ -35,11 +36,7 @@ const parseJsonArray = (value) => {
 }
 
 const normalizeDisplayText = (value) => {
-  return String(value ?? '')
-    .replace(/\\r\\n/g, '\n')
-    .replace(/\\n/g, '\n')
-    .replace(/\/n/g, '\n')
-    .trim()
+  return normalizeEscapedLineBreaks(value).trim()
 }
 
 export const normalizeStatus = (status) => String(status || 'uploaded').toLowerCase()
