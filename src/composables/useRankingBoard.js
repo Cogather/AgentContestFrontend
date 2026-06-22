@@ -3,6 +3,7 @@ import { rankApi } from '../api'
 import {
   getSubmissionCount,
   isTestAccountRank,
+  parseJumpPageInput,
   rankRowClass,
   splitIntoRankingColumns,
   visiblePageNumbers
@@ -65,8 +66,8 @@ export const useRankingBoard = (currentUserId) => {
   }
 
   const handleJump = () => {
-    const page = parseInt(jumpPageNum.value)
-    if (page >= 1 && page <= totalPages.value) {
+    const page = parseJumpPageInput(jumpPageNum.value)
+    if (page !== null && page <= totalPages.value) {
       changePage(page)
       jumpPageNum.value = ''
     }
