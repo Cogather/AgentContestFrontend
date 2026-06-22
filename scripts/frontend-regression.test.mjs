@@ -651,6 +651,11 @@ test('user storage helpers centralize current user identity persistence', () => 
     assert.equal(readStoredThirdPartyUserId(), '00678228')
     assert.equal(getCurrentStoredUserId(), '00678228')
 
+    entries.set(USER_STORAGE_KEY, '{bad-json')
+    assert.equal(readStoredCurrentUser(), null)
+    assert.equal(entries.has(USER_STORAGE_KEY), false)
+    assert.equal(getCurrentStoredUserId(), '00678228')
+
     clearStoredCurrentUser()
     assert.equal(readStoredCurrentUser(), null)
     assert.equal(getCurrentStoredUserId(), '00678228')
