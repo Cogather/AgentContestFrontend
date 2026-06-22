@@ -373,6 +373,22 @@ test('ranking page data normalization keeps api field mapping reusable', async (
     page: 3,
     pageSize: 20
   })
+  assert.deepEqual(normalizeRankingPageData({
+    total: '40',
+    totalPages: '2',
+    totalParticipants: '120',
+    maxScore: '99.5',
+    page: '1',
+    pageSize: '20'
+  }, 3, 10), {
+    items: [],
+    total: 40,
+    totalPages: 2,
+    totalParticipants: 120,
+    maxScore: 99.5,
+    page: 1,
+    pageSize: 20
+  })
   assert.ok(source.includes('normalizeRankingPageData'), 'ranking composable should delegate api page shape normalization')
   assert.equal(source.includes('Number(pageData.total_pages || 0)'), false, 'ranking composable should not parse snake_case page fields inline')
 })
