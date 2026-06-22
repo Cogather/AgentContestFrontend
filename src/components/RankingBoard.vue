@@ -46,7 +46,7 @@
           </div>
           <div class="personal-stat personal-stat-token">
             <span class="label">Token消耗</span>
-            <span class="value">{{ formatNumber(personalRank.token_usage) }}</span>
+            <span class="value">{{ formatNumber(getRankTokenUsage(personalRank)) }}</span>
           </div>
           <div class="personal-stat personal-stat-count">
             <span class="label">提交次数</span>
@@ -144,7 +144,7 @@
                 <span class="score-value">{{ formatScore(item.score) }}</span>
               </div>
               <div class="col submission-count">{{ formatNumber(getSubmissionCount(item)) }}</div>
-              <div class="col token-usage">{{ formatNumber(item.token_usage) }}</div>
+              <div class="col token-usage">{{ formatNumber(getRankTokenUsage(item)) }}</div>
             </div>
           </div>
         </div>
@@ -253,6 +253,7 @@ const {
   sortIconFor,
   toggleSort,
   rankRowClass,
+  getRankTokenUsage,
   getSubmissionCount,
   isTestAccountRank,
   changePage,

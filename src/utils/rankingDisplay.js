@@ -12,6 +12,8 @@ export const RANKING_COLUMN_SIZE = 10
 
 export const getSubmissionCount = (item) => item?.submission_count ?? item?.submissionCount ?? 0
 
+export const getRankTokenUsage = (item) => item?.token_usage ?? item?.tokenUsage ?? null
+
 export const isTestAccountRank = (item) => {
   return isTruthyFlag(item?.test_account)
     || isTruthyFlag(item?.testAccount)

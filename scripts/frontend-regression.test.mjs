@@ -40,6 +40,7 @@ import {
 import { firstDefined, formatNumber } from '../src/utils/valueHelpers.js'
 import { requestErrorDetail, requestErrorMessage } from '../src/utils/requestErrors.js'
 import {
+  getRankTokenUsage,
   getSubmissionCount,
   isTestAccountRank,
   parseJumpPageInput,
@@ -309,9 +310,13 @@ test('ranking board splits twenty rows into two ten-row columns', async () => {
 
 test('ranking display helpers keep row badges counts and visible pages reusable', async () => {
   const source = await readFile(new URL('../src/composables/useRankingBoard.js', import.meta.url), 'utf8')
+  const componentSource = await readFile(new URL('../src/components/RankingBoard.vue', import.meta.url), 'utf8')
 
   assert.equal(getSubmissionCount({ submission_count: 7 }), 7)
   assert.equal(getSubmissionCount({ submissionCount: 8 }), 8)
+  assert.equal(getRankTokenUsage({ token_usage: 7000 }), 7000)
+  assert.equal(getRankTokenUsage({ tokenUsage: 8000 }), 8000)
+  assert.equal(getRankTokenUsage({}), null)
   assert.equal(isTestAccountRank({ test_account: 'yes' }), true)
   assert.equal(isTestAccountRank({ testAccount: '1' }), true)
   assert.equal(isTestAccountRank({ testAccount: 'false' }), false)
@@ -337,6 +342,9 @@ test('ranking display helpers keep row badges counts and visible pages reusable'
   assert.equal(parseJumpPageInput('0'), null)
   assert.equal(parseJumpPageInput(''), null)
   assert.ok(source.includes("from '../utils/rankingDisplay'"), 'ranking composable should import ranking display helpers')
+  assert.ok(componentSource.includes('getRankTokenUsage'), 'ranking component should use shared token usage helper')
+  assert.equal(componentSource.includes('personalRank.token_usage'), false, 'personal rank should not read only snake_case token usage')
+  assert.equal(componentSource.includes('item.token_usage'), false, 'ranking rows should not read only snake_case token usage')
   assert.ok(source.includes('parseJumpPageInput'), 'ranking composable should use shared jump page parsing')
   assert.equal(source.includes('const isTruthyFlag ='), false, 'ranking composable should not own test account flag parsing')
   assert.equal(source.includes('const visiblePageNumbers ='), false, 'ranking composable should not own pagination window formatting')
