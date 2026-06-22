@@ -5,7 +5,7 @@ import { requestErrorMessage } from '../utils/requestErrors'
 import {
   formatFileSizeMb,
   INVALID_ZIP_MESSAGE,
-  isZipPackage,
+  validateUploadPackage,
   UPLOAD_LIMIT_TEXT
 } from '../utils/uploadFileRules'
 
@@ -34,9 +34,10 @@ export const usePackageUpload = ({ onClose, onSuccess } = {}) => {
   }
 
   const prepareUpload = (file, inputTarget = null) => {
-    if (!isZipPackage(file)) {
+    const validation = validateUploadPackage(file)
+    if (!validation.valid) {
       selectedFile.value = null
-      uploadError.value = INVALID_ZIP_MESSAGE
+      uploadError.value = validation.message
       if (inputTarget) inputTarget.value = ''
       return
     }
@@ -75,9 +76,10 @@ export const usePackageUpload = ({ onClose, onSuccess } = {}) => {
 
   const confirmUpload = async () => {
     if (uploading.value || !selectedFile.value) return
-    if (!isZipPackage(selectedFile.value)) {
+    const validation = validateUploadPackage(selectedFile.value)
+    if (!validation.valid) {
       selectedFile.value = null
-      uploadError.value = INVALID_ZIP_MESSAGE
+      uploadError.value = validation.message
       return
     }
 

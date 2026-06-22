@@ -53,9 +53,12 @@ import {
   countSubmissionsByStatus
 } from '../src/utils/submissionSummary.js'
 import {
+  FILE_TOO_LARGE_MESSAGE,
   formatFileSizeMb,
   INVALID_ZIP_MESSAGE,
   isZipPackage,
+  MAX_UPLOAD_SIZE_BYTES,
+  validateUploadPackage,
   UPLOAD_LIMIT_TEXT
 } from '../src/utils/uploadFileRules.js'
 import {
@@ -419,13 +422,24 @@ test('upload file rules keep zip validation and size formatting reusable', async
   const source = await readFile(new URL('../src/components/UploadModal.vue', import.meta.url), 'utf8')
   const uploadSource = await readFile(new URL('../src/composables/usePackageUpload.js', import.meta.url), 'utf8')
 
+  assert.equal(MAX_UPLOAD_SIZE_BYTES, 100 * 1024 * 1024)
   assert.equal(isZipPackage({ name: 'agent.ZIP' }), true)
   assert.equal(isZipPackage({ name: 'agent.tar.gz' }), false)
   assert.equal(isZipPackage(null), false)
+  assert.deepEqual(validateUploadPackage({ name: 'agent.zip', size: MAX_UPLOAD_SIZE_BYTES }), { valid: true })
+  assert.deepEqual(validateUploadPackage({ name: 'agent.zip', size: MAX_UPLOAD_SIZE_BYTES + 1 }), {
+    valid: false,
+    message: FILE_TOO_LARGE_MESSAGE
+  })
+  assert.deepEqual(validateUploadPackage({ name: 'agent.tar.gz', size: 1024 }), {
+    valid: false,
+    message: INVALID_ZIP_MESSAGE
+  })
   assert.equal(formatFileSizeMb(1048576), '1.00 MB')
   assert.equal(formatFileSizeMb('524288'), '0.50 MB')
   assert.equal(formatFileSizeMb('bad'), '-')
   assert.ok(uploadSource.includes("from '../utils/uploadFileRules'"), 'upload composable should import upload file rules')
+  assert.ok(uploadSource.includes('validateUploadPackage'), 'upload composable should use one shared upload validation rule')
   assert.ok(uploadSource.includes('selectedFileSizeText'), 'upload composable should expose formatted selected file size')
   assert.ok(source.includes('selectedFileSizeText'), 'upload modal should render the composable-provided file size text')
   assert.equal(source.includes('selectedFile.size / 1024 / 1024'), false, 'upload modal should not inline file size formatting')
