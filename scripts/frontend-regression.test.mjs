@@ -71,6 +71,7 @@ import {
   formatDurationText,
   timestampOf
 } from '../src/utils/contestTime.js'
+import { normalizeEscapedLineBreaks } from '../src/utils/textDisplay.js'
 
 test('score detail uses however many scored questions the backend returns', () => {
   const submission = {
@@ -231,6 +232,17 @@ test('submission display helpers normalize ids status text and failure reasons',
   assert.equal(failedStatusText(failedSubmission), '失败：第一行\n第二行')
   assert.equal(detailStatusText(failedSubmission), '失败：第一行\n第二行')
   assert.equal(scoreDetailUnavailableText({ status: 'UPLOADED' }), '待评测')
+})
+
+test('display text line break normalization is shared by submissions and score details', async () => {
+  const displaySource = await readFile(new URL('../src/utils/submissionDisplay.js', import.meta.url), 'utf8')
+  const scoreDetailsSource = await readFile(new URL('../src/utils/submissionScoreDetails.js', import.meta.url), 'utf8')
+
+  assert.equal(normalizeEscapedLineBreaks('第一行\\n第二行/r/n第三行'), '第一行\n第二行\n第三行')
+  assert.ok(displaySource.includes("from './textDisplay.js'"), 'submission display should use shared text display helpers')
+  assert.ok(scoreDetailsSource.includes("from './textDisplay.js'"), 'score details should use shared text display helpers')
+  assert.equal(displaySource.includes('replace(/\\\\n/g'), false, 'submission display should not inline escaped newline normalization')
+  assert.equal(scoreDetailsSource.includes('replace(/\\\\n/g'), false, 'score details should not inline escaped newline normalization')
 })
 
 test('history page uses exposed status helpers instead of missing template globals', async () => {
