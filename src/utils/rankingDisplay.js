@@ -52,6 +52,15 @@ export const visiblePageNumbers = (total, current) => {
   return pages
 }
 
+export const parseJumpPageInput = (value) => {
+  const normalized = String(value ?? '').trim()
+  if (!/^\d+$/.test(normalized)) {
+    return null
+  }
+  const page = Number(normalized)
+  return Number.isSafeInteger(page) && page > 0 ? page : null
+}
+
 export const splitIntoRankingColumns = (items, columnSize = RANKING_COLUMN_SIZE) => {
   const sourceItems = Array.isArray(items) ? items : []
   const safeColumnSize = Number.isFinite(Number(columnSize)) && Number(columnSize) > 0

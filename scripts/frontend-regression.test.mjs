@@ -42,6 +42,7 @@ import { requestErrorDetail, requestErrorMessage } from '../src/utils/requestErr
 import {
   getSubmissionCount,
   isTestAccountRank,
+  parseJumpPageInput,
   RANKING_COLUMN_SIZE,
   rankRowClass,
   splitIntoRankingColumns,
@@ -329,7 +330,14 @@ test('ranking display helpers keep row badges counts and visible pages reusable'
   assert.deepEqual(visiblePageNumbers(10, 1), [1, 2, 3, 4, 5])
   assert.deepEqual(visiblePageNumbers(10, 5), [3, 4, 5, 6, 7])
   assert.deepEqual(visiblePageNumbers(10, 10), [6, 7, 8, 9, 10])
+  assert.equal(parseJumpPageInput(' 12 '), 12)
+  assert.equal(parseJumpPageInput('02'), 2)
+  assert.equal(parseJumpPageInput('2abc'), null)
+  assert.equal(parseJumpPageInput('1.5'), null)
+  assert.equal(parseJumpPageInput('0'), null)
+  assert.equal(parseJumpPageInput(''), null)
   assert.ok(source.includes("from '../utils/rankingDisplay'"), 'ranking composable should import ranking display helpers')
+  assert.ok(source.includes('parseJumpPageInput'), 'ranking composable should use shared jump page parsing')
   assert.equal(source.includes('const isTruthyFlag ='), false, 'ranking composable should not own test account flag parsing')
   assert.equal(source.includes('const visiblePageNumbers ='), false, 'ranking composable should not own pagination window formatting')
   assert.equal(source.includes('const RANKING_COLUMN_SIZE ='), false, 'ranking composable should not own visual column sizing')
