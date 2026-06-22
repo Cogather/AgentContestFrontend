@@ -1,12 +1,4 @@
-const isTruthyFlag = (value) => {
-  if (value === true || value === 1) {
-    return true
-  }
-  if (typeof value === 'string') {
-    return ['true', '1', 'yes'].includes(value.trim().toLowerCase())
-  }
-  return false
-}
+import { isTruthyFlag } from './valueHelpers.js'
 
 export const RANKING_COLUMN_SIZE = 10
 

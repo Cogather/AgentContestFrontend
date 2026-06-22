@@ -28,7 +28,10 @@ import {
   THIRD_PARTY_USER_ID_STORAGE_KEY,
   USER_STORAGE_KEY
 } from '../src/utils/userIdentity.js'
-import { normalizeUserProfile } from '../src/utils/userProfile.js'
+import {
+  isTestAccountProfile,
+  normalizeUserProfile
+} from '../src/utils/userProfile.js'
 import {
   clearStoredCurrentUser,
   getCurrentStoredUserId,
@@ -37,7 +40,7 @@ import {
   saveStoredCurrentUser,
   saveStoredThirdPartyUserId
 } from '../src/utils/userStorage.js'
-import { firstDefined, formatNumber } from '../src/utils/valueHelpers.js'
+import { firstDefined, formatNumber, isTruthyFlag } from '../src/utils/valueHelpers.js'
 import { requestErrorDetail, requestErrorMessage } from '../src/utils/requestErrors.js'
 import {
   getRankTokenUsage,
@@ -141,6 +144,11 @@ test('shared value helpers normalize fallback and number display behavior', () =
   assert.equal(formatNumber(null), '-')
   assert.equal(formatNumber('not-a-number'), '-')
   assert.equal(formatNumber('not-a-number', { invalidFallback: '原值不可用' }), '原值不可用')
+  assert.equal(isTruthyFlag(true), true)
+  assert.equal(isTruthyFlag(1), true)
+  assert.equal(isTruthyFlag('yes'), true)
+  assert.equal(isTruthyFlag('false'), false)
+  assert.equal(isTruthyFlag('0'), false)
 })
 
 test('shared user profile helper normalizes backend identity fields', () => {
@@ -161,6 +169,10 @@ test('shared user profile helper normalizes backend identity fields', () => {
       user_id: '00678227'
     }
   )
+  assert.equal(isTestAccountProfile({ test_account: 'yes' }), true)
+  assert.equal(isTestAccountProfile({ testAccount: '1' }), true)
+  assert.equal(isTestAccountProfile({ testAccount: 'false' }), false)
+  assert.equal(isTestAccountProfile({ test_account: 0, testAccount: false }), false)
 })
 
 test('shared request error helpers format backend network and timeout failures', () => {
@@ -351,6 +363,7 @@ test('ranking display helpers keep row badges counts and visible pages reusable'
   assert.equal(parseJumpPageInput('0'), null)
   assert.equal(parseJumpPageInput(''), null)
   assert.ok(source.includes("from '../utils/rankingDisplay'"), 'ranking composable should import ranking display helpers')
+  assert.ok(componentSource.includes('isTestAccountRank'), 'ranking component should render shared test account rank detection')
   assert.ok(componentSource.includes('getRankTokenUsage'), 'ranking component should use shared token usage helper')
   assert.equal(componentSource.includes('personalRank.token_usage'), false, 'personal rank should not read only snake_case token usage')
   assert.equal(componentSource.includes('item.token_usage'), false, 'ranking rows should not read only snake_case token usage')
@@ -358,6 +371,17 @@ test('ranking display helpers keep row badges counts and visible pages reusable'
   assert.equal(source.includes('const isTruthyFlag ='), false, 'ranking composable should not own test account flag parsing')
   assert.equal(source.includes('const visiblePageNumbers ='), false, 'ranking composable should not own pagination window formatting')
   assert.equal(source.includes('const RANKING_COLUMN_SIZE ='), false, 'ranking composable should not own visual column sizing')
+})
+
+test('test account flags use one shared truthy parser', async () => {
+  const rankingDisplaySource = await readFile(new URL('../src/utils/rankingDisplay.js', import.meta.url), 'utf8')
+  const userProfileSource = await readFile(new URL('../src/utils/userProfile.js', import.meta.url), 'utf8')
+  const sessionSource = await readFile(new URL('../src/composables/useUserSession.js', import.meta.url), 'utf8')
+
+  assert.ok(rankingDisplaySource.includes("from './valueHelpers.js'"), 'ranking display should share truthy flag parsing')
+  assert.ok(userProfileSource.includes("from './valueHelpers.js'"), 'user profile should share truthy flag parsing')
+  assert.ok(sessionSource.includes('isTestAccountProfile'), 'user session should use the shared test account profile helper')
+  assert.equal(sessionSource.includes('Boolean(currentUser.value?.test_account'), false, 'user session should not treat string false as truthy')
 })
 
 test('ranking page data normalization keeps api field mapping reusable', async () => {

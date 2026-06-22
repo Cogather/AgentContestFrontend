@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { userApi } from '../api'
 import { requestErrorMessage } from '../utils/requestErrors'
-import { normalizeUserProfile } from '../utils/userProfile'
+import { isTestAccountProfile, normalizeUserProfile } from '../utils/userProfile'
 import {
   isEmergencyLoginPath,
   normalizeUserId,
@@ -26,7 +26,7 @@ export const useUserSession = () => {
   const isEmergencyLoginPage = ref(isEmergencyLoginPath(window.location.pathname))
 
   const isCurrentUserTestAccount = computed(() => {
-    return Boolean(currentUser.value?.test_account || currentUser.value?.testAccount)
+    return isTestAccountProfile(currentUser.value)
   })
 
   const saveCurrentUser = (user) => {
