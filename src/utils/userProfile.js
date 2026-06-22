@@ -1,4 +1,5 @@
 import { normalizeUserId } from './userIdentity.js'
+import { isTruthyFlag } from './valueHelpers.js'
 
 export const normalizeUserProfile = (user) => {
   if (!user) {
@@ -11,4 +12,8 @@ export const normalizeUserProfile = (user) => {
     user_id: normalizeUserId(user.user_id || user.userId),
     username: String(user.username || '').trim()
   }
+}
+
+export const isTestAccountProfile = (user) => {
+  return isTruthyFlag(user?.test_account) || isTruthyFlag(user?.testAccount)
 }

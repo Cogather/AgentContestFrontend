@@ -13,3 +13,13 @@ export const formatNumber = (value, options = {}) => {
   const numeric = Number(value)
   return Number.isFinite(numeric) ? numeric.toLocaleString('zh-CN') : invalidFallback
 }
+
+export const isTruthyFlag = (value) => {
+  if (value === true || value === 1) {
+    return true
+  }
+  if (typeof value === 'string') {
+    return ['true', '1', 'yes'].includes(value.trim().toLowerCase())
+  }
+  return false
+}
