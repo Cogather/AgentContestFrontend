@@ -75,9 +75,9 @@ VITE_UPLOAD_TIMEOUT_MS=300000
    - 新比赛上线前至少验证：首页赛程倒计时、上传限制提示、上传成功/失败反馈、历史提交、得分详情、取消排队、排行榜分页/搜索/排序、移动端布局。
    - 可参考 `docs/core-functional-test-cases.md` 和 `docs/frontend-test-cases.md` 做回归。
 
-## AI Agent 开发约束
+## 代码智能体开发约束
 
-如果使用 Agent 继续开发本前端项目，请遵循以下模式：
+如果使用代码智能体继续开发本前端项目，请遵循以下模式：
 
 1. **先读上下文再改代码**
    - 先阅读本 README、`PROJECT_CONTEXT_FRONTEND.md`、`docs/software-design-document.md`、`docs/core-functional-test-cases.md`。
@@ -111,6 +111,10 @@ VITE_UPLOAD_TIMEOUT_MS=300000
    - 至少执行 `npm run build`。
    - 涉及交互逻辑时执行 `npm test -- scripts/frontend-regression.test.mjs`。
    - 如果只改 README，可以不跑构建，但最终回复里要明确说明。
+
+8. **Markdown 文档使用中文**
+   - 项目自有 `.md` 文档正文必须使用中文。
+   - 技术标识符、接口路径、环境变量、命令和代码块可以保留原文。
 
 ## 开发
 

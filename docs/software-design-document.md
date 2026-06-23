@@ -1,265 +1,231 @@
-# AgentContest Frontend Software Design Document
+# AgentContest 前端软件设计文档
 
-## 1. Document Control
+## 1. 文档信息
 
-| Item | Value |
+| 项目 | 内容 |
 | --- | --- |
-| System | AgentContest Frontend |
-| Repository | `AgentContest` |
-| Runtime | Vue 3, Vite, Axios |
-| Primary Audience | Human developers and AI coding agents |
-| Status | Living design document |
+| 系统 | AgentContest 前端 |
+| 仓库 | `AgentContest` |
+| 技术栈 | Vue 3、Vite、Axios |
+| 读者 | 开发者、代码智能体 |
+| 状态 | 持续维护的设计文档 |
 
-## 2. Purpose
+## 2. 文档目标
 
-This document describes the frontend design of the AgentContest platform. It is
-intended to help future developers or AI agents safely adapt the frontend for a
-new contest without rediscovering session, upload, ranking, history, and score
-detail behavior from source code alone.
+本文档描述 AgentContest 前端的设计。后续开发者或代码智能体在适配新比赛时，应先阅读本文档，再修改页面、接口、上传、历史、排行榜和得分详情相关逻辑。
 
-The frontend is responsible for:
+前端负责：
 
-- Rendering contest information, schedule, countdown, upload entry, history,
-  score details, and ranking.
-- Coordinating with third-party login or emergency login.
-- Calling backend `/me` APIs with cookies, write API keys, and current user id
-  headers.
-- Presenting backend validation errors clearly without inventing local mock
-  data.
+- 展示比赛信息、赛程、倒计时、上传入口、历史记录、得分详情和排行榜。
+- 对接第三方登录或应急登录。
+- 通过 Cookie、写接口 key 和当前用户请求头调用后端 `/me` 接口。
+- 在页面上清晰展示后端校验错误，不在生产代码中伪造本地数据。
 
-The backend remains the authority for identity, upload acceptance, contest
-window, cooldown, score detail data, ranking data, and status transitions.
+后端是身份、上传准入、比赛时间窗口、上传间隔、得分详情、排行榜数据和提交状态流转的最终权威。
 
-## 3. Design Goals
+## 3. 设计目标
 
-- **Config-first contest reuse**: contest name, challenge text, schedule, and
-  time windows should come from `GET /api/contest/config` whenever possible.
-- **Low-intrusion feature changes**: page components should stay visual; API,
-  state transitions, and display parsing should live in composables and utils.
-- **Production-safe data display**: frontend must not fabricate leaderboard,
-  score, question, or history data when backend data is missing.
-- **Recoverable deployment**: environment variables must control API base URL,
-  write key, upload timeout, and optional login guard behavior.
-- **Human-friendly operations**: upload progress, failure messages, queue
-  status, cancellation, and history refresh should be visible and predictable.
+- **比赛配置优先来自后端**：比赛名称、赛题、赛程和时间窗口优先使用 `GET /api/contest/config`。
+- **低侵入扩展**：页面组件保持展示职责；接口请求、状态流转和展示解析放到 composable 或 utils。
+- **生产数据真实可信**：后端缺数据时展示空状态或不可用状态，不生成假榜单、假题目、假分数。
+- **部署可恢复**：API 地址、写接口 key、上传超时和登录守卫通过环境变量控制。
+- **操作反馈明确**：上传进度、失败原因、队列状态、取消结果和历史刷新都要可见且稳定。
 
-## 4. System Context
+## 4. 系统上下文
 
 ```text
-Browser
+浏览器
   -> main.js
   -> App.vue
   -> composables
   -> api/index.js
-  -> AgentContest backend
-  -> MySQL / mounted package dirs / evaluator
+  -> AgentContest 后端
+  -> MySQL / 挂载程序包目录 / 判别器
 ```
 
-External actors:
+外部角色：
 
-- **Participant**: opens the contest page, registers nickname, uploads zip,
-  views history and ranking.
-- **Internal login system**: optionally provides the work id and writes it into
-  frontend storage before the app initializes.
-- **Backend service**: signs user session cookies, enforces upload rules, and
-  returns contest/ranking/history data.
+- **参赛用户**：打开页面、登记昵称、上传 zip、查看历史和排行榜。
+- **内部登录系统**：可选地提供工号，并在应用初始化前写入前端存储。
+- **后端服务**：签发用户 Cookie、执行上传规则、返回比赛/排行/历史数据。
 
-## 5. High-Level Architecture
+## 5. 总体架构
 
-The frontend uses a layered Vue architecture:
+前端采用 Vue 分层结构：
 
-| Layer | Files | Responsibility |
+| 层级 | 文件 | 职责 |
 | --- | --- | --- |
-| Entrypoint | `src/main.js` | HTTPS redirect, optional third-party login guard, app mount |
-| Shell | `src/App.vue` | Page shell, modal routing, current view selection |
-| API adapter | `src/api/index.js` | Axios instance, base URL, write key, current user id header, upload timeout |
-| App composables | `src/composables/useUserSession.js`, `useContestConfig.js`, `useContestClock.js`, `useErrorDialog.js` | Shared session, contest config, countdown, and error state |
-| Feature composables | `usePackageUpload.js`, `useSubmissionHistory.js`, `useRankingBoard.js` | Upload, history, cancel, score detail, ranking state |
-| Components | `RegisterPanel.vue`, `ContestSchedulePanel.vue`, `UploadModal.vue`, `HistoryPage.vue`, `RankingBoard.vue`, `ErrorModal.vue` | Visual rendering and event binding |
-| Utilities | `src/utils/*.js` | Field normalization, display text, score formatting, upload file rules, local storage |
+| 入口 | `src/main.js` | HTTPS 跳转、可选第三方登录守卫、Vue 挂载 |
+| 应用壳 | `src/App.vue` | 页面壳、弹框路由、当前视图状态 |
+| API 适配层 | `src/api/index.js` | Axios 实例、API 基地址、写接口 key、当前用户请求头、上传超时 |
+| 应用级 composable | `useUserSession.js`、`useContestConfig.js`、`useContestClock.js`、`useErrorDialog.js` | 登录态、比赛配置、倒计时、全局错误状态 |
+| 功能级 composable | `usePackageUpload.js`、`useSubmissionHistory.js`、`useRankingBoard.js` | 上传、历史、取消、得分详情、排行榜状态 |
+| 组件 | `RegisterPanel.vue`、`ContestSchedulePanel.vue`、`UploadModal.vue`、`HistoryPage.vue`、`RankingBoard.vue`、`ErrorModal.vue` | 页面展示和事件绑定 |
+| 工具 | `src/utils/*.js` | 字段归一化、展示文案、分数格式化、上传文件规则、本地存储 |
 
-Design rule: if logic can be unit-tested or reused without DOM knowledge, it
-belongs in `composables` or `utils`, not directly inside a component template.
+设计规则：如果一段逻辑可以脱离 DOM 测试或复用，就应放进 `composables` 或 `utils`，不要直接写在组件模板里。
 
-## 6. Module Design
+## 6. 模块设计
 
-### 6.1 Entrypoint
+### 6.1 入口模块
 
-`src/main.js` runs before Vue mounts:
+`src/main.js` 在 Vue 挂载前执行：
 
-- Calls `redirectHttpToHttps()` for non-local HTTP access.
-- Allows `/emergency-login` to mount without third-party login checks.
-- If `VITE_ENABLE_LOGIN_GUARD=true`, probes `VITE_LOGIN_STATUS_PATH`; a valid
-  work id is normalized and stored as `agent_game_third_party_user_id`.
-- If the guard fails, redirects to `VITE_LOGIN_PAGE_URL` with current URL as
-  redirect target.
-- If the guard is disabled, mounts the app directly.
+- 调用 `redirectHttpToHttps()`，让非本地 HTTP 访问跳转到 HTTPS。
+- 允许 `/emergency-login` 路径绕过第三方登录检查。
+- 当 `VITE_ENABLE_LOGIN_GUARD=true` 时，探测 `VITE_LOGIN_STATUS_PATH`，拿到有效工号后写入 `agent_game_third_party_user_id`。
+- 登录守卫失败时，跳转到 `VITE_LOGIN_PAGE_URL`，并把当前地址作为回跳目标。
+- 登录守卫关闭时，直接挂载应用。
 
-### 6.2 User Session
+### 6.2 用户会话
 
-`useUserSession` owns frontend session bootstrap:
+`useUserSession` 负责前端会话启动：
 
-- Reads user id from URL query or `agent_game_third_party_user_id`.
-- Calls `GET /api/users/me` first to reuse an existing backend cookie.
-- If no valid cookie exists, calls `POST /api/users` with the resolved work id.
-- If the backend says nickname is required, shows the registration panel.
-- Supports `/emergency-login` through `POST /api/users/emergency-login`.
+- 从 URL query 或 `agent_game_third_party_user_id` 读取工号。
+- 先调用 `GET /api/users/me` 复用已有后端 Cookie。
+- 如果没有有效 Cookie，再用解析出的工号调用 `POST /api/users`。
+- 后端要求昵称时，展示登记面板。
+- 通过 `POST /api/users/emergency-login` 支持应急登录。
 
-The frontend stores profile data for display convenience, but backend Cookie is
-the real session proof.
+前端存储的用户资料只用于展示便利；后端 Cookie 才是真正的会话凭证。
 
-### 6.3 Contest Config and Clock
+### 6.3 比赛配置和倒计时
 
-`useContestConfig` calls `GET /api/contest/config` and normalizes backend
-fields. `src/config/contestDefaults.js` is only a fallback for local startup or
-temporary backend outage.
+`useContestConfig` 调用 `GET /api/contest/config` 并归一化后端字段。`src/config/contestDefaults.js` 只作为本地启动或后端短暂不可用时的兜底。
 
-`useContestClock` derives:
+`useContestClock` 推导三种状态：
 
-- Not started: show countdown to contest start.
-- Running: show countdown to submission end.
-- Ended: show ended state.
+- 未开始：显示距离比赛开始的倒计时。
+- 进行中：显示距离提交结束的倒计时。
+- 已结束：显示结束状态。
 
-The frontend can guide users, but upload eligibility is finally enforced by the
-backend.
+前端只负责提示用户，最终能否上传由后端强制判断。
 
-### 6.4 Upload
+### 6.4 上传
 
-`UploadModal` delegates upload behavior to `usePackageUpload`:
+`UploadModal` 把上传状态交给 `usePackageUpload`：
 
-- Client-side validation only checks `.zip` and file presence.
-- `commonApi.uploadCode` posts to `POST /api/upload/me`.
-- Upload timeout uses `VITE_UPLOAD_TIMEOUT_MS`, default 5 minutes.
-- Success shows an animated success state.
-- Backend error messages are shown inside the upload box.
+- 前端只做 `.zip` 和文件存在性等轻量校验。
+- `commonApi.uploadCode` 提交到 `POST /api/upload/me`。
+- 上传超时使用 `VITE_UPLOAD_TIMEOUT_MS`，默认 5 分钟。
+- 上传成功展示动画成功状态。
+- 后端错误展示在上传框内。
 
-No frontend-only cooldown decision should be treated as authoritative. The
-upload click path must call backend status/config when a fresh blocking decision
-is needed.
+不要把前端冷却判断当成最终规则。需要新鲜拦截结果时，上传点击路径应咨询后端状态或配置。
 
-### 6.5 History and Score Detail
+### 6.5 历史和得分详情
 
-`HistoryPage` delegates data and actions to `useSubmissionHistory`:
+`HistoryPage` 把数据和动作交给 `useSubmissionHistory`：
 
-- Loads `GET /api/users/me/submissions`.
-- Loads queue/evaluating summary from `GET /api/users/me/submissions/summary`.
-- Auto-refreshes through `useIntervalTimer`.
-- Cancels only backend-cancelable queued submissions through
-  `POST /api/users/me/submissions/{submissionId}/cancel`.
-- Shows submission id, created time, score, token usage, status, and actions.
-- Opens score details only when `score_detail` and `question_details` contain
-  usable backend data.
+- 加载 `GET /api/users/me/submissions`。
+- 加载 `GET /api/users/me/submissions/summary` 的排队/评测统计。
+- 通过 `useIntervalTimer` 自动刷新。
+- 只通过 `POST /api/users/me/submissions/{submissionId}/cancel` 取消后端允许取消的排队提交。
+- 展示提交 ID、提交时间、分数、token 用量、状态和操作。
+- 只有 `score_detail` 和 `question_details` 都有可用后端数据时，才打开得分详情。
 
-`submissionScoreDetails.js` merges `score_detail` and `question_details` by
-question id. It supports decimal scores and escaped line breaks.
+`submissionScoreDetails.js` 按题号合并 `score_detail` 和 `question_details`，支持小数分和转义换行。
 
-### 6.6 Ranking
+### 6.6 排行榜
 
-`RankingBoard` delegates ranking state to `useRankingBoard`:
+`RankingBoard` 把排行状态交给 `useRankingBoard`：
 
-- Calls `GET /api/rank/page`.
-- Shows 20 rows per page by default, rendered as two 10-row columns.
-- Supports nickname search, score/token/submission-count sorting, jump page,
-  and current user rank.
-- Calls `GET /api/rank/me` for personal ranking.
-- Uses request sequence guards to prevent old responses from overriding newer
-  page/sort/search state.
+- 调用 `GET /api/rank/page`。
+- 默认每页 20 条，桌面端按左右各 10 条展示。
+- 支持昵称搜索、得分/token/提交次数排序、跳页和当前用户排名。
+- 调用 `GET /api/rank/me` 获取个人排名。
+- 使用请求序列保护，避免旧响应覆盖新的分页、排序或搜索状态。
 
-Test accounts are displayed as official demo rows when backend marks them as
-test accounts.
+当后端标记测试账号时，前端展示为官方 Demo 行。
 
-## 7. API Design
+## 7. API 设计
 
-| Frontend API method | HTTP endpoint | Notes |
+| 前端 API 方法 | HTTP 接口 | 说明 |
 | --- | --- | --- |
-| `userApi.getUsers()` | `GET /api/users` | Public user list for admin/debug display |
-| `userApi.getMe()` | `GET /api/users/me` | Current cookie-backed user |
-| `userApi.getSubmissions()` | `GET /api/users/me/submissions` | Current user's history |
-| `userApi.getSubmissionQueueSummary()` | `GET /api/users/me/submissions/summary` | Global queued/evaluating counts |
-| `userApi.addUser(data)` | `POST /api/users` | Create/login normal user |
-| `userApi.emergencyLogin(data)` | `POST /api/users/emergency-login` | Emergency login whitelist path |
-| `userApi.updateUser(data)` | `PUT /api/users/me` | Current user update, nickname immutable |
-| `userApi.cancelSubmission(id)` | `POST /api/users/me/submissions/{id}/cancel` | Cancel queued upload |
-| `rankApi.getRankPage(params)` | `GET /api/rank/page` | Paginated leaderboard |
-| `rankApi.getUserRank()` | `GET /api/rank/me` | Personal rank |
-| `contestApi.getConfig()` | `GET /api/contest/config` | Contest metadata and schedule |
-| `commonApi.uploadCode(formData)` | `POST /api/upload/me` | Multipart zip upload |
+| `userApi.getUsers()` | `GET /api/users` | 获取公开用户列表，主要用于管理或调试展示 |
+| `userApi.getMe()` | `GET /api/users/me` | 获取当前 Cookie 对应用户 |
+| `userApi.getSubmissions()` | `GET /api/users/me/submissions` | 获取当前用户历史提交 |
+| `userApi.getSubmissionQueueSummary()` | `GET /api/users/me/submissions/summary` | 获取全局排队/评测数量 |
+| `userApi.addUser(data)` | `POST /api/users` | 创建或登录普通用户 |
+| `userApi.emergencyLogin(data)` | `POST /api/users/emergency-login` | 应急登录白名单入口 |
+| `userApi.updateUser(data)` | `PUT /api/users/me` | 更新当前用户，昵称不可随意修改 |
+| `userApi.cancelSubmission(id)` | `POST /api/users/me/submissions/{id}/cancel` | 取消排队提交 |
+| `rankApi.getRankPage(params)` | `GET /api/rank/page` | 分页排行榜 |
+| `rankApi.getUserRank()` | `GET /api/rank/me` | 个人排名 |
+| `contestApi.getConfig()` | `GET /api/contest/config` | 比赛元数据和赛程 |
+| `commonApi.uploadCode(formData)` | `POST /api/upload/me` | multipart zip 上传 |
 
-All standard JSON responses use:
+标准 JSON 响应：
 
 ```json
 {"code":0,"message":"success","data":{}}
 ```
 
-## 8. Data Design
+## 8. 数据设计
 
-Frontend storage keys:
+前端本地存储 key：
 
-| Key | Purpose |
+| Key | 作用 |
 | --- | --- |
-| `agent_game_third_party_user_id` | Normalized 8-digit work id from login bootstrap |
-| `agent_game_user` | Cached normalized user profile for display |
+| `agent_game_third_party_user_id` | 内部登录引导返回的规范化工号 |
+| `agent_game_user` | 展示用的用户资料缓存 |
 
-Important display fields:
+关键展示字段：
 
-- `SubmissionResponse.id`: displayed in history as submission id.
-- `SubmissionResponse.status`: normalized by `submissionDisplay.js`.
-- `SubmissionResponse.score`: decimal-safe total score.
-- `SubmissionResponse.score_detail`: evaluator JSON array string.
-- `SubmissionResponse.question_details`: backend question metadata.
-- `SubmissionResponse.token_usage`: displayed in history and ranking.
-- `SubmissionResponse.queue_ahead`: displayed for queued submissions.
+- `SubmissionResponse.id`：历史提交中的提交 ID。
+- `SubmissionResponse.status`：由 `submissionDisplay.js` 归一化展示。
+- `SubmissionResponse.score`：支持小数的总分。
+- `SubmissionResponse.score_detail`：判别器回写的 JSON 数组字符串。
+- `SubmissionResponse.question_details`：后端返回的题目元数据。
+- `SubmissionResponse.token_usage`：历史和排行榜展示的 token 用量。
+- `SubmissionResponse.queue_ahead`：排队提交前方还有多少笔。
 
-Server file paths must not be displayed in normal history UI.
+普通历史 UI 不得展示服务器文件路径。
 
-## 9. Security and Privacy
+## 9. 安全和隐私
 
-- Production HTTP is redirected to HTTPS before app mount, except localhost.
-- Write requests can include `X-Agent-Contest-Write-Key` when configured.
-- Current user id header is used as a low-cost consistency check, not as a
-  strong auth mechanism.
-- Backend cookie remains the effective session proof.
-- Frontend must not expose stored/original package paths.
-- Emergency login is a controlled fallback and must rely on backend whitelist.
+- 生产环境非本地 HTTP 访问在应用挂载前跳转 HTTPS。
+- 写请求在配置后会携带 `X-Agent-Contest-Write-Key`。
+- 当前用户请求头只是低成本一致性检查，不是强鉴权。
+- 后端 Cookie 才是有效会话凭证。
+- 前端不得暴露原始包路径或分发包路径。
+- 应急登录是受后端白名单控制的故障兜底入口。
 
-## 10. Error Handling
+## 10. 错误处理
 
-Errors should be surfaced at the closest useful UI:
+错误应展示在最贴近用户操作的位置：
 
-- Upload validation or upload API errors: inside `UploadModal`.
-- History load failure: history page error state.
-- Ranking load failure: ranking board error state.
-- Global session or operation errors: `ErrorModal` or registration panel error.
+- 上传校验或上传接口错误：展示在 `UploadModal` 内。
+- 历史加载失败：展示在历史页面状态区。
+- 排行榜加载失败：展示在排行榜状态区。
+- 全局会话或操作错误：展示在 `ErrorModal` 或登记面板。
 
-Do not replace backend errors with generic text when backend already returns a
-user-actionable message.
+后端已经返回可操作错误信息时，不要替换成泛化文案。
 
-## 11. Extensibility Guide
+## 11. 扩展指南
 
-For a new contest:
+适配新比赛时：
 
-- Update backend contest config first; frontend should consume it.
-- Replace visual assets under `src/assets/` only when needed.
-- Add new display rules to `src/utils/`, not inline in templates.
-- Add new long-running feature state to `src/composables/`.
-- Keep new backend endpoints inside `src/api/index.js`.
-- Update `docs/software-design-document.md`, diagrams, and functional tests
-  when behavior changes.
+- 优先更新后端比赛配置，前端消费配置结果。
+- 只在必要时替换 `src/assets/` 下的视觉资源。
+- 新展示规则放到 `src/utils/`，不要内联在模板里。
+- 新的长生命周期状态放到 `src/composables/`。
+- 新后端接口统一封装在 `src/api/index.js`。
+- 行为变化时同步更新本文档、图谱和功能测试用例。
 
-## 12. Verification
+## 12. 验证
 
-Recommended checks:
+推荐检查：
 
 ```bash
 npm run build
 npm test -- scripts/frontend-regression.test.mjs
 ```
 
-Visual checks are required for changes touching:
+涉及以下页面时必须做浏览器视觉检查：
 
-- Login/registration page.
-- Contest hero and schedule area.
-- Upload modal.
-- History table and score detail dialog.
-- Ranking layout, especially narrow screens and two-column desktop mode.
-
+- 登录/登记页。
+- 首页标题和赛程区域。
+- 上传弹框。
+- 历史表格和得分详情弹框。
+- 排行榜布局，尤其是窄屏和桌面双列模式。
