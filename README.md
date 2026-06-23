@@ -4,11 +4,12 @@
 
 ## 功能特性
 
-- 参赛题目展示
-- 个人参赛配置（姓名、工号、Agent名称、IP地址、端口）
-- 开始判题功能
-- 提交历史记录
-- 实时排行榜（分页展示、个人积分展示）
+- 比赛信息、赛程和倒计时展示
+- 第三方登录接入、昵称登记和应急登录
+- 代码 zip 上传、上传状态反馈和后端规则拦截
+- 历史提交记录、排队/评测统计、取消排队提交
+- 得分详情弹框，展示题目标题、题目详情和每题得分
+- 实时排行榜，支持分页、搜索、排序、个人排名和官方 Demo 标记
 
 ## 技术栈
 
@@ -21,15 +22,15 @@
 ```
 agent-game/
 ├── src/
-│   ├── api/           # API 服务层
-│   ├── components/    # Vue 组件
-│   │   ├── UserConfigModal.vue    # 用户配置弹窗
-│   │   ├── ConfirmModal.vue       # 确认提交弹窗
-│   │   ├── HistoryModal.vue       # 历史记录弹窗
-│   │   └── RankingBoard.vue       # 排行榜组件
-│   ├── App.vue         # 主应用组件
-│   ├── main.js         # 入口文件
-│   └── style.css       # 全局样式
+│   ├── api/              # Axios API 适配层
+│   ├── assets/           # 页面视觉资源
+│   ├── components/       # 页面和弹框组件
+│   ├── composables/      # 登录、上传、历史、排行榜等状态逻辑
+│   ├── config/           # 比赛配置兜底值
+│   ├── utils/            # 字段归一化、展示文案、得分解析等纯逻辑
+│   ├── App.vue           # 主应用壳和视图切换
+│   └── main.js           # HTTPS 跳转、登录守卫和 Vue 挂载
+├── docs/                 # SDD、测试用例、架构图
 ├── index.html
 └── vite.config.js
 ```
@@ -79,7 +80,7 @@ VITE_UPLOAD_TIMEOUT_MS=300000
 如果使用 Agent 继续开发本前端项目，请遵循以下模式：
 
 1. **先读上下文再改代码**
-   - 先阅读本 README、`PROJECT_CONTEXT_FRONTEND.md`、`docs/core-functional-test-cases.md`。
+   - 先阅读本 README、`PROJECT_CONTEXT_FRONTEND.md`、`docs/software-design-document.md`、`docs/core-functional-test-cases.md`。
    - 修改页面前，先读目标组件、对应 composable、相关 utils 和 API 封装，不要凭记忆猜接口字段。
 
 2. **页面组件只负责展示**
@@ -124,10 +125,12 @@ npm run dev
 npm run build
 ```
 
-## 测试用例
+## 设计与测试文档
 
+- [前端软件设计文档 SDD](docs/software-design-document.md)：前端架构、模块边界、接口契约、状态流、扩展点和 Agent 开发约束。
 - [前后端核心功能测试用例](docs/core-functional-test-cases.md)：按 L0/L1/L2 分层覆盖登录、上传、历史提交、得分详情、排行榜、日志下载和部署运维。
 - [前端交互测试脑图](docs/frontend-test-cases.md)：按页面和交互路径组织的前端手工回归用例。
+- [架构图/流程图/时序图](docs/diagrams/)：系统架构、前后端模块、上传、登录、评测、日志下载等关键图。
 
 ## API 对接
 
@@ -135,10 +138,20 @@ npm run build
 
 ### 用户接口
 - `GET /api/users` - 获取所有用户
-- `GET /api/users/{user_id}` - 获取单个用户
-- `POST /api/users` - 添加用户
-- `PUT /api/users/{user_id}` - 更新用户
+- `GET /api/users/me` - 获取当前登录用户
+- `GET /api/users/me/submissions` - 获取当前用户历史提交
+- `GET /api/users/me/submissions/summary` - 获取排队/评测统计
+- `POST /api/users` - 创建或登录用户
+- `POST /api/users/emergency-login` - 应急登录
+- `PUT /api/users/me` - 更新当前用户
+- `DELETE /api/users/me` - 删除当前用户
+- `POST /api/users/me/submissions/{submissionId}/cancel` - 取消排队提交
 
 ### 排行榜接口
 - `GET /api/rank` - 获取排行榜列表
-- `GET /api/rank/{user_id}` - 获取单个用户排名
+- `GET /api/rank/page` - 获取分页排行榜
+- `GET /api/rank/me` - 获取当前用户排名
+
+### 比赛与上传接口
+- `GET /api/contest/config` - 获取比赛配置
+- `POST /api/upload/me` - 上传当前用户 zip 包

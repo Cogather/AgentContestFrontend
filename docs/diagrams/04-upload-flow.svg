@@ -43,14 +43,14 @@ text { font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsof
 <text x="220.0" y="357" text-anchor="middle" class="label">POST /api/upload/me</text>
 <text x="220.0" y="377" text-anchor="middle" class="small">cookie + write key</text>
 <rect x="420" y="110" width="200" height="72" rx="10" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5" filter="url(#softShadow)"/>
-<text x="520.0" y="137" text-anchor="middle" class="label">Require session</text>
-<text x="520.0" y="157" text-anchor="middle" class="small">signed cookie -&gt; user</text>
+<text x="520.0" y="137" text-anchor="middle" class="label">Write key + session</text>
+<text x="520.0" y="157" text-anchor="middle" class="small">filter + signed cookie</text>
 <polygon points="510,220 600,265 510,310 420,265" fill="#fff7ed" stroke="#fed7aa" stroke-width="1.5" filter="url(#softShadow)"/>
 <text x="510" y="258" text-anchor="middle" class="label">Validate rules</text>
-<text x="510" y="276" text-anchor="middle" class="tiny">contest window / interval</text>
+<text x="510" y="276" text-anchor="middle" class="tiny">contest / db interval / night</text>
 <rect x="420" y="330" width="200" height="72" rx="10" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5" filter="url(#softShadow)"/>
 <text x="520.0" y="357" text-anchor="middle" class="label">Create submission</text>
-<text x="520.0" y="377" text-anchor="middle" class="small">status = UPLOADING</text>
+<text x="520.0" y="377" text-anchor="middle" class="small">UPLOADING + submit_ip</text>
 <rect x="720" y="110" width="200" height="72" rx="10" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5" filter="url(#softShadow)"/>
 <text x="820.0" y="137" text-anchor="middle" class="label">Save zip</text>
 <text x="820.0" y="157" text-anchor="middle" class="small">uploads/user/id.zip</text>
@@ -62,7 +62,7 @@ text { font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsof
 <text x="820.0" y="377" text-anchor="middle" class="small">programs + mounted targets</text>
 <rect x="420" y="460" width="200" height="72" rx="10" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5" filter="url(#softShadow)"/>
 <text x="520.0" y="487" text-anchor="middle" class="label">Mark UPLOADED</text>
-<text x="520.0" y="507" text-anchor="middle" class="small">store paths + queueAhead</text>
+<text x="520.0" y="507" text-anchor="middle" class="small">hide paths, return id + queueAhead</text>
 <rect x="720" y="460" width="200" height="72" rx="10" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5" filter="url(#softShadow)"/>
 <text x="820.0" y="487" text-anchor="middle" class="label">Return success</text>
 <text x="820.0" y="507" text-anchor="middle" class="small">frontend check animation</text>

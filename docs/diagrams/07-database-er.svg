@@ -40,7 +40,7 @@ text { font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsof
 <text x="82" y="164" class="field">PK user_id varchar(64)</text>
 <text x="82" y="182" class="field">username varchar(64)</text>
 <text x="82" y="200" class="field">UK client_uuid char(36)</text>
-<rect x="500" y="94" width="290" height="206" rx="8" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5" filter="url(#softShadow)"/>
+<rect x="500" y="94" width="290" height="224" rx="8" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5" filter="url(#softShadow)"/>
 <rect x="500" y="94" width="290" height="34" rx="8" fill="#f3f4f6" stroke="none"/>
 <rect x="500" y="118" width="290" height="10" fill="#f3f4f6" stroke="none"/>
 <text x="645.0" y="116" text-anchor="middle" class="entity-header">submissions</text>
@@ -51,8 +51,9 @@ text { font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsof
 <text x="512" y="220" class="field">score decimal(12,4)</text>
 <text x="512" y="238" class="field">score_detail text</text>
 <text x="512" y="256" class="field">token_usage bigint</text>
-<text x="512" y="274" class="field">stored/original file path</text>
-<text x="512" y="292" class="field">submit_ip, created_at</text>
+<text x="512" y="274" class="field">error_message varchar(500)</text>
+<text x="512" y="292" class="field">stored/original paths hidden</text>
+<text x="512" y="310" class="field">submit_ip, created_at</text>
 <rect x="935" y="120" width="250" height="98" rx="8" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5" filter="url(#softShadow)"/>
 <rect x="935" y="120" width="250" height="34" rx="8" fill="#f3f4f6" stroke="none"/>
 <rect x="935" y="144" width="250" height="10" fill="#f3f4f6" stroke="none"/>

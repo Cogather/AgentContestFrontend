@@ -448,7 +448,7 @@
 - 用例编号：`FE-UPLOAD-009`
 - 优先级：P0
 - 接口
-  - `POST /api/upload/{userId}`
+  - `POST /api/upload/me`
   - 返回 `code=0`
 - 期望
   - 显示“上传中...”
@@ -782,7 +782,7 @@
 - 用例编号：`FE-RANK-002`
 - 优先级：P0
 - 接口
-  - `/api/rank/{userId}`
+  - `/api/rank/me`
 - 期望
   - 显示我的排名
   - 显示我的得分

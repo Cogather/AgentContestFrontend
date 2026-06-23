@@ -188,23 +188,24 @@ def render_login_sequence():
         {"id": "db", "label": "MySQL", "x": 1100, "fill": COLORS["purple_fill"], "stroke": "#e9d5ff"},
     ]
     by_id = {item["id"]: item for item in participants}
-    sequence_start(lines, 1200, 760, "Sequence: Login & Session Cookie", participants)
-    seq_frame(lines, 48, 150, 1105, 160, "Third-party work id bootstrap", COLORS["blue"])
-    seq_msg(lines, by_id, "browser", "login", 185, "redirect when no work id", "blue")
-    seq_msg(lines, by_id, "login", "browser", 225, "write third_party_user_id", "gray", response=True)
-    seq_msg(lines, by_id, "browser", "app", 265, "reload contest app", "blue")
-    seq_frame(lines, 48, 335, 1105, 260, "Backend session issuing", COLORS["green"])
-    seq_msg(lines, by_id, "app", "api", 370, "GET /api/users/me", "blue")
-    seq_msg(lines, by_id, "api", "controller", 410, "probe session", "blue")
-    seq_msg(lines, by_id, "controller", "session", 450, "requireSessionUser()", "red")
-    seq_msg(lines, by_id, "session", "controller", 490, "401 if cookie missing", "red", response=True)
-    seq_msg(lines, by_id, "app", "api", 535, "POST /api/users", "blue")
-    seq_msg(lines, by_id, "api", "controller", 575, "payload + user id header", "blue")
-    seq_msg(lines, by_id, "controller", "session", 615, "verifyCurrentUserId()", "red")
-    seq_msg(lines, by_id, "controller", "db", 655, "find/create user", "green")
-    seq_msg(lines, by_id, "controller", "session", 695, "writeSessionCookie()", "red")
-    seq_msg(lines, by_id, "controller", "browser", 725, "UserResponse + Set-Cookie", "gray", response=True)
-    for pid, y, h, color in [("app", 360, 50, "#bfdbfe"), ("controller", 405, 320, "#bbf7d0"), ("session", 445, 270, "#fecaca")]:
+    sequence_start(lines, 1200, 860, "Sequence: Login, Emergency Login & Session Cookie", participants)
+    seq_frame(lines, 48, 150, 1105, 150, "Optional third-party bootstrap when VITE_ENABLE_LOGIN_GUARD=true", COLORS["blue"])
+    seq_msg(lines, by_id, "browser", "login", 182, "redirect when no work id", "blue")
+    seq_msg(lines, by_id, "login", "browser", 222, "write third_party_user_id", "gray", response=True)
+    seq_msg(lines, by_id, "browser", "app", 262, "reload contest app", "blue")
+    seq_frame(lines, 48, 330, 1105, 280, "Normal backend session issuing", COLORS["green"])
+    seq_msg(lines, by_id, "app", "api", 365, "GET /api/users/me", "blue")
+    seq_msg(lines, by_id, "api", "controller", 405, "probe signed cookie", "blue")
+    seq_msg(lines, by_id, "controller", "session", 445, "requireSessionUser()", "red")
+    seq_msg(lines, by_id, "session", "controller", 485, "401 if cookie missing", "red", response=True)
+    seq_msg(lines, by_id, "app", "api", 530, "POST /api/users", "blue")
+    seq_msg(lines, by_id, "api", "controller", 570, "payload + user id header", "blue")
+    seq_msg(lines, by_id, "controller", "session", 610, "verifyCurrentUserId()", "red")
+    seq_msg(lines, by_id, "controller", "db", 650, "find or create user", "green")
+    seq_msg(lines, by_id, "controller", "session", 690, "writeSessionCookie()", "red")
+    seq_msg(lines, by_id, "controller", "browser", 730, "UserResponse + Set-Cookie", "gray", response=True)
+    seq_frame(lines, 48, 770, 1105, 56, "Emergency path: /emergency-login -> POST /api/users/emergency-login -> check emergency_login_accounts -> Set-Cookie", COLORS["orange"])
+    for pid, y, h, color in [("app", 355, 60, "#bfdbfe"), ("controller", 400, 340, "#bbf7d0"), ("session", 440, 280, "#fecaca")]:
         seq_activation(lines, by_id, pid, y, h, color)
     finish(lines, "08-login-session-sequence.svg")
 
@@ -214,32 +215,34 @@ def render_upload_sequence():
     participants = [
         {"id": "modal", "label": "UploadModal", "x": 85, "fill": COLORS["blue_fill"], "stroke": "#bfdbfe"},
         {"id": "api", "label": "Axios", "x": 225, "fill": COLORS["orange_fill"], "stroke": "#fed7aa"},
-        {"id": "controller", "label": "UploadController", "x": 390, "fill": COLORS["green_fill"], "stroke": "#bbf7d0"},
-        {"id": "session", "label": "SessionService", "x": 575, "fill": COLORS["red_fill"], "stroke": "#fecaca"},
-        {"id": "upload", "label": "UploadService", "x": 760, "fill": COLORS["green_fill"], "stroke": "#bbf7d0"},
-        {"id": "package", "label": "PackageService", "x": 950, "fill": COLORS["purple_fill"], "stroke": "#e9d5ff"},
-        {"id": "db", "label": "MySQL", "x": 1120, "fill": COLORS["gray_fill"], "stroke": COLORS["stroke"]},
-        {"id": "mount", "label": "Mounted Dirs", "x": 1285, "fill": COLORS["purple_fill"], "stroke": "#e9d5ff"},
+        {"id": "filter", "label": "WriteKeyFilter", "x": 380, "fill": COLORS["red_fill"], "stroke": "#fecaca"},
+        {"id": "controller", "label": "UploadController", "x": 540, "fill": COLORS["green_fill"], "stroke": "#bbf7d0"},
+        {"id": "session", "label": "SessionService", "x": 715, "fill": COLORS["red_fill"], "stroke": "#fecaca"},
+        {"id": "upload", "label": "UploadService", "x": 900, "fill": COLORS["green_fill"], "stroke": "#bbf7d0"},
+        {"id": "package", "label": "PackageService", "x": 1095, "fill": COLORS["purple_fill"], "stroke": "#e9d5ff"},
+        {"id": "db", "label": "MySQL", "x": 1270, "fill": COLORS["gray_fill"], "stroke": COLORS["stroke"]},
+        {"id": "mount", "label": "Mounted Dirs", "x": 1435, "fill": COLORS["purple_fill"], "stroke": "#e9d5ff"},
     ]
     by_id = {item["id"]: item for item in participants}
-    sequence_start(lines, 1370, 840, "Sequence: Upload Validation & Distribution", participants)
+    sequence_start(lines, 1520, 880, "Sequence: Upload Validation, Cooldown & Mounted Distribution", participants)
     y = 170
     seq_msg(lines, by_id, "modal", "api", y, "POST /api/upload/me", "blue")
-    seq_msg(lines, by_id, "api", "controller", y + 42, "multipart zip", "blue")
-    seq_msg(lines, by_id, "controller", "session", y + 84, "requireSessionUser()", "red")
-    seq_msg(lines, by_id, "session", "db", y + 126, "load user by cookie", "green")
-    seq_msg(lines, by_id, "controller", "upload", y + 168, "uploadCode(user,file,ip)", "green")
-    seq_frame(lines, 690, 365, 620, 220, "Locked upload transaction", COLORS["green"])
-    seq_msg(lines, by_id, "upload", "db", y + 218, "check latest valid submission", "green")
-    seq_msg(lines, by_id, "upload", "db", y + 260, "insert UPLOADING", "green")
-    seq_msg(lines, by_id, "upload", "package", y + 302, "saveAndValidate()", "purple")
-    seq_msg(lines, by_id, "package", "package", y + 344, "extract + start.sh LF", "purple")
-    seq_msg(lines, by_id, "package", "mount", y + 386, "copy all target dirs", "purple")
-    seq_msg(lines, by_id, "upload", "db", y + 428, "store paths + UPLOADED", "green")
-    seq_msg(lines, by_id, "upload", "controller", y + 470, "SubmissionResponse", "gray", response=True)
-    seq_msg(lines, by_id, "controller", "modal", y + 512, "success animation", "gray", response=True)
-    seq_frame(lines, 692, 728, 620, 54, "alt: invalid zip or copy failure -> delete/FAILED + 400/409/500 mapped response", COLORS["red"])
-    for pid, start, height, color in [("controller", 210, 520, "#bbf7d0"), ("session", 248, 82, "#fecaca"), ("upload", 335, 355, "#bbf7d0"), ("package", 458, 170, "#e9d5ff")]:
+    seq_msg(lines, by_id, "api", "filter", y + 42, "X-Agent-Contest-Write-Key", "red")
+    seq_msg(lines, by_id, "filter", "controller", y + 84, "multipart zip", "blue")
+    seq_msg(lines, by_id, "controller", "session", y + 126, "requireSessionUser()", "red")
+    seq_msg(lines, by_id, "session", "db", y + 168, "load user by cookie", "green")
+    seq_msg(lines, by_id, "controller", "upload", y + 210, "uploadCode(user,file,ip)", "green")
+    seq_frame(lines, 815, 405, 660, 230, "Per-user locked upload transaction", COLORS["green"])
+    seq_msg(lines, by_id, "upload", "db", y + 260, "contest + app_settings interval", "green")
+    seq_msg(lines, by_id, "upload", "db", y + 302, "insert UPLOADING + submit_ip", "green")
+    seq_msg(lines, by_id, "upload", "package", y + 344, "saveAndValidate()", "purple")
+    seq_msg(lines, by_id, "package", "package", y + 386, "zip limits + start.sh LF", "purple")
+    seq_msg(lines, by_id, "package", "mount", y + 428, "copy every target dir", "purple")
+    seq_msg(lines, by_id, "upload", "db", y + 470, "paths + UPLOADED", "green")
+    seq_msg(lines, by_id, "upload", "controller", y + 512, "SubmissionResponse(id,queueAhead)", "gray", response=True)
+    seq_msg(lines, by_id, "controller", "modal", y + 554, "success animation", "gray", response=True)
+    seq_frame(lines, 820, 775, 650, 54, "alt: invalid zip -> delete row; distribution failure -> FAILED + message", COLORS["red"])
+    for pid, start, height, color in [("filter", 202, 72, "#fecaca"), ("controller", 250, 520, "#bbf7d0"), ("session", 288, 94, "#fecaca"), ("upload", 377, 390, "#bbf7d0"), ("package", 512, 170, "#e9d5ff")]:
         seq_activation(lines, by_id, pid, start, height, color)
     finish(lines, "09-upload-distribution-sequence.svg")
 
@@ -350,7 +353,7 @@ def render_log_download_sequence():
     ]
     by_id = {item["id"]: item for item in participants}
     sequence_start(lines, 1120, 720, "Sequence: Submission Log Download", participants)
-    seq_msg(lines, by_id, "script", "controller", 170, "GET /download?id&key", "blue")
+    seq_msg(lines, by_id, "script", "controller", 170, "GET /download?submission_id&key", "blue")
     seq_msg(lines, by_id, "controller", "controller", 220, "constant-time key check", "red")
     seq_frame(lines, 48, 250, 1020, 250, "Find mounted submission log", COLORS["green"])
     seq_msg(lines, by_id, "controller", "service", 285, "loadLogFile(id)", "green")
@@ -372,31 +375,33 @@ def render_system_architecture():
     lane(lines, 40, 466, 1120, 170, "Data, Files & Runtime Integration", COLORS["purple"])
     box(lines, 76, 112, 160, 64, "Browser", ["Vue SPA", "HTTPS redirect"], COLORS["blue_fill"], "#bfdbfe")
     box(lines, 286, 112, 160, 64, "Nginx / serve", ["static assets", "optional /api proxy"], COLORS["gray_fill"], COLORS["stroke"])
-    box(lines, 496, 112, 160, 64, "Internal Login", ["writes work id", "localStorage"], COLORS["orange_fill"], "#fed7aa")
+    box(lines, 496, 112, 160, 64, "Internal Login", ["optional guard", "writes work id"], COLORS["orange_fill"], "#fed7aa")
     box(lines, 706, 112, 160, 64, "Axios API", ["cookies", "write key"], COLORS["blue_fill"], "#bfdbfe")
-    box(lines, 104, 266, 150, 70, "Controllers", ["User / Upload", "Rank / Contest"], COLORS["green_fill"], "#bbf7d0")
-    box(lines, 304, 254, 178, 92, "Session Service", ["signed cookie", "uuid check", "audit warn"], COLORS["red_fill"], "#fecaca")
-    box(lines, 532, 254, 178, 92, "Business Services", ["User / Rank", "Contest config", "Upload rules"], COLORS["green_fill"], "#bbf7d0")
-    box(lines, 760, 254, 190, 92, "Package Service", ["zip validation", "start.sh LF", "mounted copy"], COLORS["purple_fill"], "#e9d5ff")
-    box(lines, 984, 266, 140, 70, "DTO Layer", ["snake_case JSON", "hidden paths"], COLORS["gray_fill"], COLORS["stroke"])
+    box(lines, 104, 266, 150, 70, "Write Filter", ["write API key", "POST/PUT/DELETE"], COLORS["red_fill"], "#fecaca")
+    box(lines, 304, 266, 150, 70, "Controllers", ["me endpoints", "Upload / Rank"], COLORS["green_fill"], "#bbf7d0")
+    box(lines, 504, 254, 178, 92, "Session Service", ["signed cookie", "uuid check", "audit warn"], COLORS["red_fill"], "#fecaca")
+    box(lines, 732, 254, 178, 92, "Business Services", ["User / Rank", "Contest config", "Upload rules"], COLORS["green_fill"], "#bbf7d0")
+    box(lines, 972, 254, 170, 92, "Package + Logs", ["mounted copy", "log templates", "hidden paths"], COLORS["purple_fill"], "#e9d5ff")
     db(lines, 145, 510, 130, 72, "MySQL", "#eff6ff", COLORS["blue"])
     box(lines, 310, 510, 160, 72, "Upload Store", ["uploads/{userId}", "{submissionId}.zip"], COLORS["orange_fill"], "#fed7aa")
     box(lines, 520, 510, 180, 72, "Mounted Targets", ["AgentContest/programs", "all copies required"], COLORS["purple_fill"], "#e9d5ff")
     box(lines, 750, 510, 160, 72, "Judge Service", ["reads package", "writes score"], COLORS["green_fill"], "#bbf7d0")
     box(lines, 960, 510, 150, 72, "Log Mounts", ["{submissionId}/*.log", "download by key"], COLORS["gray_fill"], COLORS["stroke"])
+    box(lines, 500, 640, 190, 54, "app_settings", ["upload_interval_minutes"], COLORS["orange_fill"], "#fed7aa")
     arrow(lines, [(236, 144), (286, 144)], "blue", "assets")
     arrow(lines, [(656, 144), (706, 144)], "blue", "API calls")
     arrow(lines, [(786, 176), (786, 224), (178, 224), (178, 266)], "blue", "REST")
-    arrow(lines, [(254, 300), (304, 300)], "red", "auth")
-    arrow(lines, [(482, 300), (532, 300)], "green", "rules")
-    arrow(lines, [(710, 300), (760, 300)], "purple", "package")
-    arrow(lines, [(621, 346), (621, 466), (145, 466), (145, 510)], "green", "JPA")
-    arrow(lines, [(855, 346), (855, 420), (390, 420), (390, 510)], "purple", "save zip")
-    arrow(lines, [(950, 300), (984, 300)], "green", "response")
+    arrow(lines, [(254, 300), (304, 300)], "red", "allowed")
+    arrow(lines, [(454, 300), (504, 300)], "red", "auth")
+    arrow(lines, [(682, 300), (732, 300)], "green", "rules")
+    arrow(lines, [(910, 300), (972, 300)], "purple", "files")
+    arrow(lines, [(821, 346), (821, 466), (145, 466), (145, 510)], "green", "JPA")
+    arrow(lines, [(1057, 346), (1057, 420), (390, 420), (390, 510)], "purple", "save zip")
     arrow(lines, [(470, 546), (520, 546)], "purple", "copy")
     arrow(lines, [(700, 546), (750, 546)], "orange", "evaluate", True)
     arrow(lines, [(830, 510), (830, 470), (210, 470), (210, 510)], "green", "score_detail", True)
-    arrow(lines, [(1035, 510), (1035, 440), (850, 440), (850, 346)], "gray", "log query", True)
+    arrow(lines, [(1035, 510), (1035, 440), (1057, 440), (1057, 346)], "gray", "log query", True)
+    arrow(lines, [(595, 640), (595, 600), (780, 600), (780, 346)], "orange", "cooldown", True)
     legend(lines, 55, 705, [("blue", "HTTP / REST", False), ("red", "identity check", False), ("green", "database data", False), ("purple", "file distribution", False), ("orange", "judge async work", True)])
     finish(lines, "01-system-architecture.svg")
 
@@ -404,37 +409,44 @@ def render_system_architecture():
 def render_backend_class_diagram():
     lines = []
     svg_start(lines, 1280, 940, "Backend Class Diagram")
-    lane(lines, 40, 78, 1200, 170, "Controller Layer", COLORS["blue"])
+    lane(lines, 40, 78, 1200, 170, "API Entry Layer", COLORS["blue"])
     lane(lines, 40, 278, 1200, 300, "Service Layer", COLORS["green"])
     lane(lines, 40, 608, 1200, 220, "Repository & Entity Layer", COLORS["purple"])
     controllers = [
+        ("WriteApiKeyFilter", "+ doFilterInternal()", "- requiresWriteKey()"),
         ("UserController", "+ createUser()", "+ listMySubmissions()"),
-        ("UploadController", "+ uploadCode()", "- resolveClientIp()"),
+        ("UploadController", "+ uploadCode()", "+ resolveClientIp()"),
         ("RankController", "+ listRankPage()", "+ getMyRank()"),
-        ("ContestController", "+ getContestConfig()", ""),
-        ("LogDownloadController", "+ downloadLog()", "- secretMatches()"),
+        ("LogDownloadController", "+ downloadLog()", "+ keyVerifier.matches()"),
     ]
     for index, (title, method1, method2) in enumerate(controllers):
         class_box(lines, 70 + index * 236, 116, 190, title, ["- service refs"], [method1, method2], COLORS["blue_fill"], "#bfdbfe")
     services = [
         ("UserService", ["- userRepository", "- submissionRepository"], ["+ listSubmissions()", "+ cancelSubmission()", "+ createUserEntity()"]),
         ("UserSessionService", ["- secret", "- sessionTtl"], ["+ requireSessionUser()", "+ writeSessionCookie()", "+ verifyCurrentUserId()"]),
-        ("UploadService", ["- clock", "- cooldown statuses"], ["+ uploadCode()", "- validateUserCanUpload()", "- markUploaded()"]),
+        ("UploadService", ["- clock", "- cooldown policy"], ["+ uploadCode()", "- validateUserCanUpload()", "- markUploaded()"]),
         ("PackageService", ["- uploadDir", "- targetDirs"], ["+ validateUploadFile()", "+ saveAndValidate()", "+ distribute()"]),
         ("RankService", ["- submissionRepository"], ["+ listRankPage()", "+ getUserRank()", "- buildRankRows()"]),
-        ("ContestConfigService", ["- currentContest", "- startsAt / endsAt"], ["+ currentContest()", "+ validateWindow()"]),
+        ("ContestConfigService", ["- title / challenge", "- startsAt / endsAt"], ["+ currentContest()", "+ validateWindow()"]),
         ("AppSettingService", ["- repository"], ["+ uploadInterval()"]),
         ("LogDownloadService", ["- directoryTemplates"], ["+ loadLogFile()"]),
     ]
     positions = [(65, 315), (310, 315), (555, 315), (800, 315), (1045, 315), (190, 455), (495, 455), (800, 455)]
     for item, (x, y) in zip(services, positions):
         class_box(lines, x, y, 210, item[0], item[1], item[2], COLORS["green_fill"], "#bbf7d0")
-    repos = [("UserRepository", "UserEntity"), ("SubmissionRepository", "SubmissionEntity"), ("QuestionRepo", "QuestionDetailEntity"), ("TestAccountRepo", "TestAccountEntity"), ("AppSettingRepo", "AppSettingEntity")]
+    repos = [
+        ("UserRepository", "UserEntity"),
+        ("SubmissionRepository", "SubmissionEntity"),
+        ("QuestionRepo", "QuestionDetailEntity"),
+        ("TestAccountRepo", "TestAccountEntity"),
+        ("EmergencyLoginRepo", "EmergencyLoginEntity"),
+        ("AppSettingRepo", "AppSettingEntity"),
+    ]
     for index, (repo, entity_name) in enumerate(repos):
-        x = 70 + index * 235
-        class_box(lines, x, 650, 190, repo, ["<<JpaRepository>>"], ["+ query methods"], COLORS["purple_fill"], "#e9d5ff")
-        class_box(lines, x, 765, 190, entity_name, ["@Entity"], ["getters/setters"], COLORS["gray_fill"], COLORS["stroke"])
-        arrow(lines, [(x + 95, 737), (x + 95, 765)], "gray", "maps", True)
+        x = 55 + index * 200
+        class_box(lines, x, 650, 175, repo, ["<<JpaRepository>>"], ["+ query methods"], COLORS["purple_fill"], "#e9d5ff")
+        class_box(lines, x, 765, 175, entity_name, ["@Entity"], ["getters/setters"], COLORS["gray_fill"], COLORS["stroke"])
+        arrow(lines, [(x + 88, 737), (x + 88, 765)], "gray", "maps", True)
     for points in [[(165, 248), (165, 270), (170, 270), (170, 315)], [(405, 248), (405, 270), (415, 270), (415, 315)], [(640, 248), (640, 270), (1150, 270), (1150, 315)], [(875, 248), (875, 270), (295, 270), (295, 455)], [(1110, 248), (1110, 270), (905, 270), (905, 455)]]:
         arrow(lines, points, "blue", None, True)
     for points in [[(170, 430), (170, 600), (165, 600), (165, 650)], [(660, 430), (660, 600), (400, 600), (400, 650)], [(1150, 430), (1150, 600), (400, 600), (400, 650)], [(600, 548), (600, 600), (870, 600), (870, 650)], [(170, 430), (170, 600), (635, 600), (635, 650)], [(905, 548), (905, 600), (400, 600), (400, 650)]]:
@@ -445,37 +457,54 @@ def render_backend_class_diagram():
 
 def render_frontend_module_diagram():
     lines = []
-    svg_start(lines, 1180, 760, "Frontend Module Diagram")
-    lane(lines, 40, 76, 1100, 120, "App Entrypoint & Login Guard", COLORS["blue"])
-    lane(lines, 40, 226, 1100, 230, "Composable State Boundaries", COLORS["green"])
-    lane(lines, 40, 486, 1100, 150, "Feature Components", COLORS["purple"])
-    box(lines, 80, 112, 170, 64, "main.js", ["HTTPS redirect", "third-party guard"], COLORS["blue_fill"], "#bfdbfe")
-    box(lines, 310, 112, 170, 64, "App.vue", ["page switch", "modal state"], COLORS["blue_fill"], "#bfdbfe")
-    box(lines, 540, 112, 190, 64, "api/index.js", ["Axios instance", "me endpoints"], COLORS["orange_fill"], "#fed7aa")
-    box(lines, 790, 112, 170, 64, "localStorage", ["third party id", "cached user"], COLORS["gray_fill"], COLORS["stroke"])
-    box(lines, 84, 270, 185, 78, "useUserSession", ["currentUser", "register / emergency"], COLORS["green_fill"], "#bbf7d0")
-    box(lines, 315, 270, 185, 78, "useContestConfig", ["GET config", "local fallback"], COLORS["green_fill"], "#bbf7d0")
-    box(lines, 546, 270, 185, 78, "useContestClock", ["phase", "countdown"], COLORS["green_fill"], "#bbf7d0")
-    box(lines, 777, 270, 185, 78, "useErrorDialog", ["message modal", "close"], COLORS["green_fill"], "#bbf7d0")
-    box(lines, 85, 518, 170, 70, "UploadModal", ["zip select", "progress state"], COLORS["purple_fill"], "#e9d5ff")
-    box(lines, 315, 518, 170, 70, "HistoryPage", ["auto refresh", "cancel queue"], COLORS["purple_fill"], "#e9d5ff")
-    box(lines, 545, 518, 170, 70, "RankingBoard", ["page 20", "sort/search"], COLORS["purple_fill"], "#e9d5ff")
-    box(lines, 775, 518, 170, 70, "ErrorModal", ["friendly errors"], COLORS["red_fill"], "#fecaca")
-    box(lines, 970, 518, 130, 70, "HistoryModal", ["score details"], COLORS["gray_fill"], COLORS["stroke"])
-    arrow(lines, [(250, 144), (310, 144)], "blue", "mount")
-    arrow(lines, [(480, 144), (540, 144)], "blue", "calls")
-    arrow(lines, [(875, 176), (875, 206), (180, 206), (180, 270)], "gray", "read/write", True)
-    arrow(lines, [(395, 176), (395, 270)], "green", "config")
-    arrow(lines, [(395, 348), (638, 348)], "green", "dates")
-    arrow(lines, [(405, 176), (176, 270)], "green", "session")
-    arrow(lines, [(420, 176), (870, 270)], "red", "errors")
-    arrow(lines, [(625, 176), (625, 226)], "blue", "HTTP")
-    arrow(lines, [(177, 348), (177, 518)], "blue", "upload state")
-    arrow(lines, [(407, 348), (400, 518)], "blue", "history")
-    arrow(lines, [(637, 348), (630, 518)], "blue", "ranking")
-    arrow(lines, [(870, 348), (860, 518)], "red", "modal")
-    arrow(lines, [(485, 553), (970, 553)], "purple", "detail")
-    legend(lines, 60, 675, [("blue", "component/API use", False), ("green", "contest/session state", False), ("red", "error state", False), ("gray", "browser storage", True)])
+    svg_start(lines, 1280, 860, "Frontend Module Diagram")
+    lane(lines, 40, 76, 1200, 120, "Entrypoint, API & Browser State", COLORS["blue"])
+    lane(lines, 40, 226, 1200, 170, "App-level Composables", COLORS["green"])
+    lane(lines, 40, 426, 1200, 160, "Feature Components", COLORS["purple"])
+    lane(lines, 40, 616, 1200, 120, "Feature Composables & Display Utilities", COLORS["orange"])
+
+    box(lines, 70, 112, 160, 64, "main.js", ["HTTPS redirect", "optional login guard"], COLORS["blue_fill"], "#bfdbfe")
+    box(lines, 275, 112, 160, 64, "App.vue", ["page shell", "modal routing"], COLORS["blue_fill"], "#bfdbfe")
+    box(lines, 480, 112, 180, 64, "api/index.js", ["Axios instance", "me endpoints"], COLORS["orange_fill"], "#fed7aa")
+    box(lines, 710, 112, 170, 64, "userStorage", ["third_party id", "cached profile"], COLORS["gray_fill"], COLORS["stroke"])
+    box(lines, 930, 112, 190, 64, "contestDefaults", ["fallback only", "backend wins"], COLORS["gray_fill"], COLORS["stroke"])
+
+    box(lines, 70, 270, 180, 78, "useUserSession", ["GET me / POST users", "emergency login"], COLORS["green_fill"], "#bbf7d0")
+    box(lines, 300, 270, 180, 78, "useContestConfig", ["GET contest config", "normalize fallback"], COLORS["green_fill"], "#bbf7d0")
+    box(lines, 530, 270, 180, 78, "useContestClock", ["phase", "countdown"], COLORS["green_fill"], "#bbf7d0")
+    box(lines, 760, 270, 180, 78, "useErrorDialog", ["friendly messages", "global modal"], COLORS["green_fill"], "#bbf7d0")
+    box(lines, 990, 270, 180, 78, "useIntervalTimer", ["refresh lifecycle", "auto stop"], COLORS["green_fill"], "#bbf7d0")
+
+    box(lines, 70, 470, 160, 70, "RegisterPanel", ["normal/emergency", "nickname once"], COLORS["purple_fill"], "#e9d5ff")
+    box(lines, 275, 470, 160, 70, "SchedulePanel", ["date + countdown", "phase copy"], COLORS["purple_fill"], "#e9d5ff")
+    box(lines, 480, 470, 160, 70, "UploadModal", ["zip select", "progress state"], COLORS["purple_fill"], "#e9d5ff")
+    box(lines, 685, 470, 160, 70, "HistoryPage", ["auto refresh", "cancel queue"], COLORS["purple_fill"], "#e9d5ff")
+    box(lines, 890, 470, 160, 70, "RankingBoard", ["20 rows", "sort/search"], COLORS["purple_fill"], "#e9d5ff")
+    box(lines, 1095, 470, 110, 70, "ErrorModal", ["errors"], COLORS["red_fill"], "#fecaca")
+
+    box(lines, 430, 650, 170, 60, "usePackageUpload", ["file rules", "upload API"], COLORS["orange_fill"], "#fed7aa")
+    box(lines, 645, 650, 180, 60, "useSubmissionHistory", ["score details", "queue summary"], COLORS["orange_fill"], "#fed7aa")
+    box(lines, 870, 650, 170, 60, "useRankingBoard", ["request seq", "2 columns"], COLORS["orange_fill"], "#fed7aa")
+    box(lines, 1065, 650, 145, 60, "utils", ["display parsers", "score format"], COLORS["gray_fill"], COLORS["stroke"])
+
+    arrow(lines, [(230, 144), (275, 144)], "blue", "mount")
+    arrow(lines, [(435, 144), (480, 144)], "blue", "API")
+    arrow(lines, [(795, 176), (795, 215), (160, 215), (160, 270)], "gray", "read/write", True)
+    arrow(lines, [(1025, 176), (1025, 215), (390, 215), (390, 270)], "gray", "fallback", True)
+    arrow(lines, [(355, 176), (160, 270)], "green", "session")
+    arrow(lines, [(355, 176), (390, 270)], "green", "config")
+    arrow(lines, [(390, 348), (620, 348)], "green", "dates")
+    arrow(lines, [(355, 176), (850, 270)], "red", "errors")
+    arrow(lines, [(1080, 348), (1080, 616), (735, 616), (735, 650)], "green", "timer")
+    arrow(lines, [(160, 348), (150, 470)], "green", "login")
+    arrow(lines, [(620, 348), (355, 470)], "green", "schedule")
+    arrow(lines, [(570, 540), (515, 650)], "blue", "upload")
+    arrow(lines, [(765, 540), (735, 650)], "blue", "history")
+    arrow(lines, [(970, 540), (955, 650)], "blue", "ranking")
+    arrow(lines, [(850, 348), (1150, 470)], "red", "error state")
+    arrow(lines, [(825, 680), (1065, 680)], "purple", "normalize")
+    arrow(lines, [(1040, 680), (1065, 680)], "purple", "format")
+    legend(lines, 60, 780, [("blue", "component/API collaboration", False), ("green", "session/contest state", False), ("red", "error state", False), ("gray", "browser or fallback data", True), ("orange", "feature composables", False)])
     finish(lines, "03-frontend-module-diagram.svg")
 
 
@@ -486,13 +515,13 @@ def render_upload_flow():
         (120, 110, "User clicks Upload", "Frontend opens modal", "box"),
         (120, 220, "Select .zip", "client extension check", "io"),
         (120, 330, "POST /api/upload/me", "cookie + write key", "box"),
-        (420, 110, "Require session", "signed cookie -> user", "box"),
-        (420, 220, "Validate rules", "contest window / interval", "diamond"),
-        (420, 330, "Create submission", "status = UPLOADING", "box"),
+        (420, 110, "Write key + session", "filter + signed cookie", "box"),
+        (420, 220, "Validate rules", "contest / db interval / night", "diamond"),
+        (420, 330, "Create submission", "UPLOADING + submit_ip", "box"),
         (720, 110, "Save zip", "uploads/user/id.zip", "box"),
         (720, 220, "Extract validate", "zip-slip / size / start.sh LF", "box"),
         (720, 330, "Copy package", "programs + mounted targets", "box"),
-        (420, 460, "Mark UPLOADED", "store paths + queueAhead", "box"),
+        (420, 460, "Mark UPLOADED", "hide paths, return id + queueAhead", "box"),
         (720, 460, "Return success", "frontend check animation", "box"),
         (120, 590, "Failure branch", "delete or mark FAILED", "box"),
     ]:
@@ -530,17 +559,17 @@ def render_login_session_flow():
     lane(lines, 54, 80, 1050, 140, "Third-party Bootstrap", COLORS["blue"])
     lane(lines, 54, 250, 1050, 190, "Backend Session Issuing", COLORS["green"])
     lane(lines, 54, 470, 1050, 150, "Protected Requests", COLORS["red"])
-    box(lines, 90, 120, 170, 62, "Route Guard", ["check localStorage", "or redirect login"], COLORS["blue_fill"], "#bfdbfe")
-    box(lines, 320, 120, 170, 62, "Internal Login", ["returns work id", "store 8 digits"], COLORS["orange_fill"], "#fed7aa")
-    box(lines, 550, 120, 170, 62, "Vue App", ["initializeSession", "POST users"], COLORS["blue_fill"], "#bfdbfe")
-    box(lines, 90, 300, 190, 72, "POST /api/users", ["X-Agent-Contest-User-Id", "new user needs nickname"], COLORS["green_fill"], "#bbf7d0")
+    box(lines, 90, 120, 170, 62, "main.js", ["HTTPS redirect", "optional login guard"], COLORS["blue_fill"], "#bfdbfe")
+    box(lines, 320, 120, 170, 62, "Internal Login", ["status endpoint", "store work id"], COLORS["orange_fill"], "#fed7aa")
+    box(lines, 550, 120, 170, 62, "Vue App", ["GET me first", "then POST users"], COLORS["blue_fill"], "#bfdbfe")
+    box(lines, 90, 300, 190, 72, "POST /api/users", ["X-Agent-Contest-User-Id", "nickname only for new"], COLORS["green_fill"], "#bbf7d0")
     box(lines, 340, 300, 190, 72, "UserService", ["create or find user", "nickname immutable"], COLORS["green_fill"], "#bbf7d0")
     box(lines, 590, 300, 190, 72, "UserSessionService", ["HMAC token", "userId + uuid + exp"], COLORS["red_fill"], "#fecaca")
-    box(lines, 840, 300, 170, 72, "HttpOnly Cookie", ["agent_contest_session", "SameSite=Lax"], COLORS["gray_fill"], COLORS["stroke"])
+    box(lines, 840, 300, 170, 72, "Cookie", ["agent_contest_session", "SameSite=Lax"], COLORS["gray_fill"], COLORS["stroke"])
     box(lines, 120, 515, 190, 72, "me endpoints", ["/api/users/me", "/api/upload/me"], COLORS["blue_fill"], "#bfdbfe")
     box(lines, 395, 515, 190, 72, "requireSessionUser", ["verify signature", "uuid equals DB"], COLORS["red_fill"], "#fecaca")
     db(lines, 760, 515, 140, 72, "users table", "#eff6ff", COLORS["blue"])
-    box(lines, 940, 515, 120, 72, "403/401 logs", ["mismatch audit"], COLORS["red_fill"], "#fecaca")
+    box(lines, 940, 515, 120, 72, "401/403 logs", ["mismatch audit"], COLORS["red_fill"], "#fecaca")
     arrow(lines, [(260, 151), (320, 151)], "blue", "redirect")
     arrow(lines, [(490, 151), (550, 151)], "blue", "work id")
     arrow(lines, [(635, 182), (185, 300)], "blue", "bootstrap")
@@ -551,6 +580,9 @@ def render_login_session_flow():
     arrow(lines, [(310, 551), (395, 551)], "red", "cookie")
     arrow(lines, [(585, 551), (760, 551)], "green", "uuid lookup")
     arrow(lines, [(585, 570), (640, 570), (640, 630), (940, 630), (940, 587)], "red", "reject", True)
+    box(lines, 760, 120, 190, 62, "Emergency Login", ["POST emergency-login", "DB whitelist"], COLORS["orange_fill"], "#fed7aa")
+    arrow(lines, [(720, 151), (760, 151)], "orange", "fallback")
+    arrow(lines, [(855, 182), (855, 250), (675, 250), (675, 300)], "orange", "Set-Cookie")
     legend(lines, 60, 690, [("blue", "frontend navigation / API", False), ("green", "user lookup", False), ("red", "session security", False)])
     finish(lines, "05-login-session-flow.svg")
 
@@ -569,7 +601,7 @@ def render_evaluation_flow():
     db(lines, 745, 314, 150, 82, "submissions", "#eff6ff", COLORS["blue"])
     box(lines, 920, 315, 150, 78, "question_details", ["title + detail", "1..10"], COLORS["purple_fill"], "#e9d5ff")
     box(lines, 110, 535, 200, 64, "HistoryPage", ["GET me/submissions", "queue summary"], COLORS["blue_fill"], "#bfdbfe")
-    box(lines, 390, 535, 210, 64, "mergeQuestionScoreDetails", ["score_detail + questions", "decimal score"], COLORS["purple_fill"], "#e9d5ff")
+    box(lines, 390, 535, 210, 64, "mergeQuestionScoreDetails", ["DB score_detail + questions", "decimal score"], COLORS["purple_fill"], "#e9d5ff")
     box(lines, 720, 535, 200, 64, "Detail Modal", ["left question list", "right long detail"], COLORS["purple_fill"], "#e9d5ff")
     arrow(lines, [(270, 160), (340, 160)], "blue", "picked")
     arrow(lines, [(520, 160), (590, 160)], "green", "finished")
@@ -587,7 +619,7 @@ def render_database_er():
     lines = []
     svg_start(lines, 1280, 760, "Database ER Diagram")
     entity(lines, 70, 110, 230, "users", ["PK user_id varchar(64)", "username varchar(64)", "UK client_uuid char(36)"])
-    entity(lines, 500, 94, 290, "submissions", ["PK id bigint auto", "FK user_id varchar(64)", "status varchar(32)", "package_id char(36) unique", "score decimal(12,4)", "score_detail text", "token_usage bigint", "stored/original file path", "submit_ip, created_at"])
+    entity(lines, 500, 94, 290, "submissions", ["PK id bigint auto", "FK user_id varchar(64)", "status varchar(32)", "package_id char(36) unique", "score decimal(12,4)", "score_detail text", "token_usage bigint", "error_message varchar(500)", "stored/original paths hidden", "submit_ip, created_at"])
     entity(lines, 935, 120, 250, "question_details", ["PK id int", "title varchar(128)", "detail text"])
     entity(lines, 70, 390, 230, "test_accounts", ["PK/FK user_id varchar(64)"])
     entity(lines, 390, 390, 260, "emergency_login_accounts", ["PK/FK user_id varchar(64)", "enabled tinyint(1)"])

@@ -49,35 +49,35 @@ text { font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsof
 <text x="366.0" y="174" text-anchor="middle" class="small">optional /api proxy</text>
 <rect x="496" y="112" width="160" height="64" rx="10" fill="#fff7ed" stroke="#fed7aa" stroke-width="1.5" filter="url(#softShadow)"/>
 <text x="576.0" y="139" text-anchor="middle" class="label">Internal Login</text>
-<text x="576.0" y="159" text-anchor="middle" class="small">writes work id</text>
-<text x="576.0" y="174" text-anchor="middle" class="small">localStorage</text>
+<text x="576.0" y="159" text-anchor="middle" class="small">optional guard</text>
+<text x="576.0" y="174" text-anchor="middle" class="small">writes work id</text>
 <rect x="706" y="112" width="160" height="64" rx="10" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5" filter="url(#softShadow)"/>
 <text x="786.0" y="139" text-anchor="middle" class="label">Axios API</text>
 <text x="786.0" y="159" text-anchor="middle" class="small">cookies</text>
 <text x="786.0" y="174" text-anchor="middle" class="small">write key</text>
-<rect x="104" y="266" width="150" height="70" rx="10" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5" filter="url(#softShadow)"/>
-<text x="179.0" y="293" text-anchor="middle" class="label">Controllers</text>
-<text x="179.0" y="313" text-anchor="middle" class="small">User / Upload</text>
-<text x="179.0" y="328" text-anchor="middle" class="small">Rank / Contest</text>
-<rect x="304" y="254" width="178" height="92" rx="10" fill="#fef2f2" stroke="#fecaca" stroke-width="1.5" filter="url(#softShadow)"/>
-<text x="393.0" y="281" text-anchor="middle" class="label">Session Service</text>
-<text x="393.0" y="301" text-anchor="middle" class="small">signed cookie</text>
-<text x="393.0" y="316" text-anchor="middle" class="small">uuid check</text>
-<text x="393.0" y="331" text-anchor="middle" class="small">audit warn</text>
-<rect x="532" y="254" width="178" height="92" rx="10" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5" filter="url(#softShadow)"/>
-<text x="621.0" y="281" text-anchor="middle" class="label">Business Services</text>
-<text x="621.0" y="301" text-anchor="middle" class="small">User / Rank</text>
-<text x="621.0" y="316" text-anchor="middle" class="small">Contest config</text>
-<text x="621.0" y="331" text-anchor="middle" class="small">Upload rules</text>
-<rect x="760" y="254" width="190" height="92" rx="10" fill="#faf5ff" stroke="#e9d5ff" stroke-width="1.5" filter="url(#softShadow)"/>
-<text x="855.0" y="281" text-anchor="middle" class="label">Package Service</text>
-<text x="855.0" y="301" text-anchor="middle" class="small">zip validation</text>
-<text x="855.0" y="316" text-anchor="middle" class="small">start.sh LF</text>
-<text x="855.0" y="331" text-anchor="middle" class="small">mounted copy</text>
-<rect x="984" y="266" width="140" height="70" rx="10" fill="#f9fafb" stroke="#d1d5db" stroke-width="1.5" filter="url(#softShadow)"/>
-<text x="1054.0" y="293" text-anchor="middle" class="label">DTO Layer</text>
-<text x="1054.0" y="313" text-anchor="middle" class="small">snake_case JSON</text>
-<text x="1054.0" y="328" text-anchor="middle" class="small">hidden paths</text>
+<rect x="104" y="266" width="150" height="70" rx="10" fill="#fef2f2" stroke="#fecaca" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="179.0" y="293" text-anchor="middle" class="label">Write Filter</text>
+<text x="179.0" y="313" text-anchor="middle" class="small">write API key</text>
+<text x="179.0" y="328" text-anchor="middle" class="small">POST/PUT/DELETE</text>
+<rect x="304" y="266" width="150" height="70" rx="10" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="379.0" y="293" text-anchor="middle" class="label">Controllers</text>
+<text x="379.0" y="313" text-anchor="middle" class="small">me endpoints</text>
+<text x="379.0" y="328" text-anchor="middle" class="small">Upload / Rank</text>
+<rect x="504" y="254" width="178" height="92" rx="10" fill="#fef2f2" stroke="#fecaca" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="593.0" y="281" text-anchor="middle" class="label">Session Service</text>
+<text x="593.0" y="301" text-anchor="middle" class="small">signed cookie</text>
+<text x="593.0" y="316" text-anchor="middle" class="small">uuid check</text>
+<text x="593.0" y="331" text-anchor="middle" class="small">audit warn</text>
+<rect x="732" y="254" width="178" height="92" rx="10" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="821.0" y="281" text-anchor="middle" class="label">Business Services</text>
+<text x="821.0" y="301" text-anchor="middle" class="small">User / Rank</text>
+<text x="821.0" y="316" text-anchor="middle" class="small">Contest config</text>
+<text x="821.0" y="331" text-anchor="middle" class="small">Upload rules</text>
+<rect x="972" y="254" width="170" height="92" rx="10" fill="#faf5ff" stroke="#e9d5ff" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="1057.0" y="281" text-anchor="middle" class="label">Package + Logs</text>
+<text x="1057.0" y="301" text-anchor="middle" class="small">mounted copy</text>
+<text x="1057.0" y="316" text-anchor="middle" class="small">log templates</text>
+<text x="1057.0" y="331" text-anchor="middle" class="small">hidden paths</text>
 <ellipse cx="145" cy="510" rx="65.0" ry="18.571428571428573" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
 <rect x="80.0" y="510" width="130" height="72" fill="#eff6ff" stroke="none"/>
 <line x1="80.0" y1="510" x2="80.0" y2="582" stroke="#2563eb" stroke-width="1.5"/>
@@ -100,6 +100,9 @@ text { font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsof
 <text x="1035.0" y="537" text-anchor="middle" class="label">Log Mounts</text>
 <text x="1035.0" y="557" text-anchor="middle" class="small">{submissionId}/*.log</text>
 <text x="1035.0" y="572" text-anchor="middle" class="small">download by key</text>
+<rect x="500" y="640" width="190" height="54" rx="10" fill="#fff7ed" stroke="#fed7aa" stroke-width="1.5" filter="url(#softShadow)"/>
+<text x="595.0" y="667" text-anchor="middle" class="label">app_settings</text>
+<text x="595.0" y="687" text-anchor="middle" class="small">upload_interval_minutes</text>
 <path d="M 236 144 L 286 144" fill="none" stroke="#2563eb" stroke-width="1.8" marker-end="url(#arrow-blue)"/>
 <rect x="207.0" y="124.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
 <text x="261.0" y="137.0" text-anchor="middle" class="tiny">assets</text>
@@ -111,22 +114,22 @@ text { font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsof
 <text x="482.0" y="217.0" text-anchor="middle" class="tiny">REST</text>
 <path d="M 254 300 L 304 300" fill="none" stroke="#dc2626" stroke-width="1.8" marker-end="url(#arrow-red)"/>
 <rect x="225.0" y="280.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
-<text x="279.0" y="293.0" text-anchor="middle" class="tiny">auth</text>
-<path d="M 482 300 L 532 300" fill="none" stroke="#16a34a" stroke-width="1.8" marker-end="url(#arrow-green)"/>
-<rect x="453.0" y="280.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
-<text x="507.0" y="293.0" text-anchor="middle" class="tiny">rules</text>
-<path d="M 710 300 L 760 300" fill="none" stroke="#9333ea" stroke-width="1.8" marker-end="url(#arrow-purple)"/>
-<rect x="681.0" y="280.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
-<text x="735.0" y="293.0" text-anchor="middle" class="tiny">package</text>
-<path d="M 621 346 L 621 466 L 145 466 L 145 510" fill="none" stroke="#16a34a" stroke-width="1.8" marker-end="url(#arrow-green)"/>
-<rect x="329.0" y="446.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
-<text x="383.0" y="459.0" text-anchor="middle" class="tiny">JPA</text>
-<path d="M 855 346 L 855 420 L 390 420 L 390 510" fill="none" stroke="#9333ea" stroke-width="1.8" marker-end="url(#arrow-purple)"/>
-<rect x="568.5" y="400.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
-<text x="622.5" y="413.0" text-anchor="middle" class="tiny">save zip</text>
-<path d="M 950 300 L 984 300" fill="none" stroke="#16a34a" stroke-width="1.8" marker-end="url(#arrow-green)"/>
-<rect x="913.0" y="280.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
-<text x="967.0" y="293.0" text-anchor="middle" class="tiny">response</text>
+<text x="279.0" y="293.0" text-anchor="middle" class="tiny">allowed</text>
+<path d="M 454 300 L 504 300" fill="none" stroke="#dc2626" stroke-width="1.8" marker-end="url(#arrow-red)"/>
+<rect x="425.0" y="280.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
+<text x="479.0" y="293.0" text-anchor="middle" class="tiny">auth</text>
+<path d="M 682 300 L 732 300" fill="none" stroke="#16a34a" stroke-width="1.8" marker-end="url(#arrow-green)"/>
+<rect x="653.0" y="280.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
+<text x="707.0" y="293.0" text-anchor="middle" class="tiny">rules</text>
+<path d="M 910 300 L 972 300" fill="none" stroke="#9333ea" stroke-width="1.8" marker-end="url(#arrow-purple)"/>
+<rect x="887.0" y="280.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
+<text x="941.0" y="293.0" text-anchor="middle" class="tiny">files</text>
+<path d="M 821 346 L 821 466 L 145 466 L 145 510" fill="none" stroke="#16a34a" stroke-width="1.8" marker-end="url(#arrow-green)"/>
+<rect x="429.0" y="446.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
+<text x="483.0" y="459.0" text-anchor="middle" class="tiny">JPA</text>
+<path d="M 1057 346 L 1057 420 L 390 420 L 390 510" fill="none" stroke="#9333ea" stroke-width="1.8" marker-end="url(#arrow-purple)"/>
+<rect x="669.5" y="400.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
+<text x="723.5" y="413.0" text-anchor="middle" class="tiny">save zip</text>
 <path d="M 470 546 L 520 546" fill="none" stroke="#9333ea" stroke-width="1.8" marker-end="url(#arrow-purple)"/>
 <rect x="441.0" y="526.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
 <text x="495.0" y="539.0" text-anchor="middle" class="tiny">copy</text>
@@ -136,9 +139,12 @@ text { font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsof
 <path d="M 830 510 L 830 470 L 210 470 L 210 510" fill="none" stroke="#16a34a" stroke-width="1.8" marker-end="url(#arrow-green)" stroke-dasharray="5,4"/>
 <rect x="466.0" y="450.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
 <text x="520.0" y="463.0" text-anchor="middle" class="tiny">score_detail</text>
-<path d="M 1035 510 L 1035 440 L 850 440 L 850 346" fill="none" stroke="#6b7280" stroke-width="1.8" marker-end="url(#arrow-gray)" stroke-dasharray="5,4"/>
-<rect x="888.5" y="420.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
-<text x="942.5" y="433.0" text-anchor="middle" class="tiny">log query</text>
+<path d="M 1035 510 L 1035 440 L 1057 440 L 1057 346" fill="none" stroke="#6b7280" stroke-width="1.8" marker-end="url(#arrow-gray)" stroke-dasharray="5,4"/>
+<rect x="992.0" y="420.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
+<text x="1046.0" y="433.0" text-anchor="middle" class="tiny">log query</text>
+<path d="M 595 640 L 595 600 L 780 600 L 780 346" fill="none" stroke="#ea580c" stroke-width="1.8" marker-end="url(#arrow-orange)" stroke-dasharray="5,4"/>
+<rect x="633.5" y="580.0" width="108" height="18" rx="9" fill="#ffffff" opacity="0.94"/>
+<text x="687.5" y="593.0" text-anchor="middle" class="tiny">cooldown</text>
 <g transform="translate(55,705)">
 <line x1="0" y1="8" x2="30" y2="8" stroke="#2563eb" stroke-width="1.7" marker-end="url(#arrow-blue)"/>
 <text x="38" y="12" class="small">HTTP / REST</text>
